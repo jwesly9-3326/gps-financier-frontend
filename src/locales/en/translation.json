@@ -1,0 +1,1825 @@
+{
+  "common": {
+    "appName": "Pl4to",
+    "tagline": "Navigate to your new economy",
+    "loading": "Loading...",
+    "save": "Save",
+    "saved": "✓ Saved",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleted": "✓ Deleted",
+    "edit": "Edit",
+    "close": "Close",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "finish": "Finish!",
+    "add": "Add",
+    "yes": "Yes",
+    "no": "No",
+    "or": "or",
+    "and": "and",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "yesterday": "Yesterday",
+    "day": "day",
+    "optional": "optional",
+    "select": "Select...",
+    "noDescription": "No description",
+    "understood": "Got it!",
+    "onContinue": "Let's continue!"
+  },
+  "trial": {
+    "freeTrialActive": "Free trial",
+    "daysRemaining": "days remaining",
+    "dayRemaining": "day remaining",
+    "trialExpired": "Trial ended",
+    "welcome": {
+      "title": "Welcome to your Financial GPS!",
+      "message": "You have 14 days of free access to the Essential plan with all features.",
+      "betaTitle": "Early Adopters Offer",
+      "limited": "Limited access",
+      "price": "Essential Plan: $9.99/month",
+      "priceNote": "Exclusive price for early users",
+      "expirationNote": "At the end of your trial, you can choose a plan to continue.",
+      "ignore": "Ignore",
+      "remind": "Remind me in 7 days",
+      "choosePlan": "Choose a plan"
+    },
+    "reminder7days": {
+      "title": "🔔 Reminder: Your trial continues!",
+      "message": "You're still enjoying all features of the Essential plan.",
+      "daysLeft": "{{days}} days remaining",
+      "subtitle": "Ready to secure your access?",
+      "ignore": "Later",
+      "remind": "Remind in 7 days",
+      "choosePlan": "View plans"
+    },
+    "reminder2days": {
+      "title": "⏰ Your trial ends soon!",
+      "message": "You only have {{days}} days left to enjoy the Essential plan.",
+      "urgent": "Don't lose your access!",
+      "subtitle": "Choose a plan now to continue without interruption.",
+      "ignore": "Got it",
+      "choosePlan": "Choose my plan"
+    }
+  },
+  "tooltips": {
+    "dashboard": {
+      "calendar": {
+        "title": "Event Calendar",
+        "content": "Anticipate your upcoming expenses by event. Click on an event to navigate to that date in your GPS."
+      },
+      "alerts": {
+        "title": "Route Alerts",
+        "content": "Important notifications: objectives almost reached, planned overdrafts, credit limits... Stay in control of your route!"
+      },
+      "transactions": {
+        "title": "Upcoming Transactions",
+        "content": "See your next scheduled transactions at a glance. Click to navigate directly to your GPS."
+      },
+      "destinations": {
+        "title": "Your Destinations",
+        "content": "Track your financial objectives and their progress. Each destination brings you closer to your goals!"
+      }
+    },
+    "comptes": {
+      "accountCard": {
+        "title": "Your Accounts",
+        "content": "Your accounts will be displayed here. You can click on them to edit the balance. Your balance is the starting point of your GPS - you're in control."
+      },
+      "addAccount": {
+        "title": "Add an Account",
+        "content": "This is where you'll add your bank accounts, credit cards, and investments. No account numbers needed!"
+      }
+    },
+    "budget": {
+      "entries": {
+        "title": "Your Income",
+        "content": "Your recurring income: salary, benefits, rental income... These are the bubbles that feed your accounts."
+      },
+      "expenses": {
+        "title": "Your Expenses",
+        "content": "Your recurring expenses: rent, bills, subscriptions... These are the bubbles that draw from your accounts."
+      },
+      "balance": {
+        "title": "Monthly Balance",
+        "content": "The difference between your income and expenses. A positive balance means you're moving in the right direction!"
+      }
+    },
+    "objectifs": {
+      "addGoal": {
+        "title": "New Destination",
+        "content": "Define a new financial objective. Your GPS will calculate the route to reach it!"
+      },
+      "goalCard": {
+        "title": "Your Objectives",
+        "content": "Track the progress of your objectives. Click to see details and estimated arrival date."
+      }
+    },
+    "gps": {
+      "welcome": {
+        "title": "Your Financial GPS",
+        "content": "Welcome to the heart of PL4TO! Here you can visualize your complete financial trajectory."
+      },
+      "pilotModes": {
+        "title": "Navigation Modes",
+        "content": "🧭 : Shows all your budgets\n⚓ : Shows only your fixed expenses\n⭐ : Shows your fixed + semi-fixed expenses"
+      },
+      "trajectory": {
+        "title": "Your Trajectory",
+        "content": "This is your itinerary!"
+      },
+      "views": {
+        "title": "Time Views",
+        "content": "Here, you can change views to see your trajectory at different scales:\n🔵 Daily trajectory\n🟢 Monthly trajectory\n🟣 Yearly trajectory"
+      },
+      "platoButton": {
+        "title": "PL4TO Button",
+        "content": "Your trajectory doesn't balance? Here you can ask PL4TO to analyze your trajectory and propose personalized optimizations."
+      }
+    },
+    "simulations": {
+      "period": {
+        "title": "Impact Period",
+        "content": "Choose the period over which you want to see the impact of your simulations: 1 week, 1 month, or 3 months."
+      },
+      "quicktest": {
+        "title": "Quick Tests",
+        "content": "Use these buttons to quickly simulate common scenarios: impulse purchase, emergency, bonus... See the impact instantly!"
+      },
+      "accounts": {
+        "title": "Your Accounts",
+        "content": "Click on the Entry or Exit bubbles to enter an amount and see how it affects your trajectory."
+      },
+      "go": {
+        "title": "Launch Calculation",
+        "content": "Once your transaction is entered, click GO to see the impact on your financial trajectory."
+      }
+    },
+    "gestionComptes": {
+      "trajectory": {
+        "title": "Your Trajectory",
+        "content": "Click here to see a summary of your financial trajectory: your accounts, your objectives, and the projected evolution."
+      },
+      "improve": {
+        "title": "Improve My Route",
+        "content": "Ask PL4TO to analyze your trajectory and propose personalized optimizations.\n\n🔒 Your privacy is protected: your request is identified by an encrypted number, no personal data is shared."
+      },
+      "report": {
+        "title": "Updated Report",
+        "content": "This is where you'll receive PL4TO's optimization proposal. When it's ready, click to view it!"
+      }
+    }
+  },
+  "greeting": {
+    "morning": "Good morning",
+    "afternoon": "Good afternoon",
+    "evening": "Good evening"
+  },
+  "nav": {
+    "home": "Home",
+    "dashboard": "Dashboard",
+    "accounts": "Wallet",
+    "budget": "Budget",
+    "gps": "Financial GPS",
+    "goals": "Goals",
+    "calculator": "Calculator",
+    "management": "Portfolio Management",
+    "settings": "Settings",
+    "logout": "Logout",
+    "locked": "Complete the guide to unlock"
+  },
+  "auth": {
+    "login": {
+      "title": "Login",
+      "subtitle": "Resume your financial journey 🌱",
+      "email": "Email",
+      "emailPlaceholder": "your@email.com",
+      "password": "Password",
+      "passwordPlaceholder": "••••••••",
+      "submit": "Resume my journey",
+      "submitting": "Recalibrating GPS...",
+      "forgotPassword": "Forgot password?",
+      "noAccount": "New member?",
+      "register": "Start the adventure ⭐",
+      "backToHome": "Back to home",
+      "error": "Incorrect email or password",
+      "success": "Welcome back! Your GPS is recalibrating..."
+    },
+    "register": {
+      "title": "Welcome aboard! 👋",
+      "subtitle": "Create your account in 30 seconds",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "password": "Password",
+      "confirmPassword": "Confirm password",
+      "submit": "Let's go!",
+      "submitting": "Preparing your GPS...",
+      "hasAccount": "Already a member?",
+      "login": "Sign in",
+      "success": "Perfect! Your journey begins now 🎉",
+      "googleButton": "Continue with Google",
+      "googleContinue": "Continue with Google",
+      "orDivider": "or",
+      "freeNotice": "Free • Cancel anytime",
+      "encryptedPassword": "🔒 Encrypted password"
+    },
+    "errors": {
+      "emailRequired": "📍 Enter your email to continue",
+      "emailInvalid": "🚫 This address doesn't seem valid",
+      "passwordRequired": "🔐 Password required to access",
+      "passwordMin": "Minimum 8 characters",
+      "passwordMismatch": "Passwords don't match"
+    },
+    "twoFA": {
+      "title": "2FA Verification",
+      "enterCode": "Enter the code from your authenticator app",
+      "enterBackupCode": "Enter one of your backup codes",
+      "codeLabel": "6-digit code",
+      "backupCodeLabel": "Backup code",
+      "verify": "Verify",
+      "verifying": "Verifying...",
+      "cancel": "Back",
+      "useBackupCode": "Use a backup code",
+      "useAuthenticator": "Use authenticator app",
+      "errorCodeLength": "Enter the full code",
+      "errorInvalidCode": "Invalid code. Try again.",
+      "backupCodeUsed": "Backup code used. You have {{remaining}} codes remaining."
+    },
+    "verify": {
+      "title": "Verify your email",
+      "subtitle": "Enter the 6-digit code sent to",
+      "codeIncomplete": "Enter the full code",
+      "success": "Email verified! 🎉",
+      "expired": "Code expired - request a new one",
+      "noCode": "Didn't receive the code?",
+      "codeSent": "New code sent! 📧",
+      "backToRegister": "Change my email"
+    }
+  },
+  "landing": {
+    "title": "Finally see where you're going.",
+    "discover": "Finally see where you're going.",
+    "subtitle": "The first GPS for your personal finances.",
+    "tagline": "End the uncertainty. Start navigating. 🧭",
+    "cta": "🧭 Start my journey",
+    "ctaBadge": "14-day free trial",
+    "login": "Login",
+    "privacy": "🔒 Your data stays private",
+    "devices": "📱 Available on all your devices",
+    "company": "By Pl4to Inc.",
+    "features": {
+      "gps": {
+        "title": "Your future, visualized",
+        "description": "See your portfolio evolution over 54 years"
+      },
+      "calculator": {
+        "title": "Test before you act",
+        "description": "Simulate your financial decisions before making them"
+      },
+      "goals": {
+        "title": "Your destinations",
+        "description": "Define your goals and track your progress"
+      }
+    },
+    "preview": {
+      "title": "Your Financial GPS in action ✨",
+      "subtitle": "App preview"
+    }
+  },
+  "logout": {
+    "title": "See you soon!",
+    "message": "Are you sure you want to log out of your Financial GPS?",
+    "stay": "Stay connected",
+    "confirm": "Log out"
+  },
+  "accounts": {
+    "title": "My Portfolio",
+    "noData": "No account data available. Please complete the onboarding.",
+    "addAccount": "Add account",
+    "editAccount": "Edit balance",
+    "accountType": "Account type",
+    "deleteAccount": "Delete this account?",
+    "deleteConfirm": "Are you sure you want to delete the account",
+    "deleteWarning": "This action cannot be undone.",
+    "newAccount": "New account",
+    "accountName": "Account name",
+    "accountNamePlaceholder": "Ex: TD-Savings, Visa Infinite",
+    "balance": "Balance",
+    "balanceCurrent": "Current balance",
+    "balanceOwed": "Balance owed (current debt)",
+    "balanceOwedHint": "Enter the amount you owe on this card",
+    "limit": "Credit limit",
+    "creditAvailable": "Credit available",
+    "institution": "Institution",
+    "institutionPlaceholder": "Ex: TD, RBC, BMO",
+    "optional": "optional",
+    "account": "Account",
+    "tipAddMore": "Add your other accounts for a complete overview!",
+    "advancePortfolio": "Advance my portfolio",
+    "advancePortfolioHint": "View the evolution of your balances day by day",
+    "goMode": {
+      "day": "Day",
+      "navigate": "Navigate to your new economy",
+      "entries": "Entries",
+      "expenses": "Expenses",
+      "noTransaction": "No transaction",
+      "tutorialTitle": "Welcome to Projection Mode!",
+      "tutorialMessage": "Navigate through time to see the expected evolution of your balances. Swipe up or down to travel through time.",
+      "scrollHint": "Swipe ↕ = Travel through time",
+      "gotIt": "Got it!"
+    },
+    "guide": {
+      "title": "Your Wallet",
+      "subtitle": "Add your accounts here.",
+      "message": "No account numbers or passwords required! What matters isn't where you are but where you're going. 😄🚀"
+    },
+    "guideModal": {
+      "title": "Your Wallet",
+      "message": "This is where you manage all your accounts.\nNo account numbers required!\nWhat matters isn't where you are, but where you're going.",
+      "hint": "Add your accounts to get started"
+    },
+    "types": {
+      "cheque": "Checking account",
+      "epargne": "Savings account",
+      "credit": "Credit card",
+      "investissement": "Investment"
+    },
+    "transactions": {
+      "title": "Today's transactions",
+      "none": "No transactions scheduled for today.",
+      "confirm": "Confirm",
+      "confirmAll": "Confirm all",
+      "confirmed": "Confirmed",
+      "later": "Later",
+      "done": "Done",
+      "currentBalance": "Current balance",
+      "newBalance": "New balance"
+    }
+  },
+  "budget": {
+    "title": "My Budget",
+    "guide": {
+      "title": "Your Budget",
+      "subtitle": "Manage the movements in your wallet.",
+      "message": "Add your recurring inflows and outflows. Your trajectory is calculated automatically! Here, you don't lie 😄 and O doesn't judge! 💸📈"
+    },
+    "guideModal": {
+      "title": "Your Budget",
+      "message": "Add your recurring inflows and outflows from your accounts.\nYour financial trajectory is calculated automatically!\nHere, you don't lie and PL4TO doesn't judge! 😄",
+      "hint": "Income on the left, Expenses on the right"
+    },
+    "emptyState": {
+      "title": "🚀 Start your planning!",
+      "message": "Add your income (salary, allowances...) by clicking on the green + button",
+      "entriesHint": "Click to see your income",
+      "expensesHint": "Click to see your expenses"
+    },
+    "entries": "In",
+    "expenses": "Out",
+    "addEntry": "Add income",
+    "addExpense": "Add expense",
+    "editEntry": "Edit income",
+    "editExpense": "Edit expense",
+    "description": "Description",
+    "amount": "Amount",
+    "frequency": "Frequency",
+    "account": "Account",
+    "dayOfMonth": "Day of month",
+    "frequencies": {
+      "monthly": "Monthly",
+      "biweekly": "Bi-weekly",
+      "semimonthly": "Semi-monthly",
+      "weekly": "Weekly",
+      "annual": "Annual",
+      "mensuel": "Monthly",
+      "bimensuel": "Bi-monthly",
+      "hebdomadaire": "Weekly",
+      "quinzaine": "Bi-weekly",
+      "trimestriel": "Quarterly",
+      "annuel": "Annual"
+    },
+    "balance": {
+      "positive": "Your budget is balanced! 🎉",
+      "negative": "Reduce your expenses by {{amount}} to balance your budget."
+    },
+    "noData": "No budget data available.",
+    "descriptionPlaceholder": "Ex: Salary, Rent...",
+    "entryPlaceholder": "Ex: Salary, Benefits, Rental income...",
+    "expensePlaceholder": "Ex: Rent, Groceries, Netflix...",
+    "suggestions": {
+      "entries": [
+        { "icon": "💰", "label": "Salary" },
+        { "icon": "👶", "label": "Benefits" },
+        { "icon": "🏠", "label": "Rental income" },
+        { "icon": "💼", "label": "Freelance" }
+      ],
+      "expenses": [
+        { "icon": "🏠", "label": "Rent" },
+        { "icon": "🛒", "label": "Groceries" },
+        { "icon": "📱", "label": "Phone" },
+        { "icon": "🎬", "label": "Netflix" }
+      ]
+    },
+    "validation": {
+      "required": "Please fill in at least the name and amount",
+      "amountZero": "Amount must be greater than 0",
+      "dayInvalid": "Day must be between 1 and 31",
+      "selectAccount": "Please select an associated account first"
+    },
+    "dayOfWeek": "Day of week",
+    "lastDate": "Last date",
+    "month": "Month",
+    "frequencyInfo": {
+      "title": "How O defines frequencies",
+      "monthly": "Same day each month (e.g., 15th of each month)",
+      "biweekly": "Every 2 weeks (e.g., every other Friday)",
+      "semimonthly": "Twice a month (e.g., 1st and 15th)",
+      "weekly": "Same day each week (e.g., every Monday)",
+      "annual": "Once a year (e.g., January 1st)"
+    },
+    "transfers": "Transfers",
+    "monthlyBalance": "Monthly balance",
+    "dailyBudget": "Budget/day",
+    "daysRemaining": "days remaining this month",
+    "celebration": {
+      "firstEntry": "🎉 First income added!",
+      "firstExpense": "🎉 First expense added!"
+    },
+    "showBalances": "Show balances",
+    "hideBalances": "Hide balances",
+    "clickToExpand": "Click to expand",
+    "linked": "Linked",
+    "linkedItem": "Linked item:",
+    "linkedModifications": "Changes will apply to both items",
+    "linkAccountHint": "Click here if this budget involves another account",
+    "linkToAccount": "Link to another account",
+    "deleteConfirm": {
+      "title": "Delete?",
+      "linkedWarning": "The linked item will also be deleted"
+    },
+    "modal": {
+      "editEntry": "Edit entry",
+      "editExpense": "Edit expense",
+      "addEntry": "Add an entry",
+      "addExpense": "Add an expense",
+      "linked": "Linked",
+      "linkedItem": "Linked item",
+      "linkedModification": "Modifications will apply to both items",
+      "linkToAccount": "Click here if this budget involves another account",
+      "linkAccount": "Link to another account",
+      "noDescription": "No description"
+    },
+    "optimization": {
+      "title": "Optimization",
+      "subtitle": "Automatically adjust this budget based on your trajectory",
+      "baseAmount": "Base amount",
+      "enable": "Enable optimization",
+      "type": "Optimization type",
+      "fixedAmount": "Fixed amount",
+      "percentage": "Percentage",
+      "amountValue": "Additional amount",
+      "percentageValue": "Increase percentage",
+      "period": "Application period",
+      "ascending": "Ascending",
+      "descending": "Descending",
+      "ascendingDesc": "Optimization applies closer to today",
+      "descendingDesc": "Optimization applies closer to the goal date",
+      "frequency": "Optimization frequency",
+      "always": "Always",
+      "summary": "Summary",
+      "perOccurrence": "per occurrence"
+    }
+  },
+  "gps": {
+    "title": "FINANCIAL TRAJECTORY",
+    "welcome": {
+      "title": "🧭 Welcome to your GPS!",
+      "message": "Add your income and expenses in 'Budget' to see your financial trajectory.",
+      "cta": "Configure my budget",
+      "dismiss": "Later"
+    },
+    "navigation": {
+      "title": "Navigation",
+      "subtitle": "Travel through your economy",
+      "monthNamesShort": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+      "dayNamesShort": ["S", "M", "T", "W", "T", "F", "S"],
+      "inDays": "in {{count}} day",
+      "inDays_plural": "in {{count}} days",
+      "inDaysLabel": "in {{count}} day",
+      "inDaysLabel_plural": "in {{count}} days",
+      "trajectoryButton": "Trajectory",
+      "tomorrowLabel": "Tomorrow",
+      "todayLabel": "Today",
+      "transaction": "transaction",
+      "transactions": "transactions",
+      "total": "Total",
+      "currentPositionTitle": "Current position",
+      "nextManeuverTitle": "Next maneuver",
+      "primaryDestinationTitle": "Priority destination",
+      "account": "Account",
+      "speedLabel": "Speed",
+      "achievedBadge": "Achieved!"
+    },
+    "views": {
+      "day": "O - DAY",
+      "month": "O - MONTH",
+      "year": "O - YEAR",
+      "dayView": "Day view...",
+      "monthView": "Month view...",
+      "yearView": "Year view..."
+    },
+    "fromToday": "From today",
+    "today": "Today",
+    "currentMonth": "Current month",
+    "currentYear": "Current year",
+    "loading": "Calculating your route...",
+    "date": "Date",
+    "balances": "Balances",
+    "vsToday": "vs today",
+    "trans": "trans.",
+    "advanced": "Advanced",
+    "point": "Point",
+    "trajectory": {
+      "title": "Financial Trajectory",
+      "yourPath": "Your Path",
+      "arrival": "Arrival",
+      "youAreHere": "You are here",
+      "balances": "Balances",
+      "expectedEvolution": "Expected evolution",
+      "goal": "Goal",
+      "recommendation": "Recommendation",
+      "recommendationDefault": "Select a goal to see details and navigate to that date.",
+      "selectGoal": "Select a goal to see details and navigate to that date.",
+      "recommendationUpdate": "Consider updating your budget at this date to track your progress.",
+      "navigateTo": "Navigate!",
+      "recalculate": "Recalculate your route",
+      "suggestion": "Suggestion"
+    },
+    "guide": {
+      "title": "You're here! Your financial eye that sees everything! 😊",
+      "message": "Here your accounts, budgets and goals travel through time. Navigate towards your savings! ✨"
+    },
+    "guideModal": {
+      "title": "Your Financial Trajectory",
+      "message": "Here is your financial eye that sees everything!\nYour accounts, budgets and goals travel through time.\nNavigate through your economy!",
+      "hint": "Click GO to activate the time projection"
+    },
+    "recalculation": {
+      "calculating": "Calculating your route...",
+      "step1": "Recalculating route...",
+      "step2": "Updating projections...",
+      "step3": "New route calculated!",
+      "analyzing": "Analyzing new budget data",
+      "calculatingImpact": "Calculating impacts on your goals",
+      "upToDate": "O is updating",
+      "loadingFoundations": "Loading Foundations...",
+      "calculatingSmartRoute": "Calculating Smart Route...",
+      "recalculatingPilotAuto": "Recalculating Auto Pilot...",
+      "analyzingBudgets": "Analyzing budgets...",
+      "trajectoryReady": "Trajectory ready!",
+      "navigatingToEvent": "Navigating to event..."
+    },
+    "alerts": {
+      "limitUsed": "Limit used",
+      "emergencyFund": "Emergency fund",
+      "limit": "LIMIT",
+      "alert": "Alert"
+    },
+    "actions": {
+      "go": "GO",
+      "quit": "Quit",
+      "startNavigation": "Start advanced navigation",
+      "exitFullscreen": "Exit fullscreen",
+      "closeAdvanced": "Close advanced view",
+      "showBalances": "Show balances",
+      "hideBalances": "Hide balances",
+      "editBudget": "Edit budget from this date",
+      "viewBudget": "View this month's budget",
+      "addEntry": "Add income",
+      "addExpense": "Add expense",
+      "viewYearBudget": "View this year's budget",
+      "backToNavigation": "Back to Navigation"
+    },
+    "foundations": {
+      "title": "Foundations",
+      "buttonTitle": "Foundations - Fixed budgets only",
+      "description": "Shows only fixed budgets (rent, mortgage, insurance...)"
+    },
+    "smartRoute": {
+      "title": "Smart Route",
+      "buttonTitle": "Smart Route - Fixed + Semi-fixed",
+      "description": "Shows fixed and semi-fixed budgets (excludes variable expenses)"
+    },
+    "pilotAuto": {
+      "title": "Auto Pilot",
+      "buttonTitle": "Auto Pilot - All budgets",
+      "description": "Shows all budgets (fixed, semi-fixed and variable)"
+    },
+    "backToPilotAuto": "Back to Auto Pilot",
+    "whatIf": {
+      "title": "What-If Engine",
+      "description": "Analyze different budget scenarios",
+      "excludedBudgets": "Budgets excluded in this mode",
+      "ghostBubble": "Ghost bubble (excluded budget)"
+    },
+    "accountTypes": {
+      "checking": "Checking account",
+      "savings": "Savings account",
+      "credit": "Credit card",
+      "investment": "Investment"
+    },
+    "transactionsPopup": {
+      "title": "Today's scheduled transactions",
+      "message": "transaction(s) scheduled for today."
+    },
+    "transactions": {
+      "scheduledCount": "{{count}} transaction(s) scheduled for today"
+    },
+    "goalMessages": {
+      "achieved": "🎉 Congratulations! The goal \"{{name}}\" is already achieved!",
+      "creditNeverReached": "The goal \"{{name}}\" will never be reached with the current plan. Your purchases ({{expenses}}/month) exceed your payments ({{income}}/month), so the debt continues to grow.",
+      "savingsNeverReached": "The goal \"{{name}}\" will never be reached with the current plan. Your expenses ({{expenses}}/month) exceed your income ({{income}}/month), so the balance continues to decrease.",
+      "noBudgetCredit": "No budget is configured to reach the goal \"{{name}}\". Add recurring payments for this account in your budget.",
+      "noBudgetSavings": "No budget is configured to reach the goal \"{{name}}\". Add recurring income for this account in your budget.",
+      "tooFar": "The goal \"{{name}}\" will be reached beyond the projection period (54 years). Estimated ETA: {{eta}}."
+    },
+    "budgetEdit": {
+      "confirmDelete": "Confirm deletion",
+      "confirmAdd": "Confirm addition",
+      "confirmEdit": "Confirm modification",
+      "confirmModification": "✓ Confirm modification"
+    },
+    "budgetModal": {
+      "title": "Budget starting from",
+      "subtitle": "Changes will apply from this date",
+      "entries": "In",
+      "expenses": "Out",
+      "monthlyBalance": "Monthly balance",
+      "clickToEdit": "Changes will apply from this date",
+      "addEntry": "Add income",
+      "addExpense": "Add expense",
+      "selectAccount": "-- Select an account --"
+    },
+    "budgetForm": {
+      "editEntry": "Edit income",
+      "editExpense": "Edit expense",
+      "addEntry": "Add income",
+      "addExpense": "Add expense",
+      "description": "Description",
+      "amount": "Amount ($)",
+      "frequency": "Frequency",
+      "recurrenceDay": "Recurrence day (1-31)",
+      "linkedAccount": "Linked account",
+      "selectAccount": "-- Select an account --",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "save": "Save",
+      "add": "Add"
+    },
+    "goalStatus": {
+      "achieved": "🎉 Goal achieved!",
+      "wrongDirection": "Configure budget",
+      "overdraft": "⚠️ Overdraft expected",
+      "toDefine": "To define",
+      "reached": "🎉 Reached!"
+    },
+    "overdraftAlert": {
+      "title": "GPS Alert: Overdraft expected!",
+      "message": "You risk an overdraft of {{amount}} on {{date}}.",
+      "suggestion": "Would you like to adjust your budget?",
+      "adjustBudget": "Adjust budget",
+      "dismiss": "Later",
+      "viewDetails": "View details"
+    },
+    "goalReachedAlert": {
+      "title": "Goal reached!",
+      "message": "You will reach {{amount}} on {{date}}",
+      "suggestion": "Congratulations! Keep up the great work!"
+    },
+    "popup": {
+      "wrongDirection": "Configure budget",
+      "currentBalance": "Current balance",
+      "targetGoal": "Target goal",
+      "goalAchieved": "🎉 Goal achieved!",
+      "budgetMissing": "⚠️ Budget missing",
+      "longProjection": "🔮 Long projection"
+    },
+    "goalPopup": {
+      "recalculateRoute": "Recalculate route",
+      "reviewBudget": "Review Budget",
+      "understood": "Understood",
+      "suggestion": "💡 Suggestion",
+      "wrongDirectionCreditTip": "To reach this repayment goal, your payments must exceed your purchases.",
+      "wrongDirectionSavingsTip": "To reach this savings goal, your income must exceed your expenses.",
+      "noBudgetCreditTip": "To reach this goal, add recurring payments for the account \"{{account}}\" in the Budget section.",
+      "noBudgetSavingsTip": "To reach this goal, add recurring deposits for the account \"{{account}}\" in the Budget section.",
+      "great": "Great!"
+    },
+    "bubbleDetails": {
+      "yearSummary": "Year summary",
+      "monthSummary": "Month summary",
+      "activityDetails": "Activity details",
+      "yearEndBalance": "Year-end balance",
+      "monthEndBalance": "Month-end balance",
+      "dayBalance": "Day balance"
+    }
+  },
+  "goals": {
+    "title": "My Goals",
+    "titleFullscreen": "My Goals",
+    "guide": {
+      "title": "Your goals are like destinations in a GPS.",
+      "subtitle": "",
+      "message": "O calculates and shows you the journey to your destination. Here, O will never ask 'Are we there yet?' O recalculates without complaining! 🧑‍💻🗺️✈️"
+    },
+    "guideModal": {
+      "title": "Your Goals",
+      "message": "Your goals are like destinations in a GPS.\nPL4TO calculates and shows you the journey to your destination.\nHe'll never ask 'Are we there yet?'",
+      "hint": "Define your savings and repayment goals"
+    },
+    "noData": "No destination defined. Please complete onboarding.",
+    "emptyState": "No destination defined yet",
+    "addDestination": "Add a destination",
+    "debt": "Debt",
+    "of": "of",
+    "distanceTraveled": "Distance traveled",
+    "repayment": "Repayment",
+    "details": "Details",
+    "edit": "Edit",
+    "showBalances": "Show balances",
+    "hideBalances": "Hide balances",
+    "priority": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "types": {
+      "savings": "Savings",
+      "debt": "Debt",
+      "investment": "Investment",
+      "emergency": "Emergency",
+      "purchase": "Purchase",
+      "travel": "Travel",
+      "other": "Other"
+    },
+    "detailsModal": {
+      "account": "Account",
+      "creditLimit": "Credit limit",
+      "currentAmount": "Current amount",
+      "targetAmount": "Target amount",
+      "remainingToRepay": "Remaining to repay",
+      "remainingToReach": "Remaining to reach",
+      "progression": "Progression",
+      "deadline": "Deadline",
+      "notes": "Notes",
+      "close": "Close"
+    },
+    "deleteModal": {
+      "title": "Delete this destination?",
+      "confirm": "Are you sure you want to delete the destination"
+    },
+    "form": {
+      "editTitle": "Edit destination",
+      "addTitle": "New destination",
+      "name": "Destination name",
+      "namePlaceholder": "Ex: Emergency fund, Travel...",
+      "type": "Type",
+      "priority": "Priority",
+      "targetAmount": "Target amount ($)",
+      "deadline": "Deadline",
+      "linkedAccount": "Linked account",
+      "selectAccount": "Select an account...",
+      "notes": "Notes (optional)",
+      "notesPlaceholder": "Add notes..."
+    },
+    "validation": {
+      "required": "Please fill in at least the name and target amount"
+    }
+  },
+  "calculator": {
+    "title": "My Calculator",
+    "subtitle": "Have fun seeing the impact of your transactions with our advanced calculator over time.",
+    "guide": {
+      "title": "Well well well, unplanned transactions!? 👀😏",
+      "message": "Have fun seeing the impact of your transactions with your advanced calculator over time. 🧮✨"
+    },
+    "guideModal": {
+      "title": "Your Time Calculator",
+      "message": "Well well well 👀😏, unplanned transactions!?\nHave fun seeing the impact of your expenses with your calculator that travels through time!",
+      "hint": "Test scenarios before spending"
+    },
+    "description": "Description",
+    "amount": "Amount",
+    "account": "Affected account",
+    "type": "Type",
+    "typeExpense": "Expense",
+    "typeIncome": "Income",
+    "period": "Period",
+    "go": "GO",
+    "reset": "Reset",
+    "quickTests": {
+      "title": "Quick test",
+      "impulse": "Impulse buy",
+      "emergency": "Emergency",
+      "bonus": "Bonus",
+      "debt": "Pay debt",
+      "large": "Large expense"
+    },
+    "periods": {
+      "week": "1 week",
+      "month": "1 month",
+      "3months": "3 months"
+    },
+    "results": {
+      "safe": "Journey intact",
+      "warning": "Balance to watch",
+      "danger": "OVERDRAFT EXPECTED!",
+      "limitExceeded": "LIMIT EXCEEDED!"
+    },
+    "animation": {
+      "calculating": "Calculating...",
+      "updating": "Updating projections...",
+      "done": "Impact calculated!",
+      "analyzingTransactions": "Analyzing your transactions",
+      "applyingBudget": "Applying recurring budget",
+      "resultsReady": "Results ready!"
+    },
+    "labels": {
+      "noAccounts": "No accounts found",
+      "evolutionOver": "Evolution over",
+      "noBudgetConfigured": "No budget configured for this account",
+      "simpleProjection": "Simple projection",
+      "finalProjectedBalance": "Final projected balance",
+      "clickGoToCalculate": "Click <strong>GO</strong> to calculate impact",
+      "enterTransaction": "Enter a transaction to see impact",
+      "chooseAccount": "Choose account"
+    },
+    "bubbles": {
+      "payment": "Payment",
+      "entry": "In",
+      "purchase": "Purchase",
+      "expense": "Out"
+    },
+    "alerts": {
+      "title": "Warning - Alerts detected!",
+      "message": "These transactions could cause problems:",
+      "limitExceeded": "Limit exceeded",
+      "overdraft": "Overdraft",
+      "understood": "I understand"
+    },
+    "accountSelector": {
+      "title": "Choose account",
+      "cancel": "Cancel"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Configure your experience",
+    "guide": {
+      "title": "Congratulations, you've completed the tour! 🎉",
+      "message": "Customize your tool.",
+      "finish": "Finish!"
+    },
+    "guideModal": {
+      "title": "Settings",
+      "message": "Congratulations 🎉, you've completed the tour!\nCustomize your PL4TO experience.\nYour financial journey starts now!",
+      "hint": "Configure your preferences"
+    },
+    "nav": {
+      "profile": "My Profile",
+      "subscription": "Subscription",
+      "preferences": "Preferences",
+      "notifications": "Notifications",
+      "security": "Security",
+      "about": "About"
+    },
+    "badges": {
+      "free": "FREE",
+      "current": "CURRENT",
+      "popular": "POPULAR",
+      "soon": "SOON"
+    },
+    "save": {
+      "button": "Save",
+      "saving": "Saving...",
+      "saved": "Saved!"
+    },
+    "profile": {
+      "title": "My Profile",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "email": "Email",
+      "modify": "Edit",
+      "emailChange": {
+        "instruction": "Enter your new email address. A verification code will be sent.",
+        "placeholder": "new@email.com",
+        "sendCode": "Send code",
+        "codeSent": "Code sent to",
+        "enterCode": "Enter the 6-digit code received by email:",
+        "verify": "Verify",
+        "resendCode": "Resend code",
+        "success": "Email updated successfully!",
+        "invalidCode": "Invalid code. Please try again.",
+        "invalidEmail": "Please enter a valid email address"
+      }
+    },
+    "subscription": {
+      "title": "My Subscription",
+      "subtitle": "Choose the plan that fits your financial needs",
+      "currentPlan": "CURRENT PLAN",
+      "perMonth": "/month",
+      "orYearly": "Or {{price}}/year (2 months free)",
+      "currentButton": "Current plan",
+      "upgradeButton": "Upgrade to Essential",
+      "soonButton": "Coming soon",
+      "trial": "14-day money-back guarantee",
+      "waitlist": "Join the waitlist",
+      "waitlistPlaceholder": "your@email.com",
+      "waitlistSuccess": "Thank you! You've been added to the waitlist.",
+      "waitlistError": "Error during registration. Please try again.",
+      "guarantees": {
+        "cancel": "Cancel in 1 click",
+        "noCommitment": "No commitment",
+        "exportable": "Exportable data"
+      },
+      "discovery": {
+        "name": "Discovery",
+        "tagline": "Discover your journey",
+        "price": "$0"
+      },
+      "essential": {
+        "name": "Essential",
+        "tagline": "Navigate to your new economy",
+        "price": "$14.99",
+        "yearlyPrice": "$149"
+      },
+      "pro": {
+        "name": "Pro + AI",
+        "tagline": "AI Coach, your GPS assistant",
+        "price": "$24.99",
+        "yearlyPrice": "$249"
+      },
+      "beta": {
+        "title": "EARLY ADOPTERS",
+        "learnMore": "Learn more",
+        "close": "Close",
+        "limitedOffer": "Limited offer!",
+        "description": "Get the $9.99/month price for 12 months. Regular price $14.99 after."
+      },
+      "features": {
+        "navigation": "Navigation",
+        "dailyJourney": "Daily journey",
+        "navigation90": "90-day navigation",
+        "maxAccounts": "{{count}} accounts max",
+        "management": "Management",
+        "maxDestinations": "{{count}} destinations max",
+        "maxBudgets": "{{count}} budgets max",
+        "simPerMonth": "{{count}} simulations/month",
+        "data": "Data",
+        "backup30": "30-day backup",
+        "support": "Support",
+        "faqGuides": "FAQ & guides",
+        "community": "Community",
+        "gpsComplete": "COMPLETE GPS",
+        "multiYear": "Multi-year planning",
+        "allViews": "Daily + Monthly + Long-term journeys",
+        "timeline": "Interactive timeline",
+        "unlimited": "ALL UNLIMITED",
+        "unlimitedAccounts": "Unlimited accounts",
+        "unlimitedDestinations": "Unlimited destinations",
+        "unlimitedSims": "Unlimited simulations",
+        "advancedTrajectory": "ADVANCED TRAJECTORY",
+        "fullPath": "Complete path",
+        "smartAlerts": "Smart alerts",
+        "proData": "PRO DATA",
+        "permanentBackup": "Permanent backup",
+        "multiDevice": "Multi-device sync",
+        "emailSupport": "EMAIL SUPPORT",
+        "essentialIncluded": "Everything in Essential",
+        "exclusivePro": "PRO EXCLUSIVE:",
+        "aiCoach": "AI Coach",
+        "personalReco": "Personalized recommendations",
+        "predictiveAlerts": "Predictive alerts",
+        "vocalCoach": "Integrated voice coach",
+        "smartRoutes": "Smart Routes",
+        "autoOptimization": "Auto path optimization",
+        "smartRecalc": "Smart recalculation",
+        "multiUsers": "Multi-Users",
+        "familyProfiles": "5 family profiles",
+        "sharedDestinations": "Shared destinations",
+        "maxSecurity": "Max Security + VIP",
+        "twoFA": "2FA Authentication",
+        "vipSupport": "VIP Support <12h"
+      }
+    },
+    "preferences": {
+      "title": "Preferences",
+      "theme": "Theme",
+      "themeOptions": {
+        "light": "🌞 Light (default)",
+        "dark": "🌙 Dark",
+        "auto": "Auto"
+      },
+      "language": "Language",
+      "languageOptions": {
+        "fr": "🇨🇦 Français",
+        "en": "🇺🇸 English",
+        "enSoon": "🇺🇸 English (coming soon)"
+      }
+    },
+    "notifications": {
+      "title": "Notifications",
+      "email": {
+        "label": "Email alerts",
+        "description": "Important alerts only"
+      },
+      "push": {
+        "label": "Push notifications",
+        "description": "If supported by browser"
+      },
+      "alerts": {
+        "label": "Journey alerts",
+        "description": "Overdraft expected, credit limit, etc."
+      },
+      "milestones": {
+        "label": "Destination milestones",
+        "description": "Goal progression (25%, 50%, 75%, 100%)"
+      },
+      "improvements": {
+        "label": "Improve my financial journey",
+        "description": "Personalized summary to optimize your finances"
+      },
+      "receiveEvery": "Receive every:",
+      "days": {
+        "monday": "Monday",
+        "tuesday": "Tuesday",
+        "wednesday": "Wednesday",
+        "thursday": "Thursday",
+        "friday": "Friday",
+        "saturday": "Saturday",
+        "sunday": "Sunday"
+      }
+    },
+    "security": {
+      "title": "Security",
+      "password": {
+        "title": "Password",
+        "lastChange": "Last changed: {{days}} days ago",
+        "change": "Change password"
+      },
+      "twoFactor": {
+        "title": "2FA Authentication",
+        "enabled": "✓ Enabled",
+        "disabled": "✗ Disabled",
+        "description": "Secure your account with two-factor authentication",
+        "enable": "Enable 2FA",
+        "disable": "Disable 2FA",
+        "backupCodesRemaining": "{{count}} backup codes remaining",
+        "regenerateBackup": "New codes",
+        "setup": {
+          "title": "Setup 2FA",
+          "subtitle": "Scan the QR code with your app",
+          "manualEntry": "Or enter this code manually:",
+          "enterCode": "Enter the verification code:",
+          "activate": "Activate"
+        },
+        "backup": {
+          "title": "2FA Enabled!",
+          "regenerateTitle": "Regenerate codes",
+          "subtitle": "Save your backup codes",
+          "warning": "These codes won't be shown again. Keep them safe!",
+          "copy": "Copy codes",
+          "copied": "Codes copied!",
+          "saved": "I've saved my codes",
+          "regenerateInfo": "Enter a code from your app to generate new backup codes.",
+          "regenerate": "Regenerate"
+        },
+        "disable": {
+          "title": "Disable 2FA",
+          "subtitle": "Your account will be less secure",
+          "enterPassword": "Enter your password to confirm:",
+          "passwordPlaceholder": "Your password",
+          "confirm": "Disable"
+        }
+      },
+      "sessions": {
+        "title": "Active sessions",
+        "current": "Current session",
+        "ago": "{{time}} ago",
+        "disconnect": "Disconnect",
+        "disconnectAll": "🚪 Disconnect all sessions"
+      },
+      "sensitiveData": {
+        "title": "Sensitive data",
+        "hideBalances": "Hide balances by default",
+        "hideBalancesDescription": "Balances will show in fullscreen mode or on click"
+      },
+      "deleteAccount": {
+        "title": "Delete my account",
+        "warning": "This action is irreversible. All your data will be permanently deleted.",
+        "button": "Delete my account",
+        "modal": {
+          "title": "Delete your account",
+          "subtitle": "This action is irreversible",
+          "dataDeleted": "The following data will be deleted:",
+          "data": {
+            "accounts": "All your bank accounts",
+            "budget": "Your budget planning",
+            "goals": "Your financial goals",
+            "settings": "Your settings and preferences"
+          },
+          "confirmLabel": "Type DELETE to confirm:",
+          "confirmButton": "Delete permanently",
+          "deleting": "Deleting..."
+        }
+      }
+    },
+    "about": {
+      "title": "About PL4TO",
+      "tagline": "Navigate towards your new economy",
+      "links": {
+        "title": "Useful links",
+        "guide": "User guide",
+        "faq": "FAQ",
+        "versions": "Release notes",
+        "contact": "Contact us",
+        "legal": "Legal notices",
+        "privacy": "Privacy"
+      },
+      "social": {
+        "title": "Follow us",
+        "facebook": "Facebook",
+        "twitter": "Twitter",
+        "instagram": "Instagram",
+        "linkedin": "LinkedIn"
+      },
+      "feedback": {
+        "beta": "💬 Send beta feedback",
+        "bug": "🐛 Report a bug"
+      },
+      "modals": {
+        "guide": {
+          "title": "📖 User guide",
+          "welcome": "Welcome to Pl4to, your personal financial GPS!",
+          "dashboard": {
+            "title": "🏠 1. Home",
+            "content": "Your dashboard. See at a glance your current financial situation, your goals and important alerts."
+          },
+          "accounts": {
+            "title": "💳 2. Portfolio",
+            "content": "Manage all your bank accounts in one place:",
+            "item1": "Checking and savings accounts",
+            "item2": "Credit cards with limits",
+            "item3": "Investment accounts",
+            "tip": "Click the eye icon to hide/show your balances."
+          },
+          "budget": {
+            "title": "📊 3. Budget",
+            "content": "Plan your recurring income and expenses:",
+            "income": "Income (green): Salary, earnings, refunds",
+            "expenses": "Expenses (red): Rent, bills, subscriptions",
+            "frequencies": "Frequencies: Monthly, biweekly, weekly, annual"
+          },
+          "gps": {
+            "title": "5. Financial GPS",
+            "content": "Visualize your financial trajectory over multiple years!",
+            "dayView": "Daily Journey: Daily transaction details",
+            "monthView": "Monthly Journey: Monthly overview",
+            "yearView": "Long-term Journey: Long-term vision",
+            "tip": "Click on a point to see details for that day."
+          },
+          "destinations": {
+            "title": "🧭 4. Goals",
+            "content": "Define your financial goals:",
+            "item1": "Emergency fund",
+            "item2": "Debt repayment",
+            "item3": "Projects (travel savings, purchases, etc.)"
+          },
+          "calculator": {
+            "title": "🧮 6. Calculator",
+            "content": "Simulate the impact of changes on your financial journey before applying them."
+          },
+          "helpTip": "Need more help? Contact us via the \"Contact us\" button!"
+        },
+        "faq": {
+          "title": "❓ Frequently Asked Questions",
+          "q1": "How does Pl4to work?",
+          "a1": "Pl4to acts as a GPS for your finances. You enter your accounts, your recurring budget, and the app automatically calculates your financial trajectory over multiple years.",
+          "q2": "Is my data secure?",
+          "a2": "Absolutely! Your data is encrypted and stored securely. We never have access to your banking credentials. You manually enter your information.",
+          "q3": "Can I access Pl4to on multiple devices?",
+          "a3": "Yes! With the Essential plan, your data is automatically synchronized across all your devices.",
+          "q4": "How do I modify a recurring transaction?",
+          "a4": "Go to 'My Budget', click on the bubble of the transaction you want to modify, then use the form to adjust the details.",
+          "q5": "What does 'biweekly' mean?",
+          "a5": "Biweekly means 'every two weeks' (26 times per year). For example, if you get paid every other Friday, that's a biweekly frequency.",
+          "q6": "Why is my projected balance different from my actual balance?",
+          "a6": "Pl4to projects based on your planned budget. If you have unplanned expenses, adjust your current balance in 'My Accounts' to recalibrate projections.",
+          "q7": "How do I cancel my subscription?",
+          "a7": "You can cancel anytime in Settings > Subscription. Your data remains accessible until the end of the paid period.",
+          "q8": "Does Pl4to give financial advice?",
+          "a8": "Pl4to is a visualization and planning tool. We do not provide personalized financial advice. For advice, consult a certified professional."
+        },
+        "versions": {
+          "title": "📝 Release Notes",
+          "currentVersion": "Version 1.0.0 - Beta",
+          "currentDate": "December 2025",
+          "newFeatures": "✨ New features",
+          "feature1": "Intuitive dashboard",
+          "feature2": "Multi-account management (checking, savings, credit, investment)",
+          "feature3": "Budget with recurring income/expenses",
+          "feature4": "Financial GPS with multi-year projections",
+          "feature5": "Financial goals",
+          "feature6": "Simulation calculator",
+          "feature7": "Complete settings",
+          "improvements": "🛠️ Improvements",
+          "improvement1": "Interface optimized for mobile and desktop",
+          "improvement2": "Full screen mode on all pages",
+          "improvement3": "Balance hiding for more privacy",
+          "upcoming": "🔮 Coming soon",
+          "upcoming1": "AI Coach for personalized recommendations",
+          "upcoming2": "Automatic bank transaction import",
+          "upcoming3": "Native mobile app",
+          "upcoming4": "Family sharing"
+        },
+        "contact": {
+          "title": "📧 Contact us",
+          "intro": "A question? A problem? A suggestion? We're here for you!",
+          "emailTitle": "Email",
+          "emailAddress": "support@pl4to.ca",
+          "emailResponse": "Response within 24-48h",
+          "chatTitle": "Live chat",
+          "chatStatus": "Coming soon!",
+          "bugTitle": "Report a bug",
+          "bugDescription": "Use the \"Report a bug\" button at the bottom of the About page",
+          "betaNote": "Beta users: Your feedback is valuable! Don't hesitate to share your impressions."
+        },
+        "legal": {
+          "title": "⚖️ Legal Notices",
+          "editor": {
+            "title": "1. Service Publisher",
+            "content": "Pl4to is a personal financial planning service published by Pl4to Inc.",
+            "location": "Headquarters: Quebec, Canada",
+            "contact": "Contact: support@pl4to.ca"
+          },
+          "terms": {
+            "title": "2. Terms of Use",
+            "content": "By using Pl4to, you agree to these terms. The service is provided \"as is\" and intended solely for personal planning purposes."
+          },
+          "liability": {
+            "title": "3. Limitation of Liability",
+            "content": "Pl4to is a visualization tool and does not constitute financial, tax, or legal advice in any way. Projections are based on the data you provide and may differ from reality.",
+            "recommendation": "We recommend consulting a certified professional for any important financial decision."
+          },
+          "ip": {
+            "title": "4. Intellectual Property",
+            "content": "All Pl4to content (design, code, text, logos) is protected by copyright. Any unauthorized reproduction is prohibited."
+          },
+          "changes": {
+            "title": "5. Modification of Terms",
+            "content": "We reserve the right to modify these terms at any time. Users will be informed of significant changes by email."
+          },
+          "lastUpdate": "Last updated: December 2025"
+        },
+        "privacy": {
+          "title": "🔒 Privacy Policy",
+          "priority": "Your privacy is our priority.",
+          "collected": {
+            "title": "1. Data Collected",
+            "intro": "We only collect data necessary for the service to function:",
+            "account": "Account information: Email, password (encrypted)",
+            "financial": "Financial data: Accounts, budget, goals (that you enter manually)",
+            "technical": "Technical data: Connection logs, device type"
+          },
+          "notDone": {
+            "title": "2. What we do NOT do",
+            "item1": "❌ Access your real bank accounts",
+            "item2": "❌ Sell your data to third parties",
+            "item3": "❌ Share your information with advertisers",
+            "item4": "❌ Store your data unencrypted"
+          },
+          "security": {
+            "title": "3. Security",
+            "intro": "Your data is protected by:",
+            "item1": "High-level security",
+            "item2": "Secure authentication (JWT)",
+            "item3": "2FA option available"
+          },
+          "rights": {
+            "title": "4. Your Rights",
+            "intro": "You can at any time:",
+            "access": "Access your data",
+            "modify": "Modify your information",
+            "export": "Export your data",
+            "delete": "Delete your account and all your data"
+          },
+          "cookies": {
+            "title": "5. Cookies",
+            "content": "We only use essential cookies for operation (authentication). No tracking or advertising cookies."
+          },
+          "dpo": {
+            "title": "6. DPO Contact",
+            "intro": "For any questions regarding your personal data:",
+            "email": "privacy@pl4to.ca"
+          },
+          "lastUpdate": "Last updated: December 2025"
+        },
+        "bug": {
+          "title": "🐛 Report a Bug",
+          "intro": "Found a problem or have a suggestion? Let us know!",
+          "typeLabel": "Report type",
+          "typeBug": "🐛 Bug / Error",
+          "typeImprovement": "💡 Improvement suggestion",
+          "typeQuestion": "❓ Question",
+          "typeOther": "💬 Other",
+          "descriptionLabel": "Description *",
+          "descriptionPlaceholder": "Describe the problem or your suggestion in detail...",
+          "emailLabel": "Your email (optional)",
+          "emailPlaceholder": "To contact you back if necessary",
+          "tip": "For bugs, include the steps to reproduce the problem and what you expected as a result.",
+          "submit": "📨 Send report",
+          "successTitle": "Thank you for your report!",
+          "successMessage": "We have received your message and will respond as soon as possible.",
+          "validation": "Please enter a description."
+        },
+        "close": "Close"
+      }
+    }
+  },
+  "onboarding": {
+    "step": "Step {{current}} of {{total}}",
+    "completed": "completed",
+    "stepIndicator": {
+      "profile": "Profile",
+      "account": "Account",
+      "goal": "Goal",
+      "minRemaining": "min remaining"
+    },
+    "welcome": {
+      "title": "Welcome to Pl4to! 🎉",
+      "subtitle": "Let's set up your Financial GPS",
+      "description": "In a few steps, your GPS will be ready to show you your portfolio evolution.",
+      "cta": "Start my journey",
+      "benefit1": "Discover where you'll be in <strong>54 years</strong>",
+      "benefit2": "Recalculate your route <strong>anytime</strong>",
+      "benefit3": "Reach your financial <strong>destinations</strong>",
+      "timeEstimate": "Setup in <strong>3 minutes</strong>",
+      "hasAccount": "I already have an account",
+      "encrypted": "Encrypted & secure",
+      "hostedCanada": "Hosted in Canada"
+    },
+    "steps": {
+      "info": "Information",
+      "accounts": "Accounts",
+      "budget": "Budget",
+      "goals": "Goals"
+    },
+    "userInfo": {
+      "title": "Let's talk about you",
+      "subtitle": "Let's get acquainted!",
+      "firstName": "First name",
+      "firstNamePlaceholder": "Ex: John",
+      "lastName": "Last name",
+      "age": "Age",
+      "agePlaceholder": "Ex: 35",
+      "autoSave": "Your progress is <strong>automatically saved</strong>. You can come back anytime."
+    },
+    "firstAccount": {
+      "title": "Add your first account",
+      "subtitle": "Which account do you use daily?",
+      "accountName": "Account name",
+      "accountNamePlaceholder": "Ex: Scotia-Chequing, Desjardins-Savings",
+      "accountType": "Account type",
+      "types": {
+        "cheque": "Chequing account",
+        "savings": "Savings",
+        "credit": "Credit card",
+        "creditHint": "Balance owed (what you owe)"
+      },
+      "institution": "Financial institution",
+      "institutionPlaceholder": "Ex: Desjardins, Scotia Bank, RBC",
+      "creditLimit": "Credit limit",
+      "currentBalance": "Current balance",
+      "currentBalancePlaceholder": "Ex: 1500",
+      "selectTypeFirst": "Select an account type first",
+      "tapToEnter": "Tap to enter amount",
+      "tapToEnterBalance": "Tap to enter balance",
+      "validation": {
+        "nameType": "Fill in the account name and type",
+        "balance": "Enter a valid balance",
+        "creditLimit": "Enter the credit limit"
+      },
+      "addMoreLater": "💡 You can add more accounts later from the <strong>Accounts</strong> page"
+    },
+    "firstGoal": {
+      "title": "Set your first goal",
+      "subtitle": "Your GPS will calculate the path",
+      "tapToEnter": "Tap to enter amount",
+      "validation": {
+        "name": "Give your goal a name",
+        "amount": "Enter a valid target amount"
+      },
+      "suggestions": "Popular suggestions",
+      "goalTypes": {
+        "emergency": "Emergency fund",
+        "vacation": "Vacation",
+        "house": "House",
+        "car": "Car",
+        "retirement": "Retirement",
+        "education": "Education"
+      },
+      "goalMessages": {
+        "emergency": "🛡️ Excellent choice! An emergency fund means peace of mind.",
+        "vacation": "🌴 You deserve this trip! Let's see how long it will take.",
+        "house": "🏠 A great project! Your GPS will map the path to your keys.",
+        "car": "🚗 Nice destination! Let's calculate your route.",
+        "retirement": "☀️ Thinking ahead is smart! Your future self will thank you.",
+        "education": "🎓 Investing in yourself is the best investment!",
+        "custom": "🎯 Perfect! Every goal starts with a first step."
+      },
+      "goalName": "Goal name",
+      "goalNamePlaceholder": "Ex: Emergency fund, Europe vacation",
+      "goalType": "Goal type",
+      "typeOptions": {
+        "savings": "Savings",
+        "debt": "Debt repayment",
+        "investment": "Investment",
+        "purchase": "Major purchase",
+        "retirement": "Retirement"
+      },
+      "targetAmount": "Target amount",
+      "estimate": "💡 With <strong>$500/month</strong>, you'll reach <strong>${{amount}}</strong> in <strong>{{months}} months</strong> (~{{years}} years)",
+      "estimateEncouragement": "🌟 You're almost there! This is totally achievable.",
+      "associatedAccount": "Associated account",
+      "addMoreLater": "💡 You can add more goals or change the account goal later from the <strong>Goals</strong> page",
+      "creating": "Creating your GPS...",
+      "accessTool": "See my dashboard",
+      "skip": "Skip this step"
+    },
+    "loading": {
+      "title": "Your GPS is getting ready...",
+      "subtitle": "In a few seconds, you'll discover what a Financial GPS is.",
+      "steps": {
+        "accounts": "Setting up your profile",
+        "budget": "Analyzing your situation",
+        "trajectory": "Calculating your trajectory...",
+        "complete": "Preparing your tool"
+      }
+    },
+    "complete": {
+      "title": "Congratulations! 🎉",
+      "subtitle": "Your GPS is ready! Discover your trajectory.",
+      "cta": "Open my GPS"
+    }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "completeGuide": "Complete your guide!",
+    "welcome": {
+      "title": "Welcome to PL4TO!",
+      "message": "Your calendar and dashboard help you anticipate expenses based on upcoming periods and events.",
+      "dismiss": "Got it!",
+      "continue": "Got it, let's go!"
+    },
+    "guideModal": {
+      "title": "Welcome to PL4TO!",
+      "message": "Anticipate your finances at a glance!\nHome centralizes your alerts, upcoming expenses, and goals.",
+      "hint": "Click to explore your Home page"
+    },
+    "notifications": {
+      "empty": "No new notifications at the moment."
+    },
+    "calendarO": {
+      "title": "Calendar",
+      "subtitle": "Anticipate future events and plan ahead",
+      "inDays": "In {{count}} days",
+      "inWeeks": "In {{count}} week",
+      "inWeeks_plural": "In {{count}} weeks",
+      "inMonths": "In {{count}} month",
+      "inMonths_plural": "In {{count}} months",
+      "months": "{{count}} months",
+      "viewOnJourney": "View in O →",
+      "noEvents": "No major events in the next {{months}} months",
+      "navigateGPS": "Navigate in O's calendar."
+    },
+    "horizon": {
+      "title": "Event Horizon",
+      "filters": {
+        "3months": "3 months",
+        "6months": "6 months",
+        "12months": "12 months"
+      }
+    },
+    "alerts": {
+      "title": "Journey alerts",
+      "viewInGPS": "View in GPS",
+      "notification": "notification",
+      "notifications": "notifications",
+      "almostReachedKeepGoing": "almost reached! Keep going!",
+      "almostReached": "almost reached!",
+      "congratulations": "Congratulations!",
+      "reached": "reached!",
+      "approachingLimit": "is nearing its cap",
+      "largeTransaction": "Large transaction coming up",
+      "isNegative": "is negative",
+      "noGoals": "Set your first financial goals! 🎯",
+      "noBudget": "Set up your budget to better track your finances 📊",
+      "welcome": "Welcome! Your Financial GPS is ready to guide you 🗺️"
+    },
+    "upcoming": {
+      "title": "Upcoming transactions",
+      "stopPlanned": "transaction planned",
+      "stopsPlanned": "transactions planned",
+      "noStops": "No transactions planned on your route",
+      "exploreJourney": "Explore my journey →"
+    },
+    "goals": {
+      "title": "Goals in progress",
+      "destination": "goal",
+      "destinations": "goals",
+      "noDestinations": "No goals set"
+    }
+  },
+  "management": {
+    "title": "Portfolio Management",
+    "subtitle": "Let PL4TO balance your calculations over time and visualize a new financial trajectory.",
+    "guide": {
+      "title": "Here, you become like a financial planner, but no that's not true! 😂",
+      "message": "Ask PL4TO to balance your calculations over time and optimize your journey. 🚀"
+    },
+    "guideModal": {
+      "title": "Portfolio Management",
+      "message": "Here, you become a financial planner!\nJust kidding 😂\nAsk PL4TO to balance your calculations over time and optimize your journey.",
+      "hint": "Explore advanced management tools"
+    },
+    "trajectory": {
+      "title": "Your Financial Trajectory",
+      "subtitle": "Your complete journey",
+      "clickToSee": "Click to see details",
+      "clickToExplore": "Click to explore your trajectory",
+      "goals": "goals",
+      "yourPath": "Your Path",
+      "point": "Point",
+      "balancesAt": "Balances",
+      "vsToday": "vs today",
+      "goalTarget": "Goal",
+      "arrival": "Arrival",
+      "months": "months"
+    },
+    "improve": {
+      "title": "Improve my financial journey",
+      "cta": "Request analysis",
+      "requestSent": "Request sent",
+      "expertAnalyzing": "PL4TO is analyzing your journey...",
+      "simulateResponse": "[Demo: Simulate response]"
+    },
+    "report": {
+      "title": "Up to Date Report",
+      "waiting": "Waiting for a proposal",
+      "ready": "Optimization proposal ready!",
+      "new": "NEW",
+      "expert": "Financial GPS Expert",
+      "current": "Current",
+      "analyzing": "Analyzing...",
+      "noProposal": "No proposal at the moment",
+      "willReceive": "You will soon receive an optimized proposal.",
+      "clickImprove": "Click \"Improve my journey\" to request an optimization."
+    },
+    "accept": {
+      "title": "Accept this improvement",
+      "confirm": "Confirm improvement",
+      "confirmMessage": "By accepting, your future budgets will be updated according to the expert's proposal. This action will replace your current configuration.",
+      "warning": "This action is irreversible. Make sure you have reviewed the proposal.",
+      "yesApply": "Yes, apply",
+      "success": "Improvement accepted! Your budgets have been updated."
+    },
+    "request": {
+      "title": "Improve my journey",
+      "description": "PL4TO will propose an optimized plan to balance your accounts and reach your goals faster.",
+      "benefits": "Repayment optimization\nGPS budget rebalancing",
+      "privacy": "Data protection",
+      "privacyMessage": "Your request will be transformed into a unique number when sent to PL4TO. Your personal data remains strictly confidential. Our system works only on your GPS financial data to balance your future budgets.",
+      "send": "Send request"
+    },
+    "pl4toRequest": {
+      "title": "Request sent to PL4TO",
+      "message": "PL4TO is analyzing your financial trajectory to provide personalized optimizations.",
+      "sentOn": "Sent on",
+      "cancel": "Cancel",
+      "cancelConfirm": "Are you sure you want to cancel your request?"
+    },
+    "recommendation": {
+      "title": "Recommendation",
+      "selectGoal": "Select a goal to see details and navigate to that date.",
+      "updateBudget": "Consider updating your budget at this date to track your progress."
+    }
+  },
+  "months": {
+    "january": "January",
+    "february": "February",
+    "march": "March",
+    "april": "April",
+    "may": "May",
+    "june": "June",
+    "july": "July",
+    "august": "August",
+    "september": "September",
+    "october": "October",
+    "november": "November",
+    "december": "December"
+  },
+  "monthsShort": {
+    "jan": "Jan",
+    "feb": "Feb",
+    "mar": "Mar",
+    "apr": "Apr",
+    "may": "May",
+    "jun": "Jun",
+    "jul": "Jul",
+    "aug": "Aug",
+    "sep": "Sep",
+    "oct": "Oct",
+    "nov": "Nov",
+    "dec": "Dec"
+  },
+  "days": {
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday"
+  },
+  "errors": {
+    "generic": "An error occurred. Please try again.",
+    "network": "Connection error. Check your internet.",
+    "server": "Server error. Please try again.",
+    "saveError": "⚠️ Save error",
+    "deleteError": "⚠️ Delete error",
+    "required": "This field is required"
+  },
+  "success": {
+    "saved": "✓ Saved",
+    "deleted": "✓ Deleted",
+    "accountCreated": "✓ Account created!",
+    "goalCreated": "✓ Destination created!",
+    "profileUpdated": "✓ Profile updated!"
+  },
+  "events": {
+    "categories": {
+      "holidays": "Holidays",
+      "shopping": "Shopping",
+      "leisure": "Leisure",
+      "vacation": "Vacation",
+      "home": "Home",
+      "admin": "Administrative",
+      "family": "Family",
+      "education": "Education",
+      "work": "Work"
+    },
+    "newYear": "New Year's Day",
+    "newYearDesc": "Celebrations and outings",
+    "winterSales": "Winter Sales",
+    "winterSalesDesc": "Shopping and deals",
+    "valentines": "Valentine's Day",
+    "valentinesDesc": "Romantic dinner and gifts",
+    "springBreak": "Spring Break",
+    "springBreakDesc": "Family activities",
+    "stPatrick": "St. Patrick's Day",
+    "stPatrickDesc": "Outings and festivities",
+    "springStart": "Spring begins",
+    "springStartDesc": "Outdoor maintenance",
+    "easter": "Easter",
+    "easterDesc": "Family brunch and chocolates",
+    "taxReturn": "Tax Return",
+    "taxReturnDesc": "Accountant or software",
+    "mothersDay": "Mother's Day",
+    "mothersDayDesc": "Gift and restaurant",
+    "patriotsDay": "Patriots' Day",
+    "patriotsDayDesc": "Long weekend - activities",
+    "fathersDay": "Father's Day",
+    "fathersDayDesc": "Gift and activity",
+    "stJeanBaptiste": "St. Jean Baptiste Day",
+    "stJeanBaptisteDesc": "Festivities and outings",
+    "summerStart": "Summer begins",
+    "summerStartDesc": "Pool/garden preparation",
+    "canadaDay": "Canada Day",
+    "canadaDayDesc": "Celebrations and BBQ",
+    "summerVacation": "Summer Vacation",
+    "summerVacationDesc": "Travel or staycation",
+    "backToSchool": "Back to School",
+    "backToSchoolDesc": "Supplies and clothes",
+    "laborDay": "Labor Day",
+    "laborDayDesc": "Long weekend - activities",
+    "fallStart": "Fall begins",
+    "fallStartDesc": "Fall maintenance",
+    "thanksgiving": "Thanksgiving",
+    "thanksgivingDesc": "Family meal",
+    "halloween": "Halloween",
+    "halloweenDesc": "Costumes and candy",
+    "blackFriday": "Black Friday",
+    "blackFridayDesc": "Shopping and Christmas gifts",
+    "officeParty": "Office Party",
+    "officePartyDesc": "Outfit and gift exchange",
+    "christmas": "Christmas",
+    "christmasDesc": "Gifts and celebrations",
+    "newYearsEve": "New Year's Eve",
+    "newYearsEveDesc": "New Year celebration"
+  },
+  "upgrade": {
+    "perMonth": "/month",
+    "limited": "Limited",
+    "unlimited": "Unlimited",
+    "later": "Later",
+    "button": "Upgrade to Essential",
+    "unlock": "Unlock",
+    "guarantee": "14-day money-back guarantee",
+    "limits": {
+      "accounts": {
+        "title": "Account limit reached",
+        "description": "You've reached the {{max}} account limit on the Discovery plan.",
+        "benefit": "With the Essential plan, add unlimited accounts!"
+      },
+      "destinations": {
+        "title": "Destination limit reached",
+        "description": "You've reached the {{max}} destination limit on the Discovery plan.",
+        "benefit": "With the Essential plan, set unlimited destinations!"
+      },
+      "budget": {
+        "title": "Budget limit reached",
+        "description": "You've reached the {{max}} budget item limit on the Discovery plan.",
+        "benefit": "With the Essential plan, manage unlimited budgets!"
+      },
+      "simulations": {
+        "title": "Simulation limit reached",
+        "description": "You've used your {{max}} free simulations this month.",
+        "benefit": "With the Essential plan, unlimited simulations!"
+      }
+    },
+    "features": {
+      "gpsMonth": {
+        "title": "Month view unavailable",
+        "description": "The GPS Month view is for subscribers only.",
+        "benefit": "See your journey month by month!"
+      },
+      "gpsYear": {
+        "title": "Year view unavailable",
+        "description": "The GPS Year view is for subscribers only.",
+        "benefit": "Plan for multiple years!"
+      },
+      "timeline": {
+        "title": "Interactive timeline",
+        "description": "The interactive timeline is for subscribers only.",
+        "benefit": "Navigate through time easily!"
+      },
+      "export": {
+        "title": "Data export",
+        "description": "Data export is for subscribers only.",
+        "benefit": "Export your data anytime!"
+      }
+    },
+    "banner": {
+      "accounts": "{{current}}/{{max}} accounts used",
+      "destinations": "{{current}}/{{max}} destinations used",
+      "budget": "{{current}}/{{max}} budget items used",
+      "simulations": "{{current}}/{{max}} simulations this month",
+      "generic": "Limit reached",
+      "upgradeHint": "Upgrade to Essential to unlock more"
+    },
+    "locked": {
+      "title": "Premium Feature",
+      "description": "Available with the Essential plan",
+      "upgradeToContinue": "Upgrade to Essential to unlock",
+      "accountsLocked": "Additional accounts locked",
+      "goalsLocked": "Additional destinations locked",
+      "budgetLocked": "Additional budget items locked",
+      "clickToUpgrade": "Click to unlock"
+    },
+    "generic": {
+      "title": "Premium Feature",
+      "description": "This feature is for subscribers only.",
+      "benefit": "Unlock all features!"
+    }
+  },
+  "trial": {
+    "freeTrialActive": "Free trial",
+    "daysRemaining": "days remaining",
+    "dayRemaining": "day remaining",
+    "welcome": {
+      "title": "Welcome to your Financial GPS!",
+      "message": "You have 14 days of free access to the Essential plan with all features.",
+      "betaTitle": "Early Adopters Offer",
+      "limited": "Limited access",
+      "price": "Essential Plan: $9.99/month",
+      "priceNote": "Exclusive price for early adopters",
+      "expirationNote": "At the end of your trial, you can choose a plan to continue.",
+      "ignore": "Ignore",
+      "remind": "Remind me in 7 days",
+      "choosePlan": "Choose a plan"
+    }
+  }
+}

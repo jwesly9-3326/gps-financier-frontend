@@ -1,0 +1,66 @@
+{
+  "_meta": {
+    "language": "Español",
+    "locale": "es-ES",
+    "lastUpdated": "2025-12-26",
+    "status": "TEMPLATE - TODO: Complete translations",
+    "translator": ""
+  },
+  "common": {
+    "appName": "Pl4to",
+    "tagline": "TODO: Naviguez vers votre nouvelle économie",
+    "loading": "TODO: Chargement...",
+    "save": "TODO: Sauvegarder",
+    "saved": "TODO: ✓ Sauvegardé",
+    "cancel": "TODO: Annuler",
+    "delete": "TODO: Supprimer",
+    "deleted": "TODO: ✓ Supprimé",
+    "edit": "TODO: Modifier",
+    "close": "TODO: Fermer",
+    "confirm": "TODO: Confirmer",
+    "back": "TODO: Retour",
+    "next": "TODO: Suivant",
+    "finish": "TODO: Terminer",
+    "add": "TODO: Ajouter",
+    "yes": "TODO: Oui",
+    "no": "TODO: Non",
+    "or": "TODO: ou",
+    "and": "TODO: et",
+    "today": "TODO: Aujourd'hui",
+    "tomorrow": "TODO: Demain",
+    "yesterday": "TODO: Hier",
+    "optional": "TODO: optionnel",
+    "select": "TODO: Sélectionner...",
+    "noDescription": "TODO: Sans description"
+  },
+  "greeting": {
+    "morning": "TODO: Bon matin",
+    "afternoon": "TODO: Bon après-midi",
+    "evening": "TODO: Bonsoir"
+  },
+  "nav": {
+    "home": "TODO: Accueil",
+    "dashboard": "TODO: Dashboard",
+    "accounts": "TODO: Comptes",
+    "budget": "TODO: Budget",
+    "gps": "TODO: GPS Financier",
+    "goals": "TODO: Objectifs",
+    "calculator": "TODO: Calculatrice",
+    "management": "TODO: Gestion de comptes",
+    "settings": "TODO: Paramètres",
+    "logout": "TODO: Déconnexion"
+  },
+  "_instructions": {
+    "howToTranslate": [
+      "1. Remplacer chaque 'TODO: texte français' par la traduction espagnole",
+      "2. Ne JAMAIS modifier les clés (à gauche du :)",
+      "3. Préserver les {{variables}} telles quelles",
+      "4. Préserver les emojis",
+      "5. Tester chaque page après traduction"
+    ],
+    "example": {
+      "before": "\"save\": \"TODO: Sauvegarder\"",
+      "after": "\"save\": \"Guardar\""
+    }
+  }
+}

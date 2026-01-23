@@ -1,0 +1,247 @@
+/* ============================================ */
+/* 🧭 PL4TO - VARIABLES CSS GLOBALES           */
+/* Palette de couleurs officielle              */
+/* ============================================ */
+
+:root {
+  /* ========== PLATEFORME (PL4T) ========== */
+  /* Gradient principal - Identité tech */
+  --platform-start: #667eea;
+  --platform-end: #764ba2;
+  --platform-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --platform-gradient-dark: linear-gradient(135deg, #5568d3 0%, #6a4190 100%);
+  
+  /* ========== GPS "O" - ACCENT ========== */
+  /* Orange GPS - L'invention unique */
+  --gps-primary: #ff9800;
+  --gps-dark: #f57c00;
+  --gps-light: #ffb74d;
+  --gps-gradient: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  
+  /* ========== TEMPORAL - Ligne du temps ========== */
+  --temporal-past: #94a3b8;
+  --temporal-present: #3b82f6;
+  --temporal-future: #10b981;
+  
+  /* ========== SEMANTIC - États ========== */
+  --success: #48bb78;
+  --success-light: #9ae6b4;
+  --success-dark: #38a169;
+  
+  --warning: #fbbf24;
+  --warning-light: #fde68a;
+  --warning-dark: #f59e0b;
+  
+  --danger: #f56565;
+  --danger-light: #feb2b2;
+  --danger-dark: #e53e3e;
+  
+  --info: #4299e1;
+  --info-light: #90cdf4;
+  --info-dark: #3182ce;
+  
+  /* ========== FUN ACCENTS ========== */
+  --purple-fun: #9f7aea;
+  --blue-fun: #4299e1;
+  --yellow-fun: #ffd93d;
+  --pink-fun: #ed64a6;
+  --teal-fun: #38b2ac;
+  
+  /* ========== NEUTRALS ========== */
+  --gray-50: #fafafa;
+  --gray-100: #f7fafc;
+  --gray-200: #edf2f7;
+  --gray-300: #e2e8f0;
+  --gray-400: #cbd5e0;
+  --gray-500: #a0aec0;
+  --gray-600: #718096;
+  --gray-700: #4a5568;
+  --gray-800: #2d3748;
+  --gray-900: #1a202c;
+  
+  /* ========== SURFACES ========== */
+  --background: #fafafa;
+  --background-alt: #f7fafc;
+  --surface: #ffffff;
+  --surface-elevated: #ffffff;
+  
+  /* ========== TEXT ========== */
+  --text-primary: #1e293b;
+  --text-secondary: #64748b;
+  --text-muted: #94a3b8;
+  --text-inverse: #ffffff;
+  
+  /* ========== HEADER/SIDEBAR ========== */
+  --header-bg: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+  --sidebar-bg: linear-gradient(180deg, #1e1b4b 0%, #312e81 100%);
+  --sidebar-hover: rgba(255, 255, 255, 0.1);
+  --sidebar-active: rgba(102, 126, 234, 0.3);
+  
+  /* ========== SHADOWS ========== */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04);
+  --shadow-gps: 0 4px 14px rgba(102, 126, 234, 0.25);
+  --shadow-gps-hover: 0 8px 25px rgba(102, 126, 234, 0.35);
+  
+  /* ========== BORDERS ========== */
+  --border-light: #e2e8f0;
+  --border-medium: #cbd5e0;
+  --border-radius-sm: 8px;
+  --border-radius-md: 12px;
+  --border-radius-lg: 16px;
+  --border-radius-xl: 20px;
+  --border-radius-full: 9999px;
+  
+  /* ========== TRANSITIONS ========== */
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  --transition-bounce: 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+  
+  /* ========== SPACING ========== */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --spacing-2xl: 48px;
+}
+
+/* ========== UTILITY CLASSES ========== */
+
+/* Backgrounds */
+.bg-platform {
+  background: var(--platform-gradient);
+}
+
+.bg-gps {
+  background: var(--gps-gradient);
+}
+
+.bg-surface {
+  background: var(--surface);
+}
+
+/* Text colors */
+.text-gps {
+  color: var(--gps-primary);
+}
+
+.text-platform {
+  background: var(--platform-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Shadows */
+.shadow-gps {
+  box-shadow: var(--shadow-gps);
+}
+
+.shadow-gps-hover:hover {
+  box-shadow: var(--shadow-gps-hover);
+}
+
+/* Cards */
+.card-pl4to {
+  background: var(--surface);
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: var(--spacing-lg);
+  transition: all var(--transition-normal);
+}
+
+.card-pl4to:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Buttons */
+.btn-primary {
+  background: var(--platform-gradient);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: var(--border-radius-md);
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-gps-hover);
+}
+
+.btn-gps {
+  background: var(--gps-gradient);
+  color: var(--text-inverse);
+  border: none;
+  border-radius: var(--border-radius-md);
+  padding: 12px 24px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+
+/* Animations */
+@keyframes gps-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 0.8;
+  }
+}
+
+@keyframes gps-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-gps-pulse {
+  animation: gps-pulse 2s ease-in-out infinite;
+}
+
+.animate-gps-spin {
+  animation: gps-spin 2s linear infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.4s ease-out;
+}

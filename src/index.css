@@ -1,0 +1,459 @@
+/* ============================================ */
+/* 🧭 PL4TO - STYLES GLOBAUX                   */
+/* Navigation financière dans le temps         */
+/* ============================================ */
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=Roboto+Mono:wght@400;500;700&display=swap');
+
+/* Import Variables Pl4to */
+@import './styles/pl4to-variables.css';
+
+/* Import Tailwind */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================ */
+/* BASE STYLES                                 */
+/* ============================================ */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  background-color: var(--background);
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ============================================ */
+/* LAYOUT PRINCIPAL - 100vh FIXE               */
+/* ============================================ */
+
+html, body, #root {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Container Principal */
+.gps-app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--background);
+}
+
+/* ============================================ */
+/* HEADER - Barre supérieure                   */
+/* ============================================ */
+
+.gps-app-header {
+  height: 70px;
+  background: #040449;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 30px;
+  box-shadow: none;
+  z-index: 100;
+  position: relative;
+}
+
+/* Animation pulse pour le logo GPS */
+@keyframes gps-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+/* ============================================ */
+/* BODY - Sidebar + Main Content               */
+/* ============================================ */
+
+.gps-app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ============================================ */
+/* SIDEBAR - Navigation verticale              */
+/* ============================================ */
+
+.gps-sidebar {
+  width: 240px;
+  background: linear-gradient(180deg, #040449 0%, #100261 100%);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 20px rgba(4, 4, 73, 0.3);
+  overflow-y: auto;
+}
+
+/* Scrollbar personnalisée sidebar */
+.gps-sidebar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.gps-sidebar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.gps-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+/* Items de navigation - Styles de base, le composant gère les détails */
+.sidebar-nav-item {
+  text-decoration: none;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.sidebar-nav-item:hover {
+  color: white;
+}
+
+/* Item GPS Financier - Highlight spécial orange */
+.sidebar-nav-item.gps-star {
+  background: linear-gradient(90deg, rgba(255, 152, 0, 0.12) 0%, transparent 100%);
+}
+
+.sidebar-nav-item.gps-star:hover {
+  background: linear-gradient(90deg, rgba(255, 152, 0, 0.22) 0%, transparent 100%) !important;
+  border-left-color: #ff9800 !important;
+}
+
+/* ============================================ */
+/* MAIN CONTENT AREA                           */
+/* ============================================ */
+
+.gps-main-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: linear-gradient(180deg, #040449 0%, #0a0350 100%);
+}
+
+/* Zone de contenu avec scroll */
+.gps-content-area {
+  flex: 1;
+  background: linear-gradient(180deg, #040449 0%, #0a0350 100%);
+  padding: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  border-top-left-radius: 0;
+}
+
+/* Scrollbar personnalisée contenu */
+.gps-content-area::-webkit-scrollbar {
+  width: 10px;
+}
+
+.gps-content-area::-webkit-scrollbar-track {
+  background: var(--gray-200);
+  border-radius: 10px;
+}
+
+.gps-content-area::-webkit-scrollbar-thumb {
+  background: var(--gray-400);
+  border-radius: 10px;
+  border: 2px solid var(--gray-200);
+}
+
+.gps-content-area::-webkit-scrollbar-thumb:hover {
+  background: var(--gray-500);
+}
+
+/* ============================================ */
+/* LIGHT MODE STYLES                            */
+/* ============================================ */
+
+/* Header en light mode */
+body.theme-light .gps-app-header {
+  background: #ffffff !important;
+  box-shadow: none;
+  border-bottom: none;
+}
+
+/* Main content en light mode */
+body.theme-light .gps-main-content {
+  background: #ffffff !important;
+}
+
+/* Content area en light mode */
+body.theme-light .gps-content-area {
+  background: #ffffff !important;
+}
+
+/* Scrollbar light mode */
+body.theme-light .gps-content-area::-webkit-scrollbar-track {
+  background: #e2e8f0;
+}
+
+body.theme-light .gps-content-area::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border-color: #e2e8f0;
+}
+
+body.theme-light .gps-content-area::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
+
+/* ============================================ */
+/* CARDS STYLE PL4TO                           */
+/* ============================================ */
+
+.card-pl4to {
+  background: var(--surface);
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+  padding: 24px;
+  transition: all 0.3s ease;
+}
+
+.card-pl4to:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(102, 126, 234, 0.12);
+}
+
+/* ============================================ */
+/* BUTTONS PL4TO                               */
+/* ============================================ */
+
+.btn-platform {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.btn-platform:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+}
+
+.btn-gps {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 12px 24px;
+  font-weight: 600;
+  font-size: 0.95em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(255, 152, 0, 0.3);
+}
+
+.btn-gps:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(255, 152, 0, 0.4);
+}
+
+/* ============================================ */
+/* ÉTATS VISUELS                               */
+/* ============================================ */
+
+/* Success */
+.status-success {
+  background: linear-gradient(135deg, rgba(72, 187, 120, 0.1) 0%, rgba(72, 187, 120, 0.05) 100%);
+  border-left: 4px solid var(--success);
+  color: var(--success-dark);
+}
+
+/* Warning */
+.status-warning {
+  background: linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.05) 100%);
+  border-left: 4px solid var(--warning);
+  color: var(--warning-dark);
+}
+
+/* Danger */
+.status-danger {
+  background: linear-gradient(135deg, rgba(245, 101, 101, 0.1) 0%, rgba(245, 101, 101, 0.05) 100%);
+  border-left: 4px solid var(--danger);
+  color: var(--danger-dark);
+}
+
+/* Info */
+.status-info {
+  background: linear-gradient(135deg, rgba(66, 153, 225, 0.1) 0%, rgba(66, 153, 225, 0.05) 100%);
+  border-left: 4px solid var(--info);
+  color: var(--info-dark);
+}
+
+/* ============================================ */
+/* ANIMATIONS GLOBALES                         */
+/* ============================================ */
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.4s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.3s ease-out;
+}
+
+.animate-pulse {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+/* ============================================ */
+/* GRADIENTS UTILITAIRES                       */
+/* ============================================ */
+
+.gradient-platform {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.gradient-gps {
+  background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+}
+
+.gradient-success {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+}
+
+.gradient-temporal {
+  background: linear-gradient(90deg, #94a3b8 0%, #3b82f6 50%, #10b981 100%);
+}
+
+/* ============================================ */
+/* RESPONSIVE                                  */
+/* ============================================ */
+
+@media (max-width: 768px) {
+  .gps-sidebar {
+    width: 70px;
+    padding: 15px 0;
+  }
+  
+  .sidebar-nav-item {
+    padding: 12px;
+    justify-content: center;
+  }
+  
+  .sidebar-nav-item span:not(:first-child) {
+    display: none;
+  }
+  
+  .gps-app-header {
+    padding: 0 15px;
+  }
+  
+  .gps-content-area {
+    padding: 15px;
+  }
+}
+
+/* ============================================ */
+/* LEGACY SUPPORT                              */
+/* ============================================ */
+
+/* Classes legacy pour compatibilité */
+.bg-gradient-day {
+  background: linear-gradient(180deg, #87CEEB 0%, #FFFFFF 100%);
+}
+
+.bg-gradient-night {
+  background: linear-gradient(180deg, #1a237e 0%, #5e35b1 100%);
+}
+
+.animate-pulse-gps {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.text-primary-main {
+  color: var(--success);
+}
+
+.text-text-secondary {
+  color: var(--text-secondary);
+}
+
+.font-header {
+  font-family: 'Poppins', sans-serif;
+}
