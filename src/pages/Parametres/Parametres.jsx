@@ -4,7 +4,7 @@
 // ✅ Utilise useGuideProgress pour la logique centralisée
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import authService from '../../services/auth.service';
@@ -12,15 +12,17 @@ import stripeService, { STRIPE_PRICES } from '../../services/stripeService';
 import { useSubscription } from '../../context/SubscriptionContext';
 import useGuideProgress from '../../hooks/useGuideProgress';
 import PageGuideModal from '../../components/common/PageGuideModal';
+import { storage } from '../../utils/index.js';
 import useTooltipTour from '../../hooks/useTooltipTour';
 import TooltipTour from '../../components/common/TooltipTour';
 import { useTheme } from '../../context/ThemeContext';
 import { trackThemeChanged, trackLanguageChanged } from '../../services/analytics.service';
 
 const Parametres = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, updateProfile } = useAuth();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { startTrial } = useSubscription();
   const { theme, isDark, setTheme, themePreference } = useTheme();
   
@@ -75,8 +77,34 @@ const Parametres = () => {
   // Mode plein écran
   const [isFullScreen, setIsFullScreen] = useState(false);
   
-  // Section active
-  const [activeSection, setActiveSection] = useState('profil');
+  // 📱 Détection mobile
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // 📱 Lire le paramètre fullscreen de l'URL (pour navigation depuis Sidebar mobile)
+  useEffect(() => {
+    const fullscreenParam = searchParams.get('fullscreen');
+    if (fullscreenParam === 'true' && isMobile) {
+      setIsFullScreen(true);
+      // Nettoyer l'URL après avoir lu le paramètre
+      navigate('/parametres', { replace: true });
+    }
+  }, [searchParams, isMobile, navigate]);
+  
+  // Section active - null sur mobile au départ (affiche seulement le sidebar)
+  const [activeSection, setActiveSection] = useState(null);
+  
+  // Sur desktop, toujours avoir une section active
+  useEffect(() => {
+    if (!isMobile && activeSection === null) {
+      setActiveSection('profil');
+    }
+  }, [isMobile, activeSection]);
   
   // États du formulaire Profil
   const [profileData, setProfileData] = useState({
@@ -161,6 +189,8 @@ const Parametres = () => {
   const [twoFACode, setTwoFACode] = useState('');
   const [twoFAPassword, setTwoFAPassword] = useState('');
   const [twoFALoading, setTwoFALoading] = useState(false);
+  const [logoutAllLoading, setLogoutAllLoading] = useState(false);
+  const [showLogoutSuccessModal, setShowLogoutSuccessModal] = useState(false);
   const [twoFAError, setTwoFAError] = useState(null);
   const [twoFAStatus, setTwoFAStatus] = useState({ enabled: false, backupCodesRemaining: 0 });
   
@@ -259,8 +289,8 @@ const Parametres = () => {
     setDeleteError(null);
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/delete-account`, {
+      const token = storage.getAuthToken();
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/delete-account`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -371,32 +401,119 @@ const Parametres = () => {
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [isFullScreen, activeModal]);
   
-  // Simuler sauvegarde
-  const handleSave = (section) => {
+  // Sauvegarder le profil
+  const handleSave = async (section) => {
     setSaveStatus('saving');
-    setTimeout(() => {
-      setSaveStatus('saved');
-      setTimeout(() => setSaveStatus(null), 2000);
-    }, 800);
+    
+    try {
+      if (section === 'profil') {
+        // Sauvegarder le profil via l'API
+        const result = await updateProfile({
+          firstName: profileData.firstName,
+          lastName: profileData.lastName
+        });
+        
+        if (result.success) {
+          setSaveStatus('saved');
+          setTimeout(() => setSaveStatus(null), 2000);
+        } else {
+          setSaveStatus(null);
+          alert(result.error || t('settings.save.error'));
+        }
+      } else {
+        // Pour les autres sections, simulation (ou implémenter d'autres API)
+        setTimeout(() => {
+          setSaveStatus('saved');
+          setTimeout(() => setSaveStatus(null), 2000);
+        }, 800);
+      }
+    } catch (error) {
+      console.error('Erreur de sauvegarde:', error);
+      setSaveStatus(null);
+      alert(t('settings.save.error'));
+    }
   };
   
-  // Envoyer code de vérification
-  const sendVerificationCode = () => {
+  // Envoyer code de vérification pour changement d'email
+  const [emailChangeLoading, setEmailChangeLoading] = useState(false);
+  const [emailChangeError, setEmailChangeError] = useState(null);
+  
+  const sendVerificationCode = async () => {
     if (!newEmail || !newEmail.includes('@')) {
       alert(t('settings.profile.emailChange.invalidEmail'));
       return;
     }
-    setCodeSent(true);
-    setEmailStep('verify');
-    // Simuler l'envoi du code
-    console.log('Code envoyé à:', newEmail);
+    
+    setEmailChangeLoading(true);
+    setEmailChangeError(null);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/change-email/request`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ newEmail })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur lors de l\'envoi du code');
+      }
+      
+      setCodeSent(true);
+      setEmailStep('verify');
+      console.log('[✅ Email Change] Code envoyé à:', newEmail);
+      
+    } catch (error) {
+      console.error('Erreur envoi code:', error);
+      setEmailChangeError(error.message);
+      alert(error.message);
+    } finally {
+      setEmailChangeLoading(false);
+    }
   };
   
-  // Vérifier le code
-  const verifyCode = () => {
-    if (verificationCode === '123456' || verificationCode.length === 6) {
+  // Vérifier le code et changer l'email
+  const verifyCode = async () => {
+    if (verificationCode.length !== 6) {
+      alert(t('settings.profile.emailChange.invalidCode'));
+      return;
+    }
+    
+    setEmailChangeLoading(true);
+    setEmailChangeError(null);
+    
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/change-email/verify`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ code: verificationCode })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Code incorrect');
+      }
+      
+      // Succès - mettre à jour l'interface
       setEmailStep('success');
       setProfileData({...profileData, email: newEmail});
+      
+      // Mettre à jour le contexte utilisateur si nécessaire
+      if (data.user) {
+        // L'email a été changé côté serveur
+        console.log('[✅ Email Changed] Nouveau:', data.user.email);
+      }
+      
       setTimeout(() => {
         setIsChangingEmail(false);
         setEmailStep('input');
@@ -404,8 +521,13 @@ const Parametres = () => {
         setVerificationCode('');
         setCodeSent(false);
       }, 2000);
-    } else {
-      alert(t('settings.profile.emailChange.invalidCode'));
+      
+    } catch (error) {
+      console.error('Erreur vérification code:', error);
+      setEmailChangeError(error.message);
+      alert(error.message);
+    } finally {
+      setEmailChangeLoading(false);
     }
   };
   
@@ -445,7 +567,7 @@ const Parametres = () => {
   
   // ===== SECTION PROFIL (avec changement email par code) =====
   const renderProfil = () => (
-    <div>
+    <div style={{ padding: '24px' }}>
       <h2 style={{ 
         fontSize: '1.75rem', 
         marginBottom: '24px',
@@ -569,6 +691,7 @@ const Parametres = () => {
                   />
                   <button
                     onClick={sendVerificationCode}
+                    disabled={emailChangeLoading}
                     style={{
                       padding: '12px 20px',
                       border: 'none',
@@ -576,11 +699,12 @@ const Parametres = () => {
                       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                       color: 'white',
                       fontWeight: '600',
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap'
+                      cursor: emailChangeLoading ? 'wait' : 'pointer',
+                      whiteSpace: 'nowrap',
+                      opacity: emailChangeLoading ? 0.7 : 1
                     }}
                   >
-                    📧 {t('settings.profile.emailChange.sendCode')}
+                    {emailChangeLoading ? '⏳ ...' : `📧 ${t('settings.profile.emailChange.sendCode')}`}
                   </button>
                 </div>
                 <button
@@ -639,35 +763,37 @@ const Parametres = () => {
                   />
                   <button
                     onClick={verifyCode}
-                    disabled={verificationCode.length !== 6}
+                    disabled={verificationCode.length !== 6 || emailChangeLoading}
                     style={{
                       padding: '12px 24px',
                       border: 'none',
                       borderRadius: '12px',
-                      background: verificationCode.length === 6 
+                      background: verificationCode.length === 6 && !emailChangeLoading
                         ? 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)'
                         : '#e2e8f0',
-                      color: verificationCode.length === 6 ? 'white' : '#64748b',
+                      color: verificationCode.length === 6 && !emailChangeLoading ? 'white' : '#64748b',
                       fontWeight: '600',
-                      cursor: verificationCode.length === 6 ? 'pointer' : 'not-allowed'
+                      cursor: verificationCode.length === 6 && !emailChangeLoading ? 'pointer' : 'not-allowed',
+                      opacity: emailChangeLoading ? 0.7 : 1
                     }}
                   >
-                    ✓ {t('settings.profile.emailChange.verify')}
+                    {emailChangeLoading ? '⏳ ...' : `✓ ${t('settings.profile.emailChange.verify')}`}
                   </button>
                 </div>
                 <div style={{ marginTop: '12px', display: 'flex', gap: '12px' }}>
                   <button
                     onClick={sendVerificationCode}
+                    disabled={emailChangeLoading}
                     style={{
                       padding: '8px 16px',
                       border: 'none',
                       background: 'transparent',
-                      color: '#667eea',
-                      cursor: 'pointer',
+                      color: emailChangeLoading ? 'rgba(102, 126, 234, 0.5)' : '#667eea',
+                      cursor: emailChangeLoading ? 'wait' : 'pointer',
                       fontSize: '0.9em'
                     }}
                   >
-                    🔄 {t('settings.profile.emailChange.resendCode')}
+                    {emailChangeLoading ? '⏳ ...' : `🔄 ${t('settings.profile.emailChange.resendCode')}`}
                   </button>
                   <button
                     onClick={() => { 
@@ -713,9 +839,9 @@ const Parametres = () => {
   // ===== SECTION ABONNEMENT (3 plans: Discovery, Essentiel, Pro) =====
   const renderAbonnement = () => {
     return (
-      <div data-tooltip="subscription">
+      <div data-tooltip="subscription" style={{ padding: isMobile ? '15px 0' : '24px' }}>
         <h2 style={{ 
-          fontSize: '1.5rem', 
+          fontSize: isMobile ? '1.3rem' : '1.5rem', 
           marginBottom: '8px',
           display: 'flex',
           alignItems: 'center',
@@ -735,11 +861,11 @@ const Parametres = () => {
             : 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
           border: subscriptionStatus?.isActive ? '2px solid #2ecc71' : '2px solid #667eea',
           borderRadius: '14px',
-          padding: '14px 20px',
+          padding: isMobile ? '12px 15px' : '14px 20px',
           marginBottom: '16px'
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', justifyContent: 'space-between', alignItems: isMobile ? 'flex-start' : 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               <span style={{ 
                 background: subscriptionStatus?.isActive ? '#2ecc71' : '#667eea', 
                 color: 'white', 
@@ -750,7 +876,7 @@ const Parametres = () => {
               }}>
                 {t('settings.subscription.currentPlan')}
               </span>
-              <span style={{ fontSize: '1em', fontWeight: '600', color: 'white' }}>
+              <span style={{ fontSize: isMobile ? '0.95em' : '1em', fontWeight: '600', color: 'white' }}>
                 {subscriptionStatus?.isActive ? (
                   <>💪 {subscriptionStatus.planName || 'Essentiel'} 
                     {subscriptionStatus.isBetaFounder && (
@@ -772,7 +898,7 @@ const Parametres = () => {
               </span>
             </div>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
               {subscriptionStatus?.isActive ? (
                 <>
                   <span style={{ fontSize: '0.85em', color: 'rgba(255,255,255,0.7)' }}>
@@ -819,11 +945,12 @@ const Parametres = () => {
           </div>
         </div>
 
-        {/* 3 Plans Grid */}
+        {/* 3 Plans Grid - Vertical scroll sur mobile */}
         <div style={{ 
-          display: 'grid', 
-          gridTemplateColumns: 'repeat(3, 1fr)', 
-          gap: '12px',
+          display: isMobile ? 'flex' : 'grid',
+          flexDirection: isMobile ? 'column' : undefined,
+          gridTemplateColumns: isMobile ? undefined : 'repeat(3, 1fr)', 
+          gap: isMobile ? '20px' : '12px',
           alignItems: 'start'
         }}>
           
@@ -833,7 +960,8 @@ const Parametres = () => {
             borderRadius: '16px',
             padding: '16px',
             position: 'relative',
-            background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)'
+            background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)',
+            width: isMobile ? '100%' : 'auto'
           }}>
             <span style={{
               position: 'absolute',
@@ -879,16 +1007,6 @@ const Parametres = () => {
                 <li style={{ padding: '3px 0' }}>✓ {t('settings.subscription.features.simPerMonth', { count: 3 })}</li>
               </ul>
               
-              <p style={{ fontWeight: '600', color: isDark ? 'white' : '#1e293b', margin: '0 0 6px', fontSize: '1em' }}>💾 {t('settings.subscription.features.data')}</p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 10px', color: isDark ? 'white' : '#1e293b' }}>
-                <li style={{ padding: '3px 0' }}>✓ {t('settings.subscription.features.backup30')}</li>
-              </ul>
-              
-              <p style={{ fontWeight: '600', color: isDark ? 'white' : '#1e293b', margin: '0 0 6px', fontSize: '1em' }}>🆘 {t('settings.subscription.features.support')}</p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, color: isDark ? 'white' : '#1e293b' }}>
-                <li style={{ padding: '3px 0' }}>✓ {t('settings.subscription.features.faqGuides')}</li>
-                <li style={{ padding: '3px 0' }}>✓ {t('settings.subscription.features.community')}</li>
-              </ul>
             </div>
             
             <button
@@ -917,8 +1035,9 @@ const Parametres = () => {
             padding: '16px',
             position: 'relative',
             background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)',
-            transform: 'scale(1.02)',
-            boxShadow: '0 6px 25px rgba(245, 158, 11, 0.2)'
+            transform: isMobile ? 'none' : 'scale(1.02)',
+            boxShadow: '0 6px 25px rgba(245, 158, 11, 0.2)',
+            width: isMobile ? '100%' : 'auto'
           }}>
             <span style={{
               position: 'absolute',
@@ -973,7 +1092,7 @@ const Parametres = () => {
             {/* Prix annuel - après la section Beta */}
             <p style={{ 
               margin: '0 0 12px', 
-              fontSize: '0.65em', 
+              fontSize: '0.85em', 
               color: '#2ecc71',
               background: 'rgba(46, 204, 113, 0.2)',
               padding: '3px 8px',
@@ -982,7 +1101,7 @@ const Parametres = () => {
               textAlign: 'center',
               width: '100%'
             }}>
-              💰 {t('settings.subscription.orYearly', { price: t('settings.subscription.essential.yearlyPrice') })}
+              💰 {t('settings.subscription.orYearlyEssential', { price: t('settings.subscription.essential.yearlyPrice') })}
             </p>
             
             {/* Features Essentiel */}
@@ -1007,13 +1126,6 @@ const Parametres = () => {
                 <li style={{ padding: '2px 0' }}>✨ {t('settings.subscription.features.smartAlerts')}</li>
               </ul>
               
-              <p style={{ fontWeight: '600', color: '#667eea', margin: '0 0 6px', fontSize: '1em' }}>💾 {t('settings.subscription.features.proData')}</p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 10px', color: isDark ? 'white' : '#1e293b' }}>
-                <li style={{ padding: '2px 0' }}>✨ {t('settings.subscription.features.permanentBackup')}</li>
-                <li style={{ padding: '2px 0' }}>✨ {t('settings.subscription.features.multiDevice')}</li>
-              </ul>
-              
-              <p style={{ fontWeight: '600', color: '#667eea', margin: '0 0 6px', fontSize: '1em' }}>🆘 {t('settings.subscription.features.emailSupport')}</p>
             </div>
             
             <button
@@ -1084,7 +1196,8 @@ const Parametres = () => {
             padding: '16px',
             position: 'relative',
             background: isDark ? 'rgba(139, 92, 246, 0.1)' : 'rgba(139, 92, 246, 0.05)',
-            opacity: 0.95
+            opacity: 0.95,
+            width: isMobile ? '100%' : 'auto'
           }}>
             <span style={{
               position: 'absolute',
@@ -1114,14 +1227,14 @@ const Parametres = () => {
               </p>
               <p style={{ 
                 margin: '4px 0 0', 
-                fontSize: '0.65em', 
+                fontSize: '0.85em', 
                 color: '#2ecc71',
                 background: 'rgba(46, 204, 113, 0.2)',
                 padding: '3px 8px',
                 borderRadius: '6px',
                 display: 'inline-block'
               }}>
-                💰 {t('settings.subscription.orYearly', { price: t('settings.subscription.pro.yearlyPrice') })}
+                💰 {t('settings.subscription.orYearlyPro', { price: t('settings.subscription.pro.yearlyPrice') })}
               </p>
             </div>
             
@@ -1161,13 +1274,6 @@ const Parametres = () => {
                 <li style={{ padding: '2px 0' }}>✨ {t('settings.subscription.features.smartAlerts')}</li>
               </ul>
               
-              <p style={{ fontWeight: '600', color: '#8b5cf6', margin: '0 0 4px', fontSize: '1em' }}>💾 {t('settings.subscription.features.proData')}</p>
-              <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 8px', color: isDark ? 'white' : '#1e293b' }}>
-                <li style={{ padding: '2px 0' }}>✨ {t('settings.subscription.features.permanentBackup')}</li>
-                <li style={{ padding: '2px 0' }}>✨ {t('settings.subscription.features.multiDevice')}</li>
-              </ul>
-              
-              <p style={{ fontWeight: '600', color: '#8b5cf6', margin: '0 0 10px', fontSize: '1em' }}>🆘 {t('settings.subscription.features.emailSupport')}</p>
               
               {/* Features exclusives Pro */}
               <div style={{ borderTop: '2px solid #c4b5fd', paddingTop: '10px', marginTop: '6px' }}>
@@ -1186,11 +1292,6 @@ const Parametres = () => {
                   <li style={{ padding: '2px 0' }}>🔮 {t('settings.subscription.features.smartRecalc')}</li>
                 </ul>
                 
-                <p style={{ fontWeight: '600', color: isDark ? 'white' : '#1e293b', margin: '0 0 4px', fontSize: '1em' }}>🔐 {t('settings.subscription.features.maxSecurity')}</p>
-                <ul style={{ listStyle: 'none', padding: 0, margin: 0, color: isDark ? 'white' : '#1e293b' }}>
-                  <li style={{ padding: '2px 0' }}>🔮 {t('settings.subscription.features.twoFA')}</li>
-                  <li style={{ padding: '2px 0' }}>🔮 {t('settings.subscription.features.vipSupport')}</li>
-                </ul>
               </div>
             </div>
             
@@ -1250,8 +1351,10 @@ const Parametres = () => {
           background: 'rgba(46, 204, 113, 0.15)',
           borderRadius: '10px',
           display: 'flex',
+          flexDirection: isMobile ? 'column' : 'row',
           justifyContent: 'center',
-          gap: '24px',
+          alignItems: isMobile ? 'center' : undefined,
+          gap: isMobile ? '8px' : '24px',
           flexWrap: 'wrap'
         }}>
           <span style={{ color: '#16a34a', fontWeight: '600', fontSize: '0.8em' }}>
@@ -1270,7 +1373,7 @@ const Parametres = () => {
   
   // ===== SECTION PRÉFÉRENCES (Sans Vue GPS et Format monétaire) =====
   const renderPreferences = () => (
-    <div>
+    <div style={{ padding: '24px' }}>
       <h2 style={{ 
         fontSize: '1.75rem', 
         marginBottom: '24px',
@@ -1472,7 +1575,7 @@ const Parametres = () => {
     );
     
     return (
-      <div>
+      <div style={{ padding: '24px' }}>
         <h2 style={{ 
           fontSize: '1.75rem', 
           marginBottom: '20px',
@@ -1560,9 +1663,9 @@ const Parametres = () => {
   
   // ===== SECTION SÉCURITÉ =====
   const renderSecurite = () => (
-    <div data-tooltip="security">
+    <div data-tooltip="security" style={{ padding: isMobile ? '15px 0' : '24px' }}>
       <h2 style={{ 
-        fontSize: '1.5rem', 
+        fontSize: isMobile ? '1.3rem' : '1.5rem', 
         marginBottom: '20px',
         display: 'flex',
         alignItems: 'center',
@@ -1572,7 +1675,7 @@ const Parametres = () => {
         🔒 {t('settings.security.title')}
       </h2>
       
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      <div style={{ display: isMobile ? 'flex' : 'grid', flexDirection: isMobile ? 'column' : undefined, gridTemplateColumns: isMobile ? undefined : '1fr 1fr', gap: '16px' }}>
         {/* Mot de passe */}
         <div style={{
           padding: '20px',
@@ -1719,7 +1822,7 @@ const Parametres = () => {
       {/* Sessions actives */}
       <div style={{
         marginTop: '16px',
-        padding: '20px',
+        padding: isMobile ? '16px' : '20px',
         background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)',
         borderRadius: '12px',
         border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
@@ -1729,9 +1832,8 @@ const Parametres = () => {
           <h3 style={{ margin: 0, color: isDark ? 'white' : '#1e293b', fontSize: '1.1em' }}>{t('settings.security.sessions.title')}</h3>
         </div>
         
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
           <div style={{
-            flex: '1 1 250px',
             padding: '12px 16px',
             background: 'rgba(46, 204, 113, 0.15)',
             borderRadius: '10px',
@@ -1741,13 +1843,12 @@ const Parametres = () => {
             alignItems: 'center'
           }}>
             <div>
-              <p style={{ margin: 0, fontWeight: '600', color: isDark ? 'white' : '#1e293b' }}>💻 Chrome - Windows</p>
-              <small style={{ color: '#2ecc71' }}>{t('settings.security.sessions.current')}</small>
+              <p style={{ margin: 0, fontWeight: '600', color: isDark ? 'white' : '#1e293b', fontSize: '0.95em' }}>💻 Chrome - Windows</p>
+              <small style={{ color: '#2ecc71', fontSize: '0.8em' }}>{t('settings.security.sessions.current')}</small>
             </div>
           </div>
           
           <div style={{
-            flex: '1 1 250px',
             padding: '12px 16px',
             background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
             borderRadius: '10px',
@@ -1757,8 +1858,8 @@ const Parametres = () => {
             alignItems: 'center'
           }}>
             <div>
-              <p style={{ margin: 0, fontWeight: '600', color: isDark ? 'white' : '#1e293b' }}>📱 Safari - iPhone</p>
-              <small style={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>{t('settings.security.sessions.ago', { time: '2 jours' })}</small>
+              <p style={{ margin: 0, fontWeight: '600', color: isDark ? 'white' : '#1e293b', fontSize: '0.95em' }}>📱 Safari - iPhone</p>
+              <small style={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b', fontSize: '0.8em' }}>{t('settings.security.sessions.ago', { time: '2 jours' })}</small>
             </div>
             <button style={{
               padding: '6px 12px',
@@ -1766,7 +1867,7 @@ const Parametres = () => {
               borderRadius: '8px',
               background: 'rgba(255, 165, 0, 0.2)',
               color: '#ffa500',
-              fontSize: '0.85em',
+              fontSize: '0.8em',
               cursor: 'pointer'
             }}>
               {t('settings.security.sessions.disconnect')}
@@ -1774,16 +1875,72 @@ const Parametres = () => {
           </div>
         </div>
         
-        <button style={{
-          padding: '10px 20px',
-          border: 'none',
-          borderRadius: '10px',
-          background: 'linear-gradient(135deg, #ffa500 0%, #e67e22 100%)',
-          color: 'white',
-          fontWeight: '600',
-          cursor: 'pointer'
-        }}>
-          {t('settings.security.sessions.disconnectAll')}
+        <button 
+          disabled={logoutAllLoading}
+          onClick={async () => {
+            setLogoutAllLoading(true);
+            try {
+              // Récupérer le token depuis le bon emplacement
+              const tokenData = localStorage.getItem('gps_financier_token');
+              const token = tokenData ? JSON.parse(tokenData) : null;
+              
+              if (!token) {
+                alert('Session expirée. Veuillez vous reconnecter.');
+                return;
+              }
+              
+              const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/logout-all-sessions`, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                }
+              });
+              
+              const data = await response.json();
+              
+              if (data.success) {
+                // Remplacer le token par le nouveau (même format JSON)
+                if (data.newToken) {
+                  localStorage.setItem('gps_financier_token', JSON.stringify(data.newToken));
+                }
+                setShowLogoutSuccessModal(true);
+              } else {
+                alert(data.error || 'Erreur lors de la déconnexion');
+              }
+            } catch (error) {
+              console.error('Erreur:', error);
+              alert('Erreur de connexion au serveur');
+            } finally {
+              setLogoutAllLoading(false);
+            }
+          }}
+          style={{
+            padding: '10px 20px',
+            border: 'none',
+            borderRadius: '10px',
+            background: logoutAllLoading ? 'rgba(255, 165, 0, 0.5)' : 'linear-gradient(135deg, #ffa500 0%, #e67e22 100%)',
+            color: 'white',
+            fontWeight: '600',
+            cursor: logoutAllLoading ? 'not-allowed' : 'pointer',
+            fontSize: '0.9em',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px'
+          }}
+        >
+          {logoutAllLoading && (
+            <span style={{
+              width: '16px',
+              height: '16px',
+              border: '2px solid rgba(255,255,255,0.3)',
+              borderTopColor: 'white',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }} />
+          )}
+          {logoutAllLoading ? 'Déconnexion...' : t('settings.security.sessions.disconnectAll')}
         </button>
       </div>
       
@@ -1867,7 +2024,7 @@ const Parametres = () => {
   
   // ===== SECTION À PROPOS (Logo seul, sans version ni crédits) =====
   const renderAPropos = () => (
-    <div>
+    <div style={{ padding: isMobile ? '16px 0' : '24px' }}>
       <h2 style={{ 
         fontSize: '1.75rem', 
         marginBottom: '24px',
@@ -1916,8 +2073,8 @@ const Parametres = () => {
               borderRadius: '50%',
               border: '5px solid transparent',
               background: isDark 
-                ? 'linear-gradient(#050530, #050530) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box'
-                : 'linear-gradient(#ffffff, #ffffff) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
+                ? 'linear-gradient(#050530, #050530) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box'
+                : 'linear-gradient(#ffffff, #ffffff) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box',
               animation: 'logoSpin 3s linear infinite',
               boxShadow: '0 0 20px rgba(255, 165, 0, 0.6)'
             }} />
@@ -1934,14 +2091,18 @@ const Parametres = () => {
       
       {/* Liens utiles */}
       <div style={{
-        padding: '24px',
+        padding: isMobile ? '16px' : '24px',
         background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)',
         borderRadius: '16px',
         marginBottom: '20px',
         border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
       }}>
         <h4 style={{ margin: '0 0 16px', color: isDark ? 'white' : '#1e293b', fontSize: '1.1em' }}>{t('settings.about.links.title')}</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '12px' }}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(3, 1fr)', 
+          gap: isMobile ? '10px' : '12px' 
+        }}>
           {[
             { icon: '📖', label: t('settings.about.links.guide'), modal: 'guide' },
             { icon: '❓', label: t('settings.about.links.faq'), modal: 'faq' },
@@ -1955,30 +2116,32 @@ const Parametres = () => {
               onClick={() => setActiveModal(link.modal)}
               style={{
                 display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '8px',
-                padding: '14px 16px',
+                gap: isMobile ? '6px' : '8px',
+                padding: isMobile ? '12px 8px' : '14px 16px',
                 background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                 borderRadius: '12px',
                 border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
                 color: isDark ? 'white' : '#1e293b',
-                fontSize: '1em',
+                fontSize: isMobile ? '0.85em' : '1em',
                 fontWeight: '500',
                 cursor: 'pointer',
-                transition: 'all 0.2s'
+                transition: 'all 0.2s',
+                minHeight: isMobile ? '70px' : 'auto'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = 'rgba(102, 126, 234, 0.2)';
-                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.borderColor = 'rgba(102, 126, 234, 0.5)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-                e.currentTarget.style.color = 'white';
+                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+                e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
               }}
             >
-              <span>{link.icon}</span>
-              <span>{link.label}</span>
+              <span style={{ fontSize: isMobile ? '1.3em' : '1em' }}>{link.icon}</span>
+              <span style={{ textAlign: 'center', lineHeight: '1.2' }}>{link.label}</span>
             </button>
           ))}
         </div>
@@ -1986,37 +2149,46 @@ const Parametres = () => {
       
       {/* Réseaux sociaux */}
       <div style={{
-        padding: '24px',
+        padding: isMobile ? '16px' : '24px',
         background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)',
         borderRadius: '16px',
         marginBottom: '20px',
         border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
       }}>
         <h4 style={{ margin: '0 0 16px', color: isDark ? 'white' : '#1e293b', fontSize: '1.1em' }}>{t('settings.about.social.title')}</h4>
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', 
+          gap: isMobile ? '10px' : '12px' 
+        }}>
           {[
-            { icon: <span style={{ fontWeight: 'bold', color: '#1877f2' }}>f</span>, label: t('settings.about.social.facebook') },
-            { icon: <span style={{ fontWeight: 'bold' }}>𝕏</span>, label: '' },
-            { icon: '📷', label: t('settings.about.social.instagram') },
-            { icon: '💼', label: t('settings.about.social.linkedin') }
+            { icon: <span style={{ fontWeight: 'bold', color: '#1877f2' }}>f</span>, label: 'Facebook', url: 'https://facebook.com/pl4to' },
+            { icon: <span style={{ fontWeight: 'bold' }}>𝕏</span>, label: 'X', url: 'https://x.com/pl4to' },
+            { icon: '📷', label: 'Instagram', url: 'https://instagram.com/pl4to' },
+            { icon: '💼', label: 'LinkedIn', url: 'https://linkedin.com/company/pl4to' }
           ].map((social, idx) => (
             <a
               key={idx}
-              href="#"
+              href={social.url}
+              target="_blank"
+              rel="noopener noreferrer"
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                padding: '10px 18px',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: isMobile ? '12px 10px' : '12px 18px',
                 background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                borderRadius: '20px',
+                borderRadius: '12px',
                 textDecoration: 'none',
                 color: isDark ? 'white' : '#1e293b',
-                fontSize: '0.9em',
-                border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
+                fontSize: isMobile ? '0.85em' : '0.95em',
+                fontWeight: '500',
+                border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
+                transition: 'all 0.2s'
               }}
             >
-              <span>{social.icon}</span>
+              <span style={{ fontSize: '1.1em' }}>{social.icon}</span>
               <span>{social.label}</span>
             </a>
           ))}
@@ -2024,36 +2196,37 @@ const Parametres = () => {
       </div>
       
       {/* Feedback */}
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: '12px', 
+        justifyContent: 'center',
+        padding: isMobile ? '0 16px' : '0'
+      }}>
         <button 
-          onClick={() => setActiveModal('bug')}
+          onClick={() => {
+            setBugForm({...bugForm, type: 'feedback'});
+            setActiveModal('bug');
+          }}
           style={{
-            padding: '12px 24px',
+            padding: isMobile ? '14px 20px' : '12px 24px',
             border: '2px solid #667eea',
             borderRadius: '12px',
             background: 'transparent',
             color: '#667eea',
             fontWeight: '600',
             cursor: 'pointer',
-            fontSize: '0.95em'
+            fontSize: isMobile ? '0.9em' : '0.95em',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            maxWidth: '300px',
+            margin: '0 auto'
           }}
         >
+          <span>💬</span>
           {t('settings.about.feedback.beta')}
-        </button>
-        <button 
-          onClick={() => setActiveModal('bug')}
-          style={{
-            padding: '12px 24px',
-            border: '2px solid #667eea',
-            borderRadius: '12px',
-            background: 'transparent',
-            color: '#667eea',
-            fontWeight: '600',
-            cursor: 'pointer',
-            fontSize: '0.95em'
-          }}
-        >
-          {t('settings.about.feedback.bug')}
         </button>
       </div>
       
@@ -2100,20 +2273,20 @@ const Parametres = () => {
             {/* Modal Header */}
             <div style={{
               padding: '20px 24px',
-              borderBottom: '1px solid rgba(255,255,255,0.1)',
+              borderBottom: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              background: 'linear-gradient(135deg, #667eea08 0%, #764ba208 100%)'
+              background: isDark ? 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)' : 'linear-gradient(135deg, #667eea10 0%, #764ba210 100%)'
             }}>
-              <h2 style={{ margin: 0, fontSize: '1.4em', color: 'white' }}>
+              <h2 style={{ margin: 0, fontSize: '1.4em', color: isDark ? 'white' : '#1e293b' }}>
                 {activeModal === 'guide' && t('settings.about.modals.guide.title')}
                 {activeModal === 'faq' && t('settings.about.modals.faq.title')}
                 {activeModal === 'versions' && t('settings.about.modals.versions.title')}
                 {activeModal === 'contact' && t('settings.about.modals.contact.title')}
                 {activeModal === 'legal' && t('settings.about.modals.legal.title')}
                 {activeModal === 'privacy' && t('settings.about.modals.privacy.title')}
-                {activeModal === 'bug' && t('settings.about.modals.bug.title')}
+                {activeModal === 'bug' && (bugForm.type === 'feedback' ? '💬 Envoyer un feedback' : t('settings.about.modals.bug.title'))}
               </h2>
               <button
                 onClick={() => setActiveModal(null)}
@@ -2140,15 +2313,15 @@ const Parametres = () => {
               
               {/* ===== GUIDE UTILISATEUR ===== */}
               {activeModal === 'guide' && (
-                <div style={{ lineHeight: '1.7', color: 'white' }}>
+                <div style={{ lineHeight: '1.7', color: isDark ? 'white' : '#1e293b' }}>
                   <p style={{ fontSize: '1.1em', color: '#667eea', fontWeight: '500', marginTop: 0 }}>
                     {t('settings.about.modals.guide.welcome')}
                   </p>
                   
-                  <h3 style={{ color: 'white', marginTop: '24px' }}>{t('settings.about.modals.guide.dashboard.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b', marginTop: '24px' }}>{t('settings.about.modals.guide.dashboard.title')}</h3>
                   <p>{t('settings.about.modals.guide.dashboard.content')}</p>
                   
-                  <h3 style={{ color: 'white', marginTop: '24px' }}>{t('settings.about.modals.guide.accounts.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b', marginTop: '24px' }}>{t('settings.about.modals.guide.accounts.title')}</h3>
                   <p>{t('settings.about.modals.guide.accounts.content')}</p>
                   <ul style={{ paddingLeft: '20px' }}>
                     <li>{t('settings.about.modals.guide.accounts.item1')}</li>
@@ -2157,7 +2330,7 @@ const Parametres = () => {
                   </ul>
                   <p><strong>Astuce:</strong> {t('settings.about.modals.guide.accounts.tip')}</p>
                   
-                  <h3 style={{ color: 'white', marginTop: '24px' }}>{t('settings.about.modals.guide.budget.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b', marginTop: '24px' }}>{t('settings.about.modals.guide.budget.title')}</h3>
                   <p>{t('settings.about.modals.guide.budget.content')}</p>
                   <ul style={{ paddingLeft: '20px' }}>
                     <li><strong>{t('settings.about.modals.guide.budget.income')}</strong></li>
@@ -2165,7 +2338,7 @@ const Parametres = () => {
                     <li><strong>{t('settings.about.modals.guide.budget.frequencies')}</strong></li>
                   </ul>
                   
-                  <h3 style={{ color: 'white', marginTop: '24px' }}>{t('settings.about.modals.guide.destinations.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b', marginTop: '24px' }}>{t('settings.about.modals.guide.destinations.title')}</h3>
                   <p>{t('settings.about.modals.guide.destinations.content')}</p>
                   <ul style={{ paddingLeft: '20px' }}>
                     <li>{t('settings.about.modals.guide.destinations.item1')}</li>
@@ -2173,14 +2346,14 @@ const Parametres = () => {
                     <li>{t('settings.about.modals.guide.destinations.item3')}</li>
                   </ul>
                   
-                  <h3 style={{ color: 'white', marginTop: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b', marginTop: '24px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span style={{
                       display: 'inline-flex',
                       width: '24px',
                       height: '24px',
                       borderRadius: '50%',
                       border: '3px solid transparent',
-                      background: `linear-gradient(${isDark ? '#040449' : '#ffffff'}, ${isDark ? '#040449' : '#ffffff'}) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box`,
+                      background: `linear-gradient(${isDark ? '#040449' : '#ffffff'}, ${isDark ? '#040449' : '#ffffff'}) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box`,
                       animation: 'logoSpin 3s linear infinite',
                       boxShadow: '0 0 10px rgba(255, 165, 0, 0.5)'
                     }} />
@@ -2194,7 +2367,7 @@ const Parametres = () => {
                   </ul>
                   <p><strong>Astuce:</strong> {t('settings.about.modals.guide.gps.tip')}</p>
                   
-                  <h3 style={{ color: 'white', marginTop: '24px' }}>{t('settings.about.modals.guide.calculator.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b', marginTop: '24px' }}>{t('settings.about.modals.guide.calculator.title')}</h3>
                   <p>{t('settings.about.modals.guide.calculator.content')}</p>
                   
                   <div style={{
@@ -2213,7 +2386,7 @@ const Parametres = () => {
               
               {/* ===== FAQ ===== */}
               {activeModal === 'faq' && (
-                <div style={{ lineHeight: '1.7', color: 'white' }}>
+                <div style={{ lineHeight: '1.7', color: isDark ? 'white' : '#1e293b' }}>
                   {[
                     { q: t('settings.about.modals.faq.q1'), a: t('settings.about.modals.faq.a1') },
                     { q: t('settings.about.modals.faq.q2'), a: t('settings.about.modals.faq.a2') },
@@ -2245,7 +2418,7 @@ const Parametres = () => {
               
               {/* ===== NOTES DE VERSION ===== */}
               {activeModal === 'versions' && (
-                <div style={{ lineHeight: '1.7', color: 'white' }}>
+                <div style={{ lineHeight: '1.7', color: isDark ? 'white' : '#1e293b' }}>
                   <div style={{
                     padding: '16px',
                     background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%)',
@@ -2259,16 +2432,16 @@ const Parametres = () => {
                         height: '24px',
                         borderRadius: '50%',
                         border: '3px solid transparent',
-                        background: `linear-gradient(${isDark ? '#040449' : '#1e3a8a'}, ${isDark ? '#040449' : '#1e3a8a'}) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box`,
+                        background: `linear-gradient(${isDark ? '#040449' : '#1e3a8a'}, ${isDark ? '#040449' : '#1e3a8a'}) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box`,
                         animation: 'logoSpin 3s linear infinite',
                         boxShadow: '0 0 10px rgba(255, 165, 0, 0.5)'
                       }} />
                       {t('settings.about.modals.versions.currentVersion')}
                     </h3>
-                    <p style={{ margin: 0, fontSize: '0.9em', color: 'rgba(255,255,255,0.6)' }}>{t('settings.about.modals.versions.currentDate')}</p>
+                    <p style={{ margin: 0, fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>{t('settings.about.modals.versions.currentDate')}</p>
                   </div>
                   
-                  <h4 style={{ color: 'white' }}>{t('settings.about.modals.versions.newFeatures')}</h4>
+                  <h4 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.versions.newFeatures')}</h4>
                   <ul style={{ paddingLeft: '20px' }}>
                     <li>{t('settings.about.modals.versions.feature1')}</li>
                     <li>{t('settings.about.modals.versions.feature2')}</li>
@@ -2279,14 +2452,14 @@ const Parametres = () => {
                     <li>{t('settings.about.modals.versions.feature7')}</li>
                   </ul>
                   
-                  <h4 style={{ color: 'white', marginTop: '20px' }}>{t('settings.about.modals.versions.improvements')}</h4>
+                  <h4 style={{ color: isDark ? 'white' : '#1e293b', marginTop: '20px' }}>{t('settings.about.modals.versions.improvements')}</h4>
                   <ul style={{ paddingLeft: '20px' }}>
                     <li>{t('settings.about.modals.versions.improvement1')}</li>
                     <li>{t('settings.about.modals.versions.improvement2')}</li>
                     <li>{t('settings.about.modals.versions.improvement3')}</li>
                   </ul>
                   
-                  <h4 style={{ color: 'white', marginTop: '20px' }}>{t('settings.about.modals.versions.upcoming')}</h4>
+                  <h4 style={{ color: isDark ? 'white' : '#1e293b', marginTop: '20px' }}>{t('settings.about.modals.versions.upcoming')}</h4>
                   <ul style={{ paddingLeft: '20px' }}>
                     <li>{t('settings.about.modals.versions.upcoming1')}</li>
                     <li>{t('settings.about.modals.versions.upcoming2')}</li>
@@ -2298,7 +2471,7 @@ const Parametres = () => {
               
               {/* ===== NOUS CONTACTER ===== */}
               {activeModal === 'contact' && (
-                <div style={{ lineHeight: '1.7', color: 'white' }}>
+                <div style={{ lineHeight: '1.7', color: isDark ? 'white' : '#1e293b' }}>
                   <p style={{ fontSize: '1.1em', marginTop: 0 }}>
                     {t('settings.about.modals.contact.intro')}
                   </p>
@@ -2306,20 +2479,20 @@ const Parametres = () => {
                   <div style={{ display: 'grid', gap: '16px', marginTop: '24px' }}>
                     <div style={{
                       padding: '20px',
-                      background: 'rgba(255,255,255,0.05)',
+                      background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                       borderRadius: '12px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '16px',
-                      border: '1px solid rgba(255,255,255,0.1)'
+                      border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
                     }}>
                       <span style={{ fontSize: '2em' }}>📧</span>
                       <div>
-                        <h4 style={{ margin: '0 0 4px', color: 'white' }}>{t('settings.about.modals.contact.emailTitle')}</h4>
+                        <h4 style={{ margin: '0 0 4px', color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.contact.emailTitle')}</h4>
                         <a href="mailto:support@pl4to.ca" style={{ color: '#667eea', textDecoration: 'none' }}>
                           {t('settings.about.modals.contact.emailAddress')}
                         </a>
-                        <p style={{ margin: '4px 0 0', fontSize: '0.9em', color: 'rgba(255,255,255,0.6)' }}>
+                        <p style={{ margin: '4px 0 0', fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>
                           {t('settings.about.modals.contact.emailResponse')}
                         </p>
                       </div>
@@ -2327,33 +2500,33 @@ const Parametres = () => {
                     
                     <div style={{
                       padding: '20px',
-                      background: 'rgba(255,255,255,0.05)',
+                      background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                       borderRadius: '12px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '16px',
-                      border: '1px solid rgba(255,255,255,0.1)'
+                      border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
                     }}>
                       <span style={{ fontSize: '2em' }}>💬</span>
                       <div>
-                        <h4 style={{ margin: '0 0 4px', color: 'white' }}>{t('settings.about.modals.contact.chatTitle')}</h4>
-                        <p style={{ margin: 0, color: 'rgba(255,255,255,0.6)' }}>{t('settings.about.modals.contact.chatStatus')}</p>
+                        <h4 style={{ margin: '0 0 4px', color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.contact.chatTitle')}</h4>
+                        <p style={{ margin: 0, color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>{t('settings.about.modals.contact.chatStatus')}</p>
                       </div>
                     </div>
                     
                     <div style={{
                       padding: '20px',
-                      background: 'rgba(255,255,255,0.05)',
+                      background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                       borderRadius: '12px',
                       display: 'flex',
                       alignItems: 'center',
                       gap: '16px',
-                      border: '1px solid rgba(255,255,255,0.1)'
+                      border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
                     }}>
                       <span style={{ fontSize: '2em' }}>🐛</span>
                       <div>
-                        <h4 style={{ margin: '0 0 4px', color: 'white' }}>{t('settings.about.modals.contact.bugTitle')}</h4>
-                        <p style={{ margin: 0, fontSize: '0.9em', color: 'rgba(255,255,255,0.6)' }}>
+                        <h4 style={{ margin: '0 0 4px', color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.contact.bugTitle')}</h4>
+                        <p style={{ margin: 0, fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>
                           {t('settings.about.modals.contact.bugDescription')}
                         </p>
                       </div>
@@ -2376,20 +2549,20 @@ const Parametres = () => {
               
               {/* ===== MENTIONS LÉGALES ===== */}
               {activeModal === 'legal' && (
-                <div style={{ lineHeight: '1.8', color: 'white' }}>
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.legal.editor.title')}</h3>
+                <div style={{ lineHeight: '1.8', color: isDark ? 'white' : '#1e293b' }}>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.legal.editor.title')}</h3>
                   <p>
                     <strong>Pl4to</strong> {t('settings.about.modals.legal.editor.content')}<br />
                     {t('settings.about.modals.legal.editor.location')}<br />
                     {t('settings.about.modals.legal.editor.contact')}
                   </p>
                   
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.legal.terms.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.legal.terms.title')}</h3>
                   <p>
                     {t('settings.about.modals.legal.terms.content')}
                   </p>
                   
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.legal.liability.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.legal.liability.title')}</h3>
                   <p>
                     {t('settings.about.modals.legal.liability.content')}
                   </p>
@@ -2397,17 +2570,17 @@ const Parametres = () => {
                     <strong>{t('settings.about.modals.legal.liability.recommendation')}</strong>
                   </p>
                   
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.legal.ip.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.legal.ip.title')}</h3>
                   <p>
                     {t('settings.about.modals.legal.ip.content')}
                   </p>
                   
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.legal.changes.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.legal.changes.title')}</h3>
                   <p>
                     {t('settings.about.modals.legal.changes.content')}
                   </p>
                   
-                  <p style={{ marginTop: '24px', fontSize: '0.9em', color: 'rgba(255,255,255,0.6)' }}>
+                  <p style={{ marginTop: '24px', fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>
                     {t('settings.about.modals.legal.lastUpdate')}
                   </p>
                 </div>
@@ -2415,7 +2588,7 @@ const Parametres = () => {
               
               {/* ===== CONFIDENTIALITÉ ===== */}
               {activeModal === 'privacy' && (
-                <div style={{ lineHeight: '1.8', color: 'white' }}>
+                <div style={{ lineHeight: '1.8', color: isDark ? 'white' : '#1e293b' }}>
                   <div style={{
                     padding: '16px',
                     background: 'rgba(46, 204, 113, 0.15)',
@@ -2428,7 +2601,7 @@ const Parametres = () => {
                     </p>
                   </div>
                   
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.privacy.collected.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.privacy.collected.title')}</h3>
                   <p>{t('settings.about.modals.privacy.collected.intro')}</p>
                   <ul style={{ paddingLeft: '20px' }}>
                     <li><strong>{t('settings.about.modals.privacy.collected.account')}</strong></li>
@@ -2436,7 +2609,7 @@ const Parametres = () => {
                     <li><strong>{t('settings.about.modals.privacy.collected.technical')}</strong></li>
                   </ul>
                   
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.privacy.notDone.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.privacy.notDone.title')}</h3>
                   <ul style={{ paddingLeft: '20px' }}>
                     <li>{t('settings.about.modals.privacy.notDone.item1')}</li>
                     <li>{t('settings.about.modals.privacy.notDone.item2')}</li>
@@ -2444,7 +2617,7 @@ const Parametres = () => {
                     <li>{t('settings.about.modals.privacy.notDone.item4')}</li>
                   </ul>
                   
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.privacy.security.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.privacy.security.title')}</h3>
                   <p>
                     {t('settings.about.modals.privacy.security.intro')}
                   </p>
@@ -2454,7 +2627,7 @@ const Parametres = () => {
                     <li>{t('settings.about.modals.privacy.security.item3')}</li>
                   </ul>
                   
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.privacy.rights.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.privacy.rights.title')}</h3>
                   <p>{t('settings.about.modals.privacy.rights.intro')}</p>
                   <ul style={{ paddingLeft: '20px' }}>
                     <li><strong>{t('settings.about.modals.privacy.rights.access')}</strong></li>
@@ -2463,18 +2636,18 @@ const Parametres = () => {
                     <li><strong>{t('settings.about.modals.privacy.rights.delete')}</strong></li>
                   </ul>
                   
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.privacy.cookies.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.privacy.cookies.title')}</h3>
                   <p>
                     {t('settings.about.modals.privacy.cookies.content')}
                   </p>
                   
-                  <h3 style={{ color: 'white' }}>{t('settings.about.modals.privacy.dpo.title')}</h3>
+                  <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.privacy.dpo.title')}</h3>
                   <p>
                     {t('settings.about.modals.privacy.dpo.intro')}<br />
                     <a href="mailto:privacy@pl4to.ca" style={{ color: '#667eea' }}>{t('settings.about.modals.privacy.dpo.email')}</a>
                   </p>
                   
-                  <p style={{ marginTop: '24px', fontSize: '0.9em', color: 'rgba(255,255,255,0.6)' }}>
+                  <p style={{ marginTop: '24px', fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>
                     {t('settings.about.modals.privacy.lastUpdate')}
                   </p>
                 </div>
@@ -2482,7 +2655,7 @@ const Parametres = () => {
               
               {/* ===== SIGNALER UN BUG ===== */}
               {activeModal === 'bug' && (
-                <div style={{ lineHeight: '1.7', color: 'white' }}>
+                <div style={{ lineHeight: '1.7', color: isDark ? 'white' : '#1e293b' }}>
                   {!bugSubmitted ? (
                     <>
                       <p style={{ fontSize: '1.1em', marginTop: 0 }}>
@@ -2490,7 +2663,7 @@ const Parametres = () => {
                       </p>
                       
                       <div style={{ marginTop: '24px' }}>
-                        <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: 'white' }}>
+                        <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: isDark ? 'white' : '#1e293b' }}>
                           Type de signalement
                         </label>
                         <select
@@ -2499,13 +2672,16 @@ const Parametres = () => {
                           style={{
                             width: '100%',
                             padding: '12px 16px',
-                            border: '2px solid #e2e8f0',
+                            border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid #e2e8f0',
                             borderRadius: '12px',
                             fontSize: '1rem',
-                            cursor: 'pointer'
+                            cursor: 'pointer',
+                            background: isDark ? 'rgba(255,255,255,0.05)' : 'white',
+                            color: isDark ? 'white' : '#1e293b'
                           }}
                         >
                           <option value="bug">🐛 Bug / Erreur</option>
+                          <option value="feedback">💬 Feedback général</option>
                           <option value="amelioration">💡 Suggestion d'amélioration</option>
                           <option value="question">❓ Question</option>
                           <option value="autre">💬 Autre</option>
@@ -2513,7 +2689,7 @@ const Parametres = () => {
                       </div>
                       
                       <div style={{ marginTop: '20px' }}>
-                        <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: 'white' }}>
+                        <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: isDark ? 'white' : '#1e293b' }}>
                           Description *
                         </label>
                         <textarea
@@ -2524,17 +2700,19 @@ const Parametres = () => {
                           style={{
                             width: '100%',
                             padding: '12px 16px',
-                            border: '2px solid #e2e8f0',
+                            border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid #e2e8f0',
                             borderRadius: '12px',
                             fontSize: '1rem',
                             resize: 'vertical',
-                            fontFamily: 'inherit'
+                            fontFamily: 'inherit',
+                            background: isDark ? 'rgba(255,255,255,0.05)' : 'white',
+                            color: isDark ? 'white' : '#1e293b'
                           }}
                         />
                       </div>
                       
                       <div style={{ marginTop: '20px' }}>
-                        <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: 'white' }}>
+                        <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px', color: isDark ? 'white' : '#1e293b' }}>
                           Votre email (optionnel)
                         </label>
                         <input
@@ -2545,9 +2723,11 @@ const Parametres = () => {
                           style={{
                             width: '100%',
                             padding: '12px 16px',
-                            border: '2px solid #e2e8f0',
+                            border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid #e2e8f0',
                             borderRadius: '12px',
-                            fontSize: '1rem'
+                            fontSize: '1rem',
+                            background: isDark ? 'rgba(255,255,255,0.05)' : 'white',
+                            color: isDark ? 'white' : '#1e293b'
                           }}
                         />
                       </div>
@@ -2652,18 +2832,32 @@ const Parametres = () => {
       padding: '0',
       minHeight: '100%',
       height: '100%',
-      display: 'grid',
-      gridTemplateColumns: '220px 1fr',
+      display: isMobile ? 'flex' : 'grid',
+      flexDirection: isMobile ? 'column' : undefined,
+      gridTemplateColumns: isMobile ? undefined : '220px 1fr',
       gap: '0',
       overflow: 'hidden'
     }}>
-      {/* Sidebar Navigation */}
+      {/* Sidebar Navigation - toujours visible sur desktop, visible uniquement si pas de section active sur mobile */}
+      {(!isMobile || activeSection === null) && (
       <div style={{
-        background: isDark ? 'rgba(0,0,0,0.15)' : '#f8fafc',
-        padding: '24px 16px',
-        borderRight: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0'
+        background: 'transparent',
+        padding: isMobile ? '30px 20px' : '24px 16px',
+        borderRight: 'none',
+        flex: isMobile ? 1 : undefined,
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: isMobile ? 'flex-start' : 'flex-start',
+        paddingTop: isMobile ? '40px' : '24px'
       }}>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+        <nav style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: isMobile ? '16px' : '6px',
+          maxWidth: isMobile ? '400px' : undefined,
+          margin: isMobile ? '0 auto' : undefined,
+          width: '100%'
+        }}>
           {navSections.map(section => (
             <button
               key={section.id}
@@ -2671,33 +2865,33 @@ const Parametres = () => {
               style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '10px',
-                padding: '12px 14px',
-                borderRadius: '10px',
+                gap: isMobile ? '15px' : '10px',
+                padding: isMobile ? '22px 24px' : '12px 14px',
+                borderRadius: isMobile ? '18px' : '10px',
                 border: 'none',
                 background: activeSection === section.id 
                   ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-                  : 'transparent',
+                  : isMobile ? 'rgba(255,255,255,0.1)' : 'transparent',
                 color: activeSection === section.id 
                   ? 'white' 
-                  : isDark ? 'rgba(255,255,255,0.8)' : '#4a5568',
+                  : isDark ? 'rgba(255,255,255,0.9)' : '#4a5568',
                 fontWeight: activeSection === section.id ? '600' : '500',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 textAlign: 'left',
-                fontSize: '0.95em'
+                fontSize: isMobile ? '1.15em' : '0.95em',
+                boxShadow: isMobile ? '0 4px 15px rgba(0,0,0,0.2)' : 'none'
               }}
             >
-              <span style={{ fontSize: '1.1em' }}>{section.icon}</span>
-              <span>{section.label}</span>
+              <span style={{ fontSize: isMobile ? '1.5em' : '1.1em' }}>{section.icon}</span>
+              <span style={{ flex: 1 }}>{section.label}</span>
               {section.id === 'abonnement' && (
                 <span style={{
-                  marginLeft: 'auto',
                   background: activeSection === section.id ? 'rgba(255,255,255,0.3)' : '#667eea',
                   color: 'white',
-                  padding: '2px 8px',
+                  padding: isMobile ? '4px 12px' : '2px 8px',
                   borderRadius: '8px',
-                  fontSize: '0.65em',
+                  fontSize: isMobile ? '0.7em' : '0.65em',
                   fontWeight: 'bold'
                 }}>
                   {t('settings.badges.free')}
@@ -2707,29 +2901,58 @@ const Parametres = () => {
           ))}
         </nav>
       </div>
+      )}
       
-      {/* Content Area */}
-      <div style={{ padding: '0', overflowY: 'auto' }}>
+      {/* Content Area - caché sur mobile si pas de section active */}
+      {(!isMobile || activeSection !== null) && (
+      <div style={{ 
+        padding: isMobile ? '0 15px' : '0', 
+        overflowY: 'auto', 
+        background: 'transparent',
+        flex: isMobile ? 1 : undefined
+      }}>
         {renderActiveSection()}
       </div>
+      )}
     </div>
   );
 
   return (
     <>
+      {/* Keyframes pour les animations */}
+      <style>{`
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(30px) scale(0.95); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes pulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      
       {/* Mode Normal - Click pour plein écran */}
       <div 
         style={{ 
           minHeight: 'calc(100vh - 70px)', 
           padding: '0',
-          position: 'relative'
+          position: 'relative',
+          background: isDark ? 'linear-gradient(180deg, #040449 0%, #100261 100%)' : '#ffffff'
         }}
       >
         {/* Header Mode Normal */}
         {!isFullScreen && (
           <div style={{
             padding: '20px 30px',
-            background: isDark ? 'transparent' : '#ffffff'
+            background: 'transparent'
           }}>
             <h1 style={{ margin: 0, fontSize: '1.5em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b' }}>
               ⚙️ {t('settings.title')}
@@ -2827,40 +3050,80 @@ const Parametres = () => {
         }}>
           {/* Header plein écran */}
           <div style={{
-            background: isDark ? 'rgba(0,0,0,0.15)' : '#f8fafc',
-            padding: '15px 24px',
+            background: 'transparent',
+            padding: isMobile ? '15px' : '15px 24px',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center',
-            borderBottom: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid #e2e8f0'
+            alignItems: 'flex-start',
+            borderBottom: 'none',
+            position: 'relative'
           }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: '1.5em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b' }}>
+            {/* Spacer gauche pour centrage sur mobile */}
+            {isMobile && <div style={{ width: '40px' }} />}
+            
+            <div style={{ 
+              flex: isMobile ? 1 : undefined,
+              textAlign: isMobile ? 'center' : 'left'
+            }}>
+              <h1 style={{ 
+                margin: 0, 
+                fontSize: isMobile ? '1.2em' : '1.5em', 
+                fontWeight: 'bold', 
+                color: isDark ? 'white' : '#1e293b' 
+              }}>
                 ⚙️ {t('settings.title')}
               </h1>
-              <p style={{ margin: '5px 0 0', fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>
-                {t('settings.subtitle')}
-              </p>
+              {!isMobile && (
+                <p style={{ margin: '5px 0 0', fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>
+                  {t('settings.subtitle')}
+                </p>
+              )}
             </div>
+            
             <button
-              onClick={(e) => { e.stopPropagation(); setIsFullScreen(false); }}
+              onClick={(e) => { 
+                e.stopPropagation(); 
+                if (isMobile) {
+                  // Sur mobile, si on est dans une section, retourner au menu
+                  if (activeSection !== null) {
+                    setActiveSection(null);
+                  } else {
+                    // Sinon ouvrir le sidebar principal
+                    window.dispatchEvent(new CustomEvent('openSidebar'));
+                  }
+                } else {
+                  setIsFullScreen(false);
+                }
+              }}
               style={{
                 background: isDark ? 'rgba(0,0,0,0.2)' : '#e2e8f0',
                 border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #cbd5e1',
                 borderRadius: '50%',
-                width: '40px',
-                height: '40px',
+                width: isMobile ? '36px' : '40px',
+                height: isMobile ? '36px' : '40px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
-                fontSize: '1.3em',
+                fontSize: isMobile ? '1.1em' : '1.3em',
                 color: isDark ? 'white' : '#475569'
               }}
             >
-              ✕
+              {isMobile && activeSection !== null ? '←' : '✕'}
             </button>
           </div>
+          
+          {/* Sous-titre sur mobile - seulement quand on est dans le menu */}
+          {isMobile && activeSection === null && (
+            <p style={{ 
+              margin: '0 15px 60px', 
+              fontSize: '0.85em', 
+              color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b',
+              textAlign: 'center'
+            }}>
+              {t('settings.subtitle')}
+            </p>
+          )}
           
           {/* ZONE DE NOTIFICATIONS - Barre "On continue" seulement si active */}
           {showContinueBar && (
@@ -3362,10 +3625,10 @@ const Parametres = () => {
               <span style={{ fontSize: '2em' }}>⚠️</span>
               <div>
                 <h2 style={{ margin: 0, fontSize: '1.3em', color: '#ef4444' }}>
-                  {t('settings.security.twoFactor.disable.title')}
+                  {t('settings.security.twoFactor.disableModal.title')}
                 </h2>
                 <p style={{ margin: '4px 0 0', fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
-                  {t('settings.security.twoFactor.disable.subtitle')}
+                  {t('settings.security.twoFactor.disableModal.subtitle')}
                 </p>
               </div>
             </div>
@@ -3373,7 +3636,7 @@ const Parametres = () => {
             {/* Contenu */}
             <div style={{ padding: '24px' }}>
               <p style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', marginBottom: '16px' }}>
-                {t('settings.security.twoFactor.disable.enterPassword')}
+                {t('settings.security.twoFactor.disableModal.enterPassword')}
               </p>
               
               <input
@@ -3383,7 +3646,7 @@ const Parametres = () => {
                   setTwoFAPassword(e.target.value);
                   setTwoFAError(null);
                 }}
-                placeholder={t('settings.security.twoFactor.disable.passwordPlaceholder')}
+                placeholder={t('settings.security.twoFactor.disableModal.passwordPlaceholder')}
                 style={{
                   width: '100%',
                   padding: '14px 16px',
@@ -3453,9 +3716,117 @@ const Parametres = () => {
                       animation: 'spin 1s linear infinite'
                     }} />
                   )}
-                  {t('settings.security.twoFactor.disable.confirm')}
+                  {t('settings.security.twoFactor.disableModal.confirm')}
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* ✅ Modal de succès - Déconnexion de toutes les sessions */}
+      {showLogoutSuccessModal && (
+        <div 
+          onClick={() => setShowLogoutSuccessModal(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.7)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            zIndex: 3000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            animation: 'fadeIn 0.3s ease'
+          }}
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: isDark ? 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)' : '#ffffff',
+              borderRadius: '24px',
+              maxWidth: '380px',
+              width: '100%',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              animation: 'slideUp 0.4s ease',
+              border: isDark ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(34, 197, 94, 0.2)'
+            }}
+          >
+            {/* Icône de succès animée */}
+            <div style={{
+              padding: '32px 24px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              textAlign: 'center'
+            }}>
+              <div style={{
+                width: '80px',
+                height: '80px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '20px',
+                animation: 'pulse 2s ease infinite'
+              }}>
+                <span style={{ fontSize: '40px' }}>✅</span>
+              </div>
+              
+              <h2 style={{ 
+                margin: '0 0 12px', 
+                fontSize: '1.4em', 
+                color: isDark ? 'white' : '#1e293b',
+                fontWeight: '700'
+              }}>
+                {t('settings.security.sessions.disconnectAllSuccess') || 'Sessions déconnectées!'}
+              </h2>
+              
+              <p style={{ 
+                margin: 0, 
+                fontSize: '0.95em', 
+                color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b',
+                lineHeight: '1.5'
+              }}>
+                Toutes vos autres sessions ont été déconnectées. Seule cette session reste active.
+              </p>
+            </div>
+            
+            {/* Bouton */}
+            <div style={{ padding: '0 24px 24px' }}>
+              <button
+                onClick={() => setShowLogoutSuccessModal(false)}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  border: 'none',
+                  borderRadius: '14px',
+                  background: 'linear-gradient(135deg, #22c55e 0%, #10b981 100%)',
+                  color: 'white',
+                  fontWeight: '700',
+                  fontSize: '1.05em',
+                  cursor: 'pointer',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)'
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.transform = 'scale(1.02)';
+                  e.target.style.boxShadow = '0 6px 20px rgba(34, 197, 94, 0.5)';
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.transform = 'scale(1)';
+                  e.target.style.boxShadow = '0 4px 14px rgba(34, 197, 94, 0.4)';
+                }}
+              >
+                Compris!
+              </button>
             </div>
           </div>
         </div>
@@ -3533,6 +3904,7 @@ const Parametres = () => {
                   <li>{t('settings.security.deleteAccount.modal.data.budget')}</li>
                   <li>{t('settings.security.deleteAccount.modal.data.goals')}</li>
                   <li>{t('settings.security.deleteAccount.modal.data.settings')}</li>
+                  <li style={{ color: '#f59e0b', fontWeight: '500' }}>{t('settings.security.deleteAccount.modal.data.trial')}</li>
                 </ul>
               </div>
               

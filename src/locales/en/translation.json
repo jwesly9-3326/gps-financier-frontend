@@ -27,7 +27,10 @@
     "select": "Select...",
     "noDescription": "No description",
     "understood": "Got it!",
-    "onContinue": "Let's continue!"
+    "onContinue": "Let's continue!",
+    "rotateToPortrait": "Rotate your screen",
+    "portraitModeRequired": "This page is optimized for portrait mode. Please rotate your device.",
+    "goToItineraire": "Go to Itinerary"
   },
   "trial": {
     "freeTrialActive": "Free trial",
@@ -52,7 +55,7 @@
       "daysLeft": "{{days}} days remaining",
       "subtitle": "Ready to secure your access?",
       "ignore": "Later",
-      "remind": "Remind in 7 days",
+      "remind": "Remind in 5 days",
       "choosePlan": "View plans"
     },
     "reminder2days": {
@@ -263,7 +266,7 @@
     "title": "Finally see where you're going.",
     "discover": "Finally see where you're going.",
     "subtitle": "The first GPS for your personal finances.",
-    "tagline": "End the uncertainty. Start navigating. 🧭",
+    "tagline": "End the uncertainty. Start navigating.",
     "cta": "🧭 Start my journey",
     "ctaBadge": "14-day free trial",
     "login": "Login",
@@ -299,6 +302,7 @@
     "title": "My Portfolio",
     "noData": "No account data available. Please complete the onboarding.",
     "addAccount": "Add account",
+    "addNewAccount": "Add a new account",
     "editAccount": "Edit balance",
     "accountType": "Account type",
     "deleteAccount": "Delete this account?",
@@ -320,6 +324,26 @@
     "tipAddMore": "Add your other accounts for a complete overview!",
     "advancePortfolio": "Advance my portfolio",
     "advancePortfolioHint": "View the evolution of your balances day by day",
+    "confirmDelete": "Delete this account?",
+    "viewTrajectory": "View my financial trajectory",
+    "form": {
+      "name": "Account name",
+      "namePlaceholder": "Ex: Main account, Visa...",
+      "type": "Account type",
+      "institution": "Financial institution",
+      "institutionPlaceholder": "Ex: TD, RBC, BMO",
+      "balance": "Current balance",
+      "initialBalance": "Initial balance",
+      "currentBalance": "Current balance (debt)",
+      "limit": "Credit limit",
+      "creditLimit": "Credit limit",
+      "tapToEnter": "Tap to enter",
+      "enterBalance": "Enter balance",
+      "enterLimit": "Enter limit",
+      "enterInitialBalance": "Enter initial balance",
+      "enterCurrentBalance": "Enter current balance",
+      "enterCreditLimit": "Enter credit limit"
+    },
     "goMode": {
       "day": "Day",
       "navigate": "Navigate to your new economy",
@@ -345,6 +369,7 @@
       "cheque": "Checking account",
       "epargne": "Savings account",
       "credit": "Credit card",
+      "hypotheque": "Mortgage",
       "investissement": "Investment"
     },
     "transactions": {
@@ -399,6 +424,11 @@
       "hebdomadaire": "Weekly",
       "quinzaine": "Bi-weekly",
       "trimestriel": "Quarterly",
+      "semestriel": "Semi-annual",
+      "ponctuel": "One-time",
+      "quarterly": "Quarterly",
+      "semiannual": "Semi-annual",
+      "oneTime": "One-time",
       "annuel": "Annual"
     },
     "balance": {
@@ -430,6 +460,11 @@
       "selectAccount": "Please select an associated account first"
     },
     "dayOfWeek": "Day of week",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "endDateHint": "Leave empty for endless recurrence",
+    "transactionDate": "Transaction date",
+    "oneTimeHint": "This transaction will only occur once",
     "lastDate": "Last date",
     "month": "Month",
     "frequencyInfo": {
@@ -510,6 +545,8 @@
       "inDays_plural": "in {{count}} days",
       "inDaysLabel": "in {{count}} day",
       "inDaysLabel_plural": "in {{count}} days",
+      "inMonths": "in {{months}} months",
+      "inMonthsAndDays": "in {{months}} months and {{days}} days",
       "trajectoryButton": "Trajectory",
       "tomorrowLabel": "Tomorrow",
       "todayLabel": "Today",
@@ -725,6 +762,15 @@
       "yearEndBalance": "Year-end balance",
       "monthEndBalance": "Month-end balance",
       "dayBalance": "Day balance"
+    },
+    "rotateScreen": {
+      "title": "Rotate your screen",
+      "message": "For a better Financial Trajectory experience, please rotate your device to landscape mode.",
+      "backButton": "Back to Navigation"
+    },
+    "rotateToPortrait": {
+      "title": "Rotate your screen",
+      "message": "To continue, please first rotate your device to portrait mode."
     }
   },
   "goals": {
@@ -742,6 +788,25 @@
     },
     "noData": "No destination defined. Please complete onboarding.",
     "emptyState": "No destination defined yet",
+    "suggestions": {
+      "emergencyFund": "Emergency Fund",
+      "vacation": "Vacation",
+      "downPayment": "Down Payment",
+      "retirement": "Retirement",
+      "debtPayoff": "Debt Payoff",
+      "wedding": "Wedding",
+      "education": "Education",
+      "car": "Car",
+      "renovation": "Renovations",
+      "other": "Other",
+      "payOffDebt": "Pay off debt",
+      "newCar": "New car",
+      "babyFund": "Baby fund",
+      "electronics": "Electronics",
+      "hobby": "Hobby",
+      "medical": "Medical expenses",
+      "specialEvent": "Special event"
+    },
     "addDestination": "Add a destination",
     "debt": "Debt",
     "of": "of",
@@ -931,7 +996,9 @@
       "subtitle": "Choose the plan that fits your financial needs",
       "currentPlan": "CURRENT PLAN",
       "perMonth": "/month",
-      "orYearly": "Or {{price}}/year (2 months free)",
+      "orYearly": "Or {{price}}/year",
+      "orYearlyEssential": "Or {{price}}/year (1 month free)",
+      "orYearlyPro": "Or {{price}}/year (2 months free)",
       "currentButton": "Current plan",
       "upgradeButton": "Upgrade to Essential",
       "soonButton": "Coming soon",
@@ -954,7 +1021,7 @@
         "name": "Essential",
         "tagline": "Navigate to your new economy",
         "price": "$14.99",
-        "yearlyPrice": "$149"
+        "yearlyPrice": "$159"
       },
       "pro": {
         "name": "Pro + AI",
@@ -1097,7 +1164,7 @@
           "regenerateInfo": "Enter a code from your app to generate new backup codes.",
           "regenerate": "Regenerate"
         },
-        "disable": {
+        "disableModal": {
           "title": "Disable 2FA",
           "subtitle": "Your account will be less secure",
           "enterPassword": "Enter your password to confirm:",
@@ -1110,7 +1177,8 @@
         "current": "Current session",
         "ago": "{{time}} ago",
         "disconnect": "Disconnect",
-        "disconnectAll": "🚪 Disconnect all sessions"
+        "disconnectAll": "🚪 Disconnect all sessions",
+        "disconnectAllSuccess": "All other sessions have been disconnected successfully!"
       },
       "sensitiveData": {
         "title": "Sensitive data",
@@ -1129,7 +1197,8 @@
             "accounts": "All your bank accounts",
             "budget": "Your budget planning",
             "goals": "Your financial goals",
-            "settings": "Your settings and preferences"
+            "settings": "Your settings and preferences",
+            "trial": "Your free trial (if within the 14-day period)"
           },
           "confirmLabel": "Type DELETE to confirm:",
           "confirmButton": "Delete permanently",
@@ -1157,8 +1226,8 @@
         "linkedin": "LinkedIn"
       },
       "feedback": {
-        "beta": "💬 Send beta feedback",
-        "bug": "🐛 Report a bug"
+        "beta": "Send feedback",
+        "bug": "Report a bug"
       },
       "modals": {
         "guide": {
@@ -1397,7 +1466,9 @@
         "cheque": "Chequing account",
         "savings": "Savings",
         "credit": "Credit card",
-        "creditHint": "Balance owed (what you owe)"
+        "creditHint": "Balance owed (what you owe)",
+        "mortgage": "Mortgage",
+        "mortgageHint": "Balance owed on your home"
       },
       "institution": "Financial institution",
       "institutionPlaceholder": "Ex: Desjardins, Scotia Bank, RBC",
@@ -1456,7 +1527,7 @@
       "associatedAccount": "Associated account",
       "addMoreLater": "💡 You can add more goals or change the account goal later from the <strong>Goals</strong> page",
       "creating": "Creating your GPS...",
-      "accessTool": "See my dashboard",
+      "accessTool": "Access my tool",
       "skip": "Skip this step"
     },
     "loading": {
@@ -1476,7 +1547,7 @@
     }
   },
   "dashboard": {
-    "title": "Dashboard",
+    "title": "My Dashboard",
     "completeGuide": "Complete your guide!",
     "welcome": {
       "title": "Welcome to PL4TO!",
@@ -1493,7 +1564,7 @@
       "empty": "No new notifications at the moment."
     },
     "calendarO": {
-      "title": "Calendar",
+      "title": "My Calendar",
       "subtitle": "Anticipate future events and plan ahead",
       "inDays": "In {{count}} days",
       "inWeeks": "In {{count}} week",
@@ -1803,23 +1874,6 @@
       "title": "Premium Feature",
       "description": "This feature is for subscribers only.",
       "benefit": "Unlock all features!"
-    }
-  },
-  "trial": {
-    "freeTrialActive": "Free trial",
-    "daysRemaining": "days remaining",
-    "dayRemaining": "day remaining",
-    "welcome": {
-      "title": "Welcome to your Financial GPS!",
-      "message": "You have 14 days of free access to the Essential plan with all features.",
-      "betaTitle": "Early Adopters Offer",
-      "limited": "Limited access",
-      "price": "Essential Plan: $9.99/month",
-      "priceNote": "Exclusive price for early adopters",
-      "expirationNote": "At the end of your trial, you can choose a plan to continue.",
-      "ignore": "Ignore",
-      "remind": "Remind me in 7 days",
-      "choosePlan": "Choose a plan"
     }
   }
 }

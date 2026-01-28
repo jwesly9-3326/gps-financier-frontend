@@ -108,12 +108,12 @@ export const themes = {
   }
 };
 
-// Fonction pour détecter la préférence système
-const getSystemTheme = () => {
-  if (typeof window !== 'undefined' && window.matchMedia) {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return 'dark'; // Défaut
+// Fonction pour détecter le thème basé sur l'heure du jour
+const getTimeBasedTheme = () => {
+  const hour = new Date().getHours();
+  // Jour: 6h à 18h = Light mode
+  // Soir/Nuit: 18h à 6h = Dark mode
+  return (hour >= 6 && hour < 18) ? 'light' : 'dark';
 };
 
 export const ThemeProvider = ({ children }) => {
@@ -124,31 +124,35 @@ export const ThemeProvider = ({ children }) => {
     return saved || 'dark';
   });
   
-  // État pour le thème système (utilisé quand auto)
-  const [systemTheme, setSystemTheme] = useState(getSystemTheme);
+  // État pour le thème basé sur l'heure (utilisé quand auto)
+  const [timeBasedTheme, setTimeBasedTheme] = useState(getTimeBasedTheme);
   
   // Thème effectif (celui réellement appliqué)
-  const effectiveThemeName = themePreference === 'auto' ? systemTheme : themePreference;
+  const effectiveThemeName = themePreference === 'auto' ? timeBasedTheme : themePreference;
   
   // Thème actuel
   const theme = themes[effectiveThemeName] || themes.dark;
   
-  // Écouter les changements de préférence système
+  // Vérifier l'heure périodiquement pour le mode auto
   useEffect(() => {
-    if (typeof window === 'undefined' || !window.matchMedia) return;
+    if (themePreference !== 'auto') return;
     
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    // Vérifier immédiatement
+    setTimeBasedTheme(getTimeBasedTheme());
     
-    const handleChange = (e) => {
-      setSystemTheme(e.matches ? 'dark' : 'light');
-    };
+    // Vérifier toutes les minutes
+    const interval = setInterval(() => {
+      const newTheme = getTimeBasedTheme();
+      setTimeBasedTheme(prev => {
+        if (prev !== newTheme) {
+          console.log(`[ThemeContext] Changement automatique: ${prev} -> ${newTheme}`);
+        }
+        return newTheme;
+      });
+    }, 60000); // Toutes les 60 secondes
     
-    // Ajouter le listener
-    mediaQuery.addEventListener('change', handleChange);
-    
-    // Cleanup
-    return () => mediaQuery.removeEventListener('change', handleChange);
-  }, []);
+    return () => clearInterval(interval);
+  }, [themePreference]);
   
   // Sauvegarder dans localStorage quand ça change
   useEffect(() => {

@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import useGuideProgress from '../../hooks/useGuideProgress';
 
-const Sidebar = () => {
+const Sidebar = ({ isMobile = false, isOpen = true, onClose = () => {}, onMobileNavigate = null }) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -43,11 +43,11 @@ const Sidebar = () => {
   const allNavItems = [
     { path: '/dashboard', icon: '🏠', labelKey: 'nav.home' },
     { path: '/comptes', icon: '💳', labelKey: 'nav.accounts' },
-    { path: '/budget', icon: '📊', labelKey: 'nav.budget' },
+    { path: '/budget', icon: '📋', labelKey: 'nav.budget' },
     { path: '/objectifs', icon: '🧭', labelKey: 'nav.goals' },
     { path: '/gps', icon: 'gps-special', labelKey: 'nav.gps', isGPS: true },
     { path: '/simulations', icon: '🧮', labelKey: 'nav.calculator' },
-    { path: '/gestion-comptes', icon: '📋', labelKey: 'nav.management' },
+    { path: '/gestion-comptes', icon: '📊', labelKey: 'nav.management' },
     { path: '/parametres', icon: '⚙️', labelKey: 'nav.settings' },
     { path: 'logout', icon: '🚪', labelKey: 'nav.logout', isLogout: true }
   ];
@@ -56,8 +56,8 @@ const Sidebar = () => {
   const GPSIcon = ({ isLocked }) => (
     <div style={{
       position: 'relative',
-      width: '38px',
-      height: '38px',
+      width: isMobile ? '48px' : '38px',
+      height: isMobile ? '48px' : '38px',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -65,38 +65,52 @@ const Sidebar = () => {
     }}>
       <div style={{
         position: 'absolute',
-        width: '38px',
-        height: '38px',
+        width: isMobile ? '48px' : '38px',
+        height: isMobile ? '48px' : '38px',
         borderRadius: '50%',
-        border: '4px solid transparent',
-        background: `linear-gradient(${isDark ? '#040449' : '#ffffff'}, ${isDark ? '#040449' : '#ffffff'}) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box`,
+        border: isMobile ? '5px solid transparent' : '4px solid transparent',
+        background: `linear-gradient(${isDark ? '#040449' : '#ffffff'}, ${isDark ? '#040449' : '#ffffff'}) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box`,
         animation: isLocked ? 'none' : 'gps-ring-spin 3s linear infinite',
         boxShadow: isLocked ? 'none' : '0 0 10px rgba(255, 165, 0, 0.5)'
       }} />
     </div>
   );
 
+  // Ne pas afficher si mobile et fermé
+  if (isMobile && !isOpen) return null;
+
   return (
     <>
       <div style={{
-        width: '240px',
+        width: isMobile ? '100%' : '240px',
+        minWidth: isMobile ? '100%' : '240px',
         background: isDark 
           ? 'linear-gradient(180deg, #040449 0%, #100261 100%)' 
           : '#ffffff',
         display: 'flex',
         flexDirection: 'column',
-        padding: '15px 12px',
+        padding: isMobile ? '25px 10px' : '15px 12px',
         boxShadow: 'none',
-        height: '100%',
+        height: isMobile ? 'calc(100vh - 60px)' : '100%',
         borderRight: 'none',
-        transition: 'all 0.3s ease'
+        transition: 'all 0.3s ease',
+        // Mobile: position fixe plein écran | Desktop: position normale dans le flex
+        position: isMobile ? 'fixed' : 'relative',
+        top: isMobile ? '60px' : 'auto',
+        left: 0,
+        right: isMobile ? 0 : 'auto',
+        bottom: isMobile ? 0 : 'auto',
+        zIndex: isMobile ? 999 : 'auto',
+        overflowY: isMobile ? 'auto' : 'visible'
       }}>
         {/* Navigation - tous les boutons distribués uniformément */}
         <nav style={{ 
           flex: 1,
           display: 'flex',
           flexDirection: 'column',
-          justifyContent: 'space-between'
+          justifyContent: isMobile ? 'space-evenly' : 'space-between',
+          gap: '0',
+          paddingBottom: isMobile ? '10px' : '0'
         }}>
           {allNavItems.map((item) => {
             // ✅ Utilisation du hook centralisé
@@ -112,19 +126,20 @@ const Sidebar = () => {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '14px',
-                    padding: '14px 18px',
-                    borderRadius: '12px',
+                    justifyContent: 'flex-start',
+                    gap: isMobile ? '16px' : '14px',
+                    padding: isMobile ? '18px 25px' : '14px 18px',
+                    borderRadius: isMobile ? '16px' : '12px',
                     color: '#f87171',
                     background: 'transparent',
                     border: 'none',
-                    fontSize: '1.05em',
+                    fontSize: isMobile ? '1.2em' : '1.05em',
                     fontWeight: '600',
                     cursor: 'pointer',
                     transition: 'all 0.3s ease',
                     width: '100%',
                     textAlign: 'left',
-                    borderLeft: '4px solid transparent'
+                    borderLeft: isMobile ? 'none' : '4px solid transparent'
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.background = 'rgba(248, 113, 113, 0.15)';
@@ -135,7 +150,7 @@ const Sidebar = () => {
                     e.currentTarget.style.borderLeftColor = 'transparent';
                   }}
                 >
-                  <span style={{ fontSize: '1.05em', width: '26px', textAlign: 'center' }}>{item.icon}</span>
+                  <span style={{ fontSize: isMobile ? '1.4em' : '1.05em', width: isMobile ? '32px' : '26px', textAlign: 'center' }}>{item.icon}</span>
                   <span>{t(item.labelKey)}</span>
                 </button>
               );
@@ -149,15 +164,15 @@ const Sidebar = () => {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: item.isGPS ? 'center' : 'flex-start',
-                    gap: '14px',
-                    padding: '14px 18px',
-                    borderRadius: '12px',
+                    justifyContent: 'flex-start',
+                    gap: isMobile ? '16px' : '14px',
+                    padding: isMobile ? '18px 25px' : '14px 18px',
+                    borderRadius: isMobile ? '16px' : '12px',
                     color: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)',
-                    fontSize: '1.05em',
+                    fontSize: isMobile ? '1.2em' : '1.05em',
                     fontWeight: '600',
                     cursor: 'not-allowed',
-                    borderLeft: '4px solid transparent',
+                    borderLeft: isMobile ? 'none' : '4px solid transparent',
                     position: 'relative'
                   }}
                   title={t('nav.locked')}
@@ -165,7 +180,7 @@ const Sidebar = () => {
                   {item.icon === 'gps-special' ? (
                     <GPSIcon isLocked={true} />
                   ) : (
-                    <span style={{ fontSize: '1.05em', width: '26px', textAlign: 'center', opacity: 0.4 }}>{item.icon}</span>
+                    <span style={{ fontSize: isMobile ? '1.4em' : '1.05em', width: isMobile ? '32px' : '26px', textAlign: 'center', opacity: 0.4 }}>{item.icon}</span>
                   )}
                   {!item.isGPS && (
                     <span style={{ opacity: 0.4 }}>{t(item.labelKey)}</span>
@@ -175,36 +190,63 @@ const Sidebar = () => {
             }
 
             // NavLink pour les items accessibles
+            // Sur mobile, certains items ont un comportement spécial
+            const handleMobileClick = (e, path) => {
+              if (isMobile && onMobileNavigate) {
+                // Gestion de portefeuille -> vue plein écran
+                if (path === '/gestion-comptes') {
+                  e.preventDefault();
+                  onMobileNavigate('gestion-comptes-fullscreen');
+                  onClose();
+                  return;
+                }
+                // Paramètres -> menu sidebar paramètres
+                if (path === '/parametres') {
+                  e.preventDefault();
+                  onMobileNavigate('parametres-menu');
+                  onClose();
+                  return;
+                }
+              }
+              // Fermer le sidebar mobile après navigation
+              if (isMobile) {
+                onClose();
+              }
+            };
+
             return (
               <NavLink
                 key={item.path}
                 to={item.path}
+                onClick={(e) => handleMobileClick(e, item.path)}
                 style={({ isActive }) => ({
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: item.isGPS ? 'center' : 'flex-start',
-                  gap: '14px',
-                  padding: '14px 18px',
-                  borderRadius: '12px',
+                  justifyContent: 'flex-start',
+                  gap: isMobile ? '16px' : '14px',
+                  padding: isMobile ? '18px 25px' : '14px 18px',
+                  borderRadius: isMobile ? '16px' : '12px',
                   color: isActive 
                     ? (isDark ? 'white' : '#667eea') 
                     : (isDark ? 'rgba(255,255,255,0.85)' : '#1e3a8a'),
                   textDecoration: 'none',
-                  fontSize: '1.05em',
+                  fontSize: isMobile ? '1.2em' : '1.05em',
                   fontWeight: '600',
                   transition: 'all 0.3s ease',
                   background: isActive 
                     ? item.isGPS 
                       ? 'linear-gradient(90deg, rgba(255, 152, 0, 0.25) 0%, transparent 100%)'
                       : isDark 
-                        ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%)'
+                        ? 'linear-gradient(90deg, rgba(102, 126, 234, 0.3) 0%, transparent 100%)'
                         : 'rgba(102, 126, 234, 0.15)'
                     : item.isGPS
                       ? 'linear-gradient(90deg, rgba(255, 152, 0, 0.1) 0%, transparent 100%)'
                       : 'transparent',
-                  borderLeft: isActive 
-                    ? `4px solid ${item.isGPS ? '#ff9800' : '#667eea'}`
-                    : '4px solid transparent'
+                  borderLeft: isMobile 
+                    ? 'none' 
+                    : (isActive 
+                      ? `4px solid ${item.isGPS ? '#ff9800' : '#667eea'}`
+                      : '4px solid transparent')
                 })}
                 onMouseEnter={(e) => {
                   if (!e.currentTarget.classList.contains('active')) {
@@ -229,7 +271,7 @@ const Sidebar = () => {
                     <GPSIcon isLocked={false} />
                   </div>
                 ) : (
-                  <span style={{ fontSize: '1.05em', width: '26px', textAlign: 'center' }}>{item.icon}</span>
+                  <span style={{ fontSize: isMobile ? '1.4em' : '1.05em', width: isMobile ? '32px' : '26px', textAlign: 'center' }}>{item.icon}</span>
                 )}
                 {!item.isGPS && <span>{t(item.labelKey)}</span>}
               </NavLink>

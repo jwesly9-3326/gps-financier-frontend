@@ -1,0 +1,13 @@
+# robots.txt pour PL4TO.com
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/
+Disallow: /onboarding/
+
+# Sitemap
+Sitemap: https://pl4to.com/sitemap.xml
+
+# Crawl delay (secondes)
+Crawl-delay: 1

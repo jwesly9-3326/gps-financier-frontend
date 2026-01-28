@@ -406,26 +406,21 @@ body.theme-light .gps-content-area::-webkit-scrollbar-thumb:hover {
 /* ============================================ */
 
 @media (max-width: 768px) {
-  .gps-sidebar {
-    width: 70px;
-    padding: 15px 0;
-  }
-  
-  .sidebar-nav-item {
-    padding: 12px;
-    justify-content: center;
-  }
-  
-  .sidebar-nav-item span:not(:first-child) {
-    display: none;
-  }
-  
+  /* Header mobile */
   .gps-app-header {
     padding: 0 15px;
+    height: 60px;
   }
   
+  /* Content area prend toute la largeur sur mobile */
   .gps-content-area {
     padding: 15px;
+  }
+  
+  /* Cards plus compactes sur mobile */
+  .card-pl4to {
+    padding: 16px;
+    border-radius: 12px;
   }
 }
 
@@ -456,4 +451,21 @@ body.theme-light .gps-content-area::-webkit-scrollbar-thumb:hover {
 
 .font-header {
   font-family: 'Poppins', sans-serif;
+}
+
+/* ============================================ */
+/* HIDE SCROLLBAR ON MOBILE                    */
+/* ============================================ */
+
+@media (max-width: 768px) {
+  /* Hide scrollbar for Chrome, Safari and Opera */
+  *::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Hide scrollbar for IE, Edge and Firefox */
+  * {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
 }

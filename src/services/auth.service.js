@@ -43,9 +43,15 @@ const authService = {
     authService.clearUserData(true);
     
     const response = await api.post(AUTH_ENDPOINTS.REGISTER, userData);
-    const { token, user } = response.data;
+    const { token, user, requiresVerification, email } = response.data;
     
-    // ✅ Validation: Vérifier que le token existe
+    // 📧 Si vérification email requise, retourner sans token
+    if (requiresVerification) {
+      console.log('[Auth Service] 📧 Vérification email requise pour:', email);
+      return response.data; // { requiresVerification: true, email: "..." }
+    }
+    
+    // ✅ Validation: Vérifier que le token existe (cas sans vérification email)
     if (!token) {
       console.error('[Auth Service] ❌ Backend n\'a pas retourné de token!');
       throw new Error('Erreur serveur: token manquant');

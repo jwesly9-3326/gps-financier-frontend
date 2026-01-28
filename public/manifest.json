@@ -1,0 +1,43 @@
+{
+  "name": "PL4TO - GPS Financier",
+  "short_name": "PL4TO",
+  "description": "Le premier GPS pour tes finances personnelles. Vois enfin où tu vas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#040449",
+  "theme_color": "#040449",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "fr-CA",
+  "categories": ["finance", "productivity", "utilities"],
+  "icons": [
+    {
+      "src": "/icons/icon-512x512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/pl4to-favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "Accéder au tableau de bord",
+      "url": "/dashboard"
+    },
+    {
+      "name": "GPS Financier",
+      "short_name": "GPS",
+      "description": "Voir ma trajectoire financière",
+      "url": "/gps"
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false
+}

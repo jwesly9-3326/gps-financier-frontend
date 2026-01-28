@@ -1,40 +1,190 @@
 // 🧭 GPS FINANCIER - MAIN LAYOUT (Structure 100% Fixe)
 // Design: Interface type "application dashboard" sans scroll de page
 // VERSION MODIFIÉE: Timeline affichée seulement sur GPS Financier
+// + Intégration TrialWelcomeModal pour les rappels trial
+// 📱 RESPONSIVE: Sidebar fermé par défaut sur mobile
+// 📱 ROTATION: Bloquée sur toutes les pages sauf Itinéraire
 
-import { Outlet, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
 import Timeline from './Timeline';
+import TrialWelcomeModal from '../common/TrialWelcomeModal';
+import useTrialReminders from '../../hooks/useTrialReminders';
+import { useTranslation } from 'react-i18next';
 
 const MainLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
+  
+  // 📱 Détection mobile et orientation
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768 || window.innerHeight < 500);
+  const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
+  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768 || window.innerHeight < 500;
+      const landscape = window.innerWidth > window.innerHeight;
+      setIsMobile(mobile);
+      setIsLandscape(landscape);
+      // Fermer sidebar automatiquement sur mobile, ouvrir sur desktop
+      if (mobile && sidebarOpen) setSidebarOpen(false);
+      if (!mobile && !sidebarOpen) setSidebarOpen(true);
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, [sidebarOpen]);
+  
+  // Fermer sidebar quand on change de page sur mobile
+  useEffect(() => {
+    if (isMobile) setSidebarOpen(false);
+  }, [location.pathname, isMobile]);
+  
+  // 📱 Écouter l'événement pour ouvrir le sidebar (depuis les pages)
+  useEffect(() => {
+    const handleOpenSidebar = () => setSidebarOpen(true);
+    window.addEventListener('openSidebar', handleOpenSidebar);
+    return () => window.removeEventListener('openSidebar', handleOpenSidebar);
+  }, []);
+  
+  // 🔔 Hook pour gérer les rappels trial
+  const { 
+    showModal, 
+    popupType, 
+    daysRemaining, 
+    closeModal 
+  } = useTrialReminders();
   
   // Déterminer si on doit afficher la Timeline
   // Timeline visible seulement sur la page: /gps-financier
   const showTimeline = location.pathname === '/gps-financier' || 
                        location.pathname.startsWith('/gps-financier/');
 
+  const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
+
+  // 📱 Gestion de la navigation mobile spéciale
+  const handleMobileNavigate = (action) => {
+    if (action === 'gestion-comptes-fullscreen') {
+      // Naviguer vers Gestion de portefeuille en mode plein écran
+      navigate('/gestion-comptes?fullscreen=true');
+    } else if (action === 'parametres-menu') {
+      // Naviguer vers Paramètres en mode plein écran (sidebar paramètres)
+      navigate('/parametres?fullscreen=true');
+    }
+  };
+
+  // 📱 Déterminer si on est sur la page Itinéraire (seule page autorisée en paysage)
+  const isItinerairePage = location.pathname === '/gps/itineraire' || 
+                           location.pathname.startsWith('/gps/itineraire');
+  
+  // 📱 Afficher l'overlay de blocage rotation si:
+  // - On est sur mobile
+  // - On est en mode paysage
+  // - On n'est PAS sur la page Itinéraire
+  const showRotationBlockOverlay = isMobile && isLandscape && !isItinerairePage;
+
   return (
     <div className="gps-app-container">
+      {/* 📱 OVERLAY BLOCAGE ROTATION - Toutes pages sauf Itinéraire */}
+      {showRotationBlockOverlay && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+          zIndex: 99999,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          {/* Icône de rotation */}
+          <div style={{
+            fontSize: '4em',
+            marginBottom: '20px',
+            animation: 'rotatePhone 2s ease-in-out infinite'
+          }}>
+            📱
+          </div>
+          
+          {/* Flèche de rotation */}
+          <div style={{
+            fontSize: '2em',
+            marginBottom: '20px',
+            color: '#667eea'
+          }}>
+            ↻
+          </div>
+          
+          {/* Titre */}
+          <h2 style={{
+            color: 'white',
+            fontSize: '1.3em',
+            fontWeight: 'bold',
+            textShadow: '0 2px 10px rgba(0,0,0,0.3)'
+          }}>
+            {t('common.rotateToPortrait', 'Tournez votre écran')}
+          </h2>
+          
+          {/* Animation CSS */}
+          <style>{`
+            @keyframes rotatePhone {
+              0%, 100% { transform: rotate(0deg); }
+              25% { transform: rotate(-15deg); }
+              75% { transform: rotate(15deg); }
+            }
+          `}</style>
+        </div>
+      )}
+
       {/* Header Fixe en Haut */}
-      <Header />
+      <Header 
+        isMobile={isMobile} 
+        toggleSidebar={toggleSidebar} 
+        sidebarOpen={sidebarOpen}
+      />
       
       <div className="gps-app-body">
-        {/* Sidebar Fixe Gauche - Full Height */}
-        <Sidebar />
+        {/* Sidebar - Responsive */}
+        <Sidebar 
+          isMobile={isMobile} 
+          isOpen={sidebarOpen} 
+          onClose={() => setSidebarOpen(false)}
+          onMobileNavigate={handleMobileNavigate}
+        />
         
-        {/* Zone Principale Droite */}
-        <div className="gps-main-content">
-          {/* Timeline Fixe - Conditionnelle */}
-          {showTimeline && <Timeline />}
-          
-          {/* Zone de Contenu avec Scroll Interne */}
-          <div className="gps-content-area">
-            <Outlet />
+        {/* Zone Principale Droite - cachée quand sidebar ouvert sur mobile */}
+        {!(isMobile && sidebarOpen) && (
+          <div className="gps-main-content">
+            {/* Timeline Fixe - Conditionnelle */}
+            {showTimeline && <Timeline />}
+            
+            {/* Zone de Contenu avec Scroll Interne */}
+            <div className="gps-content-area">
+              <Outlet />
+            </div>
           </div>
-        </div>
+        )}
       </div>
+      
+      {/* 🔔 Modal de rappel Trial (Welcome, 7 jours, 2 jours) */}
+      <TrialWelcomeModal
+        isOpen={showModal}
+        onClose={closeModal}
+        popupType={popupType}
+        daysRemaining={daysRemaining}
+      />
     </div>
   );
 };

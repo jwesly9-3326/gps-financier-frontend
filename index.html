@@ -5,41 +5,82 @@
     
     <!-- Favicon Pl4to -->
     <link rel="icon" type="image/svg+xml" href="/pl4to-favicon.svg" />
-    <link rel="apple-touch-icon" href="/pl4to-favicon.svg" />
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Apple Touch Icons -->
+    <link rel="apple-touch-icon" href="/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="72x72" href="/icons/icon-72x72.png" />
+    <link rel="apple-touch-icon" sizes="96x96" href="/icons/icon-96x96.png" />
+    <link rel="apple-touch-icon" sizes="128x128" href="/icons/icon-128x128.png" />
+    <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144x144.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152x152.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192x192.png" />
+    <link rel="apple-touch-icon" sizes="384x384" href="/icons/icon-384x384.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="/icons/icon-512x512.png" />
     
     <!-- Viewport -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <!-- PWA Meta Tags -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="PL4TO" />
+    <meta name="application-name" content="PL4TO" />
+    <meta name="msapplication-starturl" content="/" />
+    <meta name="msapplication-navbutton-color" content="#040449" />
     
     <!-- SEO Meta Tags -->
-    <title>Pl4to - Votre GPS Financier 🧭</title>
-    <meta name="description" content="Pl4to est la plateforme qui révèle votre avenir financier. Naviguez dans le temps à travers vos finances avec le GPS Financier." />
-    <meta name="keywords" content="finances personnelles, GPS financier, budget, planification financière, objectifs financiers, Québec" />
-    <meta name="author" content="Pl4to" />
+    <title>PL4TO</title>
+    <meta name="description" content="PL4TO est le premier GPS pour tes finances personnelles. Vois enfin où tu vas. Finis l'incertitude, commence à naviguer." />
+    <meta name="keywords" content="finances personnelles, GPS financier, budget, planification financière, objectifs financiers, Québec, PL4TO" />
+    <meta name="author" content="PL4TO Inc." />
     
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://pl4to.com/" />
-    <meta property="og:title" content="Pl4to - Votre GPS Financier" />
-    <meta property="og:description" content="Révélez votre avenir financier. Naviguez dans le temps à travers vos finances." />
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:title" content="PL4TO - Votre GPS Financier" />
+    <meta property="og:description" content="Le premier GPS pour tes finances personnelles. Vois enfin où tu vas." />
+    <meta property="og:image" content="/og-image-pl4to.svg" />
     
     <!-- Twitter -->
     <meta property="twitter:card" content="summary_large_image" />
     <meta property="twitter:url" content="https://pl4to.com/" />
-    <meta property="twitter:title" content="Pl4to - Votre GPS Financier" />
-    <meta property="twitter:description" content="Révélez votre avenir financier. Naviguez dans le temps à travers vos finances." />
-    <meta property="twitter:image" content="/og-image.png" />
+    <meta property="twitter:title" content="PL4TO - Votre GPS Financier" />
+    <meta property="twitter:description" content="Le premier GPS pour tes finances personnelles. Vois enfin où tu vas." />
+    <meta property="twitter:image" content="/og-image-pl4to.svg" />
     
     <!-- Theme Color -->
-    <meta name="theme-color" content="#667eea" />
-    <meta name="msapplication-TileColor" content="#667eea" />
+    <meta name="theme-color" content="#040449" />
+    <meta name="msapplication-TileColor" content="#040449" />
+    <meta name="msapplication-TileImage" content="/icons/icon-144x144.png" />
     
     <!-- Preconnect to Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    
+    <!-- Splash Screens iOS -->
+    <link rel="apple-touch-startup-image" href="/icons/icon-512x512.png" />
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((registration) => {
+              console.log('🧭 PL4TO: Service Worker enregistré avec succès:', registration.scope);
+            })
+            .catch((error) => {
+              console.log('🧭 PL4TO: Échec enregistrement Service Worker:', error);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

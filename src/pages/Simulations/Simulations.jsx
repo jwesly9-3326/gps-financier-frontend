@@ -2,7 +2,7 @@
 // Design avec bulles entrée/sortie, évolution dynamique, alertes et quick-tests
 // ✅ Utilise useGuideProgress pour la logique centralisée
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '../../context/UserDataContext';
@@ -84,7 +84,55 @@ const Simulations = () => {
   // États
   const [simulations, setSimulations] = useState({});
   const [periodeImpact, setPeriodeImpact] = useState('1mois');
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  
+  // 📱 Détection mobile
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // 📱 Mobile: démarrer directement en plein écran | Desktop: mode aperçu
+  const [isFullScreen, setIsFullScreen] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setIsFullScreen(mobile);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // 📱 État pour le compte actif dans le snap scroll mobile
+  const [activeAccountIndex, setActiveAccountIndex] = useState(0);
+  const mobileScrollRef = useRef(null);
+  
+  // Détecter le compte visible lors du scroll (mobile)
+  useEffect(() => {
+    const container = mobileScrollRef.current;
+    if (!container || !isMobile) return;
+    
+    const handleScroll = () => {
+      const scrollTop = container.scrollTop;
+      const itemHeight = container.clientHeight;
+      const newIndex = Math.round(scrollTop / itemHeight);
+      const accounts = userData?.accounts || [];
+      if (newIndex !== activeAccountIndex && newIndex >= 0 && newIndex < accounts.length) {
+        setActiveAccountIndex(newIndex);
+      }
+    };
+    
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [isMobile, activeAccountIndex, userData?.accounts]);
+  
+  // Fonction pour scroller vers un compte spécifique
+  const scrollToAccount = (index) => {
+    const container = mobileScrollRef.current;
+    if (!container) return;
+    const itemHeight = container.clientHeight;
+    container.scrollTo({ top: index * itemHeight, behavior: 'smooth' });
+    setActiveAccountIndex(index);
+  };
+  
   const [isCalculating, setIsCalculating] = useState(false);
   const [calculatingStep, setCalculatingStep] = useState(0);
   const [showResults, setShowResults] = useState(false);
@@ -116,7 +164,17 @@ const Simulations = () => {
   // Toggle local pour afficher/masquer les soldes
   const toggleBalances = (e) => {
     e.stopPropagation();
-    setBalancesHidden(!balancesHidden);
+    const newValue = !balancesHidden;
+    setBalancesHidden(newValue);
+    
+    // Sauvegarder dans localStorage
+    const saved = localStorage.getItem('pl4to_security_settings');
+    const settings = saved ? JSON.parse(saved) : {};
+    settings.hideBalances = newValue;
+    localStorage.setItem('pl4to_security_settings', JSON.stringify(settings));
+    
+    // Émettre un événement pour synchroniser les autres pages
+    window.dispatchEvent(new CustomEvent('securitySettingsChanged', { detail: { hideBalances: newValue } }));
   };
 
   // Données budget
@@ -536,7 +594,8 @@ const Simulations = () => {
   const applyQuickTestToAccount = (accountName) => {
     if (!pendingQuickTest) return;
     
-    const account = userData?.accounts?.find(a => a.nom === accountName);
+    const accounts = userData?.accounts || [];
+    const account = accounts.find(a => a.nom === accountName);
     if (!account) return;
     
     const field = (pendingQuickTest.type === 'entree' || pendingQuickTest.type === 'paiement') ? 'entree' : 'sortie';
@@ -566,6 +625,14 @@ const Simulations = () => {
     setShowWarningModal(false);
     setShowAccountSelector(false);
     setPendingQuickTest(null);
+    
+    // 📱 Sur mobile, scroller vers le compte sélectionné
+    if (isMobile) {
+      const accountIndex = accounts.findIndex(a => a.nom === accountName);
+      if (accountIndex >= 0) {
+        setTimeout(() => scrollToAccount(accountIndex), 100);
+      }
+    }
   };
 
   // Calculer le nouveau solde après simulation
@@ -673,8 +740,9 @@ const Simulations = () => {
       {/* Barre supérieure: Période + Boutons */}
       <div style={{
         display: 'flex',
-        alignItems: 'center',
-        gap: '20px',
+        alignItems: isMobile ? 'stretch' : 'center',
+        flexDirection: isMobile ? 'column' : 'row',
+        gap: isMobile ? '10px' : '20px',
         marginBottom: '15px',
         flexWrap: 'wrap'
       }}>
@@ -684,14 +752,16 @@ const Simulations = () => {
           style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '12px',
-          padding: '10px 15px',
+          gap: isMobile ? '8px' : '12px',
+          padding: isMobile ? '8px 12px' : '10px 15px',
           background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
           borderRadius: '10px',
-          border: isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.1)'
+          border: isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.1)',
+          flexWrap: isMobile ? 'wrap' : 'nowrap',
+          justifyContent: isMobile ? 'center' : 'flex-start'
         }}>
-          <span style={{ fontWeight: '600', color: isDark ? 'white' : '#1e293b', fontSize: '0.9em' }}>📅 {t('calculator.period')} :</span>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <span style={{ fontWeight: '600', color: isDark ? 'white' : '#1e293b', fontSize: isMobile ? '0.8em' : '0.9em' }}>📅 {t('calculator.period')} :</span>
+          <div style={{ display: 'flex', gap: isMobile ? '6px' : '8px' }}>
             {[
               { key: '1sem', label: t('calculator.periods.week'), requiresPremium: false },
               { key: '1mois', label: t('calculator.periods.month'), requiresPremium: true },
@@ -710,7 +780,7 @@ const Simulations = () => {
                   setShowResults(false);
                 }}
                 style={{
-                  padding: '8px 16px',
+                  padding: isMobile ? '6px 12px' : '8px 16px',
                   borderRadius: '8px',
                   border: 'none',
                   background: periodeImpact === p.key 
@@ -718,7 +788,7 @@ const Simulations = () => {
                     : isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
                   color: periodeImpact === p.key ? 'white' : isDark ? 'rgba(255,255,255,0.9)' : '#1e293b',
                   fontWeight: '600',
-                  fontSize: '0.85em',
+                  fontSize: isMobile ? '0.75em' : '0.85em',
                   cursor: 'pointer',
                   boxShadow: periodeImpact === p.key 
                     ? '0 3px 10px rgba(102, 126, 234, 0.4)'
@@ -741,7 +811,7 @@ const Simulations = () => {
           </div>
         </div>
 
-        <div style={{ flex: 1 }}></div>
+        {!isMobile && <div style={{ flex: 1 }}></div>}
 
         {/* Boutons Réinitialiser et GO */}
         <div 
@@ -749,7 +819,8 @@ const Simulations = () => {
           style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '12px'
+          justifyContent: isMobile ? 'center' : 'flex-end',
+          gap: isMobile ? '8px' : '12px'
         }}>
           <button
             onClick={(e) => {
@@ -757,13 +828,13 @@ const Simulations = () => {
               resetSimulations();
             }}
             style={{
-              padding: '10px 18px',
+              padding: isMobile ? '8px 14px' : '10px 18px',
               borderRadius: '10px',
               border: '2px solid #ffa500',
               background: 'rgba(255, 165, 0, 0.1)',
               color: '#ffa500',
               fontWeight: '600',
-              fontSize: '0.9em',
+              fontSize: isMobile ? '0.8em' : '0.9em',
               cursor: 'pointer',
               transition: 'all 0.3s',
               display: 'flex',
@@ -781,7 +852,7 @@ const Simulations = () => {
             }}
             disabled={!hasAnyTransaction()}
             style={{
-              padding: '12px 30px',
+              padding: isMobile ? '10px 20px' : '12px 30px',
               borderRadius: '12px',
               border: 'none',
               background: hasAnyTransaction()
@@ -789,7 +860,7 @@ const Simulations = () => {
                 : isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
               color: hasAnyTransaction() ? 'white' : isDark ? 'rgba(255,255,255,0.4)' : '#94a3b8',
               fontWeight: 'bold',
-              fontSize: '1.1em',
+              fontSize: isMobile ? '0.95em' : '1.1em',
               cursor: hasAnyTransaction() ? 'pointer' : 'not-allowed',
               boxShadow: hasAnyTransaction()
                 ? '0 4px 15px rgba(52, 152, 219, 0.4)'
@@ -812,19 +883,23 @@ const Simulations = () => {
         style={{
         display: 'flex',
         alignItems: 'center',
-        gap: '10px',
-        marginBottom: '20px',
+        gap: isMobile ? '6px' : '10px',
+        marginBottom: isMobile ? '15px' : '20px',
         flexWrap: 'wrap',
-        padding: '12px 15px',
+        padding: isMobile ? '10px 12px' : '12px 15px',
+        justifyContent: isMobile ? 'center' : 'flex-start',
         background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
         borderRadius: '12px',
         border: isDark ? '1px dashed rgba(255,255,255,0.2)' : '1px dashed rgba(0,0,0,0.15)'
       }}>
         <span style={{ 
-          fontSize: '0.85em', 
+          fontSize: isMobile ? '0.75em' : '0.85em', 
           fontWeight: '600', 
           color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b',
-          marginRight: '5px'
+          marginRight: '5px',
+          width: isMobile ? '100%' : 'auto',
+          textAlign: isMobile ? 'center' : 'left',
+          marginBottom: isMobile ? '5px' : '0'
         }}>
           ⚡ {t('calculator.quickTests.title')} :
         </span>
@@ -836,13 +911,13 @@ const Simulations = () => {
               openAccountSelector(test);
             }}
             style={{
-              padding: '6px 12px',
+              padding: isMobile ? '5px 8px' : '6px 12px',
               borderRadius: '20px',
               border: `2px solid ${test.color}50`,
               background: `${test.color}15`,
               color: test.color,
               fontWeight: '600',
-              fontSize: '0.75em',
+              fontSize: isMobile ? '0.65em' : '0.75em',
               cursor: 'pointer',
               transition: 'all 0.2s',
               display: 'flex',
@@ -866,12 +941,22 @@ const Simulations = () => {
       {/* Zone des comptes */}
       <div 
         data-tooltip="calculator-accounts"
+        ref={isMobile ? mobileScrollRef : null}
         style={{
         display: 'flex',
-        flexWrap: 'wrap',
-        justifyContent: 'center',
-        gap: '20px',
-        position: 'relative'
+        flexDirection: isMobile ? 'column' : 'row',
+        flexWrap: isMobile ? 'nowrap' : 'wrap',
+        justifyContent: isMobile ? 'flex-start' : 'center',
+        alignItems: isMobile ? 'stretch' : 'flex-start',
+        gap: isMobile ? '0' : '20px',
+        position: 'relative',
+        ...(isMobile && {
+          flex: 1,
+          overflowY: 'auto',
+          scrollSnapType: 'y mandatory',
+          scrollBehavior: 'smooth',
+          WebkitOverflowScrolling: 'touch'
+        })
       }}>
         {/* Overlay d'animation de calcul */}
         {isCalculating && (
@@ -991,12 +1076,14 @@ const Simulations = () => {
             const displayedAmount = hasChange ? newSolde : soldeActuel;
             const sizing = getCircleSizing(displayedAmount);
 
-            const evolution = (hasChange && showResults)
+            // 📱 Sur mobile, ne calculer l'évolution que pour le compte actif
+            const shouldShowResults = showResults && hasChange && (!isMobile || activeAccountIndex === index);
+            const evolution = shouldShowResults
               ? calculateEvolution(acc.nom, newSolde, isCredit)
               : [];
 
             let alertInfo = null;
-            if (showResults && hasChange) {
+            if (shouldShowResults) {
               if (isCredit) {
                 const maxSolde = evolution.length > 0 
                   ? Math.max(...evolution.map(e => e.solde), newSolde)
@@ -1014,10 +1101,31 @@ const Simulations = () => {
               <div
                 key={index}
                 style={{
+                  ...(isMobile && {
+                    height: 'calc(100vh - 380px)',
+                    minHeight: 'calc(100vh - 380px)',
+                    scrollSnapAlign: 'start',
+                    scrollSnapStop: 'always',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '10px',
+                    paddingTop: '40px',
+                    paddingBottom: '100px'
+                  }),
+                  ...(!isMobile && {
+                    display: 'contents'
+                  })
+                }}
+              >
+              <div
+                data-card-scroll
+                style={{
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'center',
-                  padding: '20px 25px 25px',
+                  padding: isMobile ? '15px 20px 20px' : '20px 25px 25px',
                   background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)',
                   backdropFilter: 'blur(10px)',
                   borderRadius: '20px',
@@ -1034,9 +1142,15 @@ const Simulations = () => {
                     ? '2px solid #f39c12'
                     : hasChange ? '2px solid #667eea' : isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.08)',
                   transition: 'all 0.3s',
-                  minWidth: '280px',
-                  maxWidth: '320px',
-                  animation: alertInfo?.level === 'danger' ? 'shake 0.5s ease-in-out' : 'none'
+                  minWidth: isMobile ? '90%' : '280px',
+                  maxWidth: isMobile ? '95%' : '320px',
+                  width: isMobile ? '90%' : 'auto',
+                  animation: alertInfo?.level === 'danger' ? 'shake 0.5s ease-in-out' : 'none',
+                  ...(isMobile && {
+                    maxHeight: 'calc(100vh - 420px)',
+                    overflowY: 'auto',
+                    WebkitOverflowScrolling: 'touch'
+                  })
                 }}
               >
                 {/* NOM DU COMPTE EN HAUT */}
@@ -1143,8 +1257,8 @@ const Simulations = () => {
                         borderRadius: '50%',
                         border: '4px solid transparent',
                         background: isDark 
-                          ? 'linear-gradient(#040449, #100261) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box'
-                          : 'linear-gradient(#ffffff, #f8fafc) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
+                          ? 'linear-gradient(#040449, #100261) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box'
+                          : 'linear-gradient(#ffffff, #f8fafc) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box',
                         animation: 'gps-ring-spin 3s linear infinite',
                         boxShadow: hasChange 
                           ? '0 0 25px rgba(255, 165, 0, 0.6)'
@@ -1490,10 +1604,64 @@ const Simulations = () => {
                   )}
                 </div>
               </div>
+              </div>
             );
           })
         )}
       </div>
+
+      {/* 📱 Indicateurs de pagination mobile */}
+      {isMobile && accounts.length > 1 && (
+        <>
+          {/* Dots de pagination - sur le côté droit */}
+          <div style={{
+            position: 'fixed',
+            right: '12px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '8px',
+            zIndex: 50
+          }}>
+            {accounts.map((_, idx) => (
+              <div
+                key={idx}
+                onClick={() => scrollToAccount(idx)}
+                style={{
+                  width: activeAccountIndex === idx ? '12px' : '8px',
+                  height: activeAccountIndex === idx ? '12px' : '8px',
+                  borderRadius: '50%',
+                  background: activeAccountIndex === idx 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                    : 'rgba(255,255,255,0.3)',
+                  cursor: 'pointer',
+                  transition: 'all 0.3s',
+                  boxShadow: activeAccountIndex === idx ? '0 0 8px rgba(102, 126, 234, 0.5)' : 'none'
+                }}
+              />
+            ))}
+          </div>
+          
+          {/* Indicateur Swipe - en bas au centre */}
+          {activeAccountIndex < accounts.length - 1 && (
+            <div style={{
+              position: 'fixed',
+              bottom: '20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              opacity: 0.6,
+              zIndex: 50
+            }}>
+              <span style={{ fontSize: '0.75em', color: 'rgba(255,255,255,0.7)', marginBottom: '2px' }}>Swipe</span>
+              <span style={{ fontSize: '1.2em', color: 'rgba(255,255,255,0.7)' }}>↓</span>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Modal Sélecteur de compte pour Quick Test */}
       {showAccountSelector && pendingQuickTest && (
@@ -1908,50 +2076,99 @@ const Simulations = () => {
           {/* Header plein écran */}
           <div style={{
             background: 'transparent',
-            padding: '15px 30px',
+            padding: isMobile ? '10px 15px' : '15px 30px',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'flex-start'
           }}>
+            {/* Titre et subtitle à gauche */}
             <div>
               <h1 style={{
                 margin: 0,
-                fontSize: '1.8em',
+                fontSize: isMobile ? '1.1em' : '1.8em',
                 fontWeight: 'bold',
                 color: isDark ? 'white' : '#1e293b',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '12px'
+                gap: isMobile ? '8px' : '12px'
               }}>
                 🧮 {t('calculator.title')}
               </h1>
-              <p style={{ margin: '5px 0 0', fontSize: '1em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
+              <p style={{ 
+                fontSize: isMobile ? '0.8em' : '1em', 
+                color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b',
+                margin: isMobile ? '4px 0 0 0' : '8px 0 0 0',
+                maxWidth: isMobile ? '250px' : 'none'
+              }}>
                 {t('calculator.subtitle')}
               </p>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <EyeToggleButton />
+            
+            {/* Boutons à droite: X en haut, Œil en dessous */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '8px' : '10px' }}>
+              {/* Bouton Fermer (X) */}
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  setIsFullScreen(false);
+                  if (isMobile) {
+                    window.dispatchEvent(new CustomEvent('openSidebar'));
+                  } else {
+                    setIsFullScreen(false);
+                  }
                 }}
                 style={{
                   background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
                   border: isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)',
                   borderRadius: '50%',
-                  width: '45px',
-                  height: '45px',
+                  width: isMobile ? '32px' : '40px',
+                  height: isMobile ? '32px' : '40px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  fontSize: '1.5em',
+                  fontSize: isMobile ? '1em' : '1.2em',
                   color: isDark ? 'white' : '#1e293b',
                   transition: 'all 0.3s'
                 }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#e74c3c';
+                  e.currentTarget.style.color = 'white';
+                  e.currentTarget.style.borderColor = '#e74c3c';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+                  e.currentTarget.style.color = isDark ? 'white' : '#1e293b';
+                  e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
+                }}
               >
                 ✕
+              </button>
+              
+              {/* Bouton Œil pour masquer/afficher les soldes */}
+              <button
+                onClick={toggleBalances}
+                title={balancesHidden ? t('goals.showBalances') : t('goals.hideBalances')}
+                style={{
+                  borderRadius: '50%',
+                  width: isMobile ? '32px' : '40px',
+                  height: isMobile ? '32px' : '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '0.9em' : '1.2em',
+                  transition: 'all 0.3s',
+                  border: balancesHidden 
+                    ? 'none' 
+                    : (isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)'),
+                  background: balancesHidden 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                    : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
+                  color: balancesHidden ? 'white' : (isDark ? 'white' : '#64748b'),
+                  boxShadow: balancesHidden ? '0 4px 15px rgba(102, 126, 234, 0.4)' : 'none'
+                }}
+              >
+                {balancesHidden ? '👁️‍🗨️' : '👁️'}
               </button>
             </div>
           </div>
@@ -1959,9 +2176,11 @@ const Simulations = () => {
           {/* Contenu plein écran */}
           <div style={{
             flex: 1,
-            overflow: 'auto',
-            padding: '20px 30px',
-            background: 'transparent'
+            overflow: isMobile ? 'hidden' : 'auto',
+            padding: isMobile ? '10px 15px' : '20px 30px',
+            background: 'transparent',
+            display: 'flex',
+            flexDirection: 'column'
           }}>
             {renderContent()}
           </div>

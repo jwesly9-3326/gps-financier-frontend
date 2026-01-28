@@ -68,7 +68,7 @@ const AnimatedLoadingScreen = ({ t }) => {
           height: '120px',
           borderRadius: '50%',
           border: '6px solid transparent',
-          background: 'linear-gradient(#040449, #040449) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
+          background: 'linear-gradient(#040449, #040449) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box',
           animation: 'gps-ring-spin 2s linear infinite',
           boxShadow: '0 0 40px rgba(255, 165, 0, 0.6)'
         }} />

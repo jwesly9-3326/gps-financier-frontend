@@ -109,6 +109,17 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     try {
       const data = await authService.register(userData);
+      
+      // 📧 Si vérification email requise
+      if (data.requiresVerification) {
+        console.log('📧 AuthContext: Vérification email requise pour:', data.email);
+        return { 
+          success: true, 
+          requiresVerification: true, 
+          email: data.email 
+        };
+      }
+      
       setUser(data.user);
       setIsAuthenticated(true);
       return { success: true };
@@ -116,7 +127,7 @@ export const AuthProvider = ({ children }) => {
       console.error('Register error:', error);
       return { 
         success: false, 
-        error: error.response?.data?.message || 'Erreur d\'inscription' 
+        error: error.response?.data?.message || error.message || 'Erreur d\'inscription' 
       };
     }
   };

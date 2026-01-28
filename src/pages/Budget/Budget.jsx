@@ -28,6 +28,20 @@ const Budget = () => {
   const { canAddMore, limits } = useSubscription();
   const { theme, isDark } = useTheme();
   
+  // 📱 Détection mobile
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // 📱 Mobile: démarrer directement en plein écran
+  const [startFullScreenMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
   // 🔄 Helper pour sauvegarder le budget avec tracking de la date de modification
   const saveBudgetData = (newData) => {
     // Ajouter lastModifiedAt au budgetPlanning si on modifie le budget
@@ -108,7 +122,7 @@ const Budget = () => {
   const [numpadTarget, setNumpadTarget] = useState(null); // 'montant' ou 'jourRecurrence'
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [expandedSection, setExpandedSection] = useState(null);
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(window.innerWidth < 768);
   const [upgradeModal, setUpgradeModal] = useState({ isOpen: false, type: null }); // Pour les restrictions abonnement
   const [celebrationMessage, setCelebrationMessage] = useState(null); // Message de célébration premier ajout
   
@@ -131,7 +145,17 @@ const Budget = () => {
   // Toggle local pour afficher/masquer les soldes
   const toggleBalances = (e) => {
     e.stopPropagation();
-    setBalancesHidden(!balancesHidden);
+    const newValue = !balancesHidden;
+    setBalancesHidden(newValue);
+    
+    // Sauvegarder dans localStorage
+    const saved = localStorage.getItem('pl4to_security_settings');
+    const settings = saved ? JSON.parse(saved) : {};
+    settings.hideBalances = newValue;
+    localStorage.setItem('pl4to_security_settings', JSON.stringify(settings));
+    
+    // Émettre un événement pour synchroniser les autres pages
+    window.dispatchEvent(new CustomEvent('securitySettingsChanged', { detail: { hideBalances: newValue } }));
   };
   
   const [formData, setFormData] = useState({
@@ -1375,35 +1399,90 @@ const Budget = () => {
     const isEntree = type === 'entrees';
     const isExpanded = expandedSection === type;
 
+    // 📱 Mobile: Layout optimisé - zones d'expansion en haut (entrées) et bas (sorties)
+    // Non-expanded: petit cercle compteur près du centre
+    // Expanded: zone large en haut ou en bas pour afficher toutes les bulles
+    const mobileStyles = isMobile ? (
+      isExpanded ? {
+        // Zone d'expansion: haut pour entrées, bas pour sorties
+        position: 'absolute',
+        top: isEntree ? '3%' : 'auto',
+        bottom: isEntree ? 'auto' : '8%',
+        left: '5%',
+        right: '5%',
+        height: isEntree ? '28%' : '28%',
+        width: 'auto',
+        transform: 'none'
+      } : {
+        // Non-expanded: cercle compteur positionné - REMONTÉ
+        position: 'absolute',
+        top: isEntree ? '8%' : '68%',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        width: '80px',
+        height: '80px'
+      }
+    ) : {
+      top: '20%',
+      bottom: '20%',
+      left: isEntree ? '0%' : '70%',
+      width: '30%'
+    };
+    
+    // 📱 Mobile: Calcul dynamique de la taille et disposition des bulles
+    const getMobileBubbleLayout = (totalItems) => {
+      // Taille des bulles selon le nombre
+      if (totalItems <= 2) return { size: 100, cols: 2, gap: 15 };
+      if (totalItems <= 4) return { size: 85, cols: 2, gap: 12 };
+      if (totalItems <= 6) return { size: 75, cols: 3, gap: 10 };
+      if (totalItems <= 9) return { size: 65, cols: 3, gap: 8 };
+      return { size: 55, cols: 4, gap: 6 };
+    };
+
+    // 📱 Mobile: Layout en grille pour les bulles expandées
+    const mobileLayout = getMobileBubbleLayout(items.length);
+    
     return (
       <div
         data-tooltip={!isExpanded ? (isEntree ? 'entries' : 'expenses') : undefined}
         onMouseEnter={() => setExpandedSection(type)}
         onMouseLeave={() => setExpandedSection(null)}
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          if (isMobile && !isExpanded) setExpandedSection(type); 
+        }}
         style={{
+          ...mobileStyles,
           position: 'absolute',
-          top: '20%',
-          bottom: '20%',
-          left: isEntree ? '0%' : '70%',
-          width: '30%',
-          zIndex: isExpanded ? 60 : 5
+          zIndex: isExpanded ? 60 : 5,
+          ...(isMobile && isExpanded ? {
+            display: 'flex',
+            flexWrap: 'wrap',
+            justifyContent: 'center',
+            alignContent: 'center',
+            gap: `${mobileLayout.gap}px`,
+            padding: '10px',
+            overflowY: 'auto',
+            background: 'transparent',
+            borderRadius: '20px'
+          } : {})
         }}
       >
         {!isExpanded && (
           <div 
             title={isEntree ? t('budget.emptyState.entriesHint') : t('budget.emptyState.expensesHint')}
             style={{
-            position: 'absolute',
-            left: '50%',
-            top: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '110px',
-            height: '110px',
+            position: isMobile ? 'relative' : 'absolute',
+            left: isMobile ? 'auto' : '50%',
+            top: isMobile ? 'auto' : '50%',
+            transform: isMobile ? 'none' : 'translate(-50%, -50%)',
+            width: isMobile ? '70px' : '110px',
+            height: isMobile ? '70px' : '110px',
             borderRadius: '50%',
             background: isEntree 
               ? 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)'
               : 'linear-gradient(135deg, #ffa500 0%, #ff8c00 100%)',
-            border: '4px solid white',
+            border: isMobile ? '3px solid white' : '4px solid white',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -1411,13 +1490,13 @@ const Budget = () => {
             boxShadow: `0 8px 30px ${isEntree ? 'rgba(52, 152, 219, 0.4)' : 'rgba(255, 165, 0, 0.4)'}`,
             cursor: 'pointer'
           }}>
-            <span style={{ fontSize: '2em', fontWeight: 'bold', color: 'white' }}>
+            <span style={{ fontSize: isMobile ? '1.4em' : '2em', fontWeight: 'bold', color: 'white' }}>
               {isEntree ? '+' : '-'}
             </span>
-            <span style={{ fontSize: '1.5em', fontWeight: 'bold', color: 'white' }}>
+            <span style={{ fontSize: isMobile ? '1.1em' : '1.5em', fontWeight: 'bold', color: 'white' }}>
               {items.length}
             </span>
-            <span style={{ fontSize: '0.75em', color: 'rgba(255,255,255,0.9)' }}>
+            <span style={{ fontSize: isMobile ? '0.6em' : '0.75em', color: 'rgba(255,255,255,0.9)' }}>
               {formatMontantShort(isEntree ? budgetSummary.totalEntrees : budgetSummary.totalSorties)}
             </span>
           </div>
@@ -1479,6 +1558,9 @@ const Budget = () => {
             return false;
           })();
           
+          // 📱 Mobile: utiliser la taille dynamique du layout
+          const bubbleSize = isMobile ? mobileLayout.size : size;
+          
           return (
             <div
               key={`${type}-${originalIndex}`}
@@ -1489,15 +1571,18 @@ const Budget = () => {
                 if (!isLocked) handleEdit(item, type, originalIndex); 
               }}
               style={{
-                position: 'absolute',
-                left: `${pos.xPercent}%`,
-                top: `${pos.yPercent}%`,
-                transform: 'translate(-50%, -50%)',
-                width: `${size}px`,
-                height: `${size}px`,
+                // 📱 Mobile: position relative pour flex layout, absolute pour desktop
+                position: isMobile ? 'relative' : 'absolute',
+                left: isMobile ? 'auto' : `${pos.xPercent}%`,
+                top: isMobile ? 'auto' : `${pos.yPercent}%`,
+                transform: isMobile ? 'none' : 'translate(-50%, -50%)',
+                width: `${bubbleSize}px`,
+                height: `${bubbleSize}px`,
+                minWidth: `${bubbleSize}px`,
+                minHeight: `${bubbleSize}px`,
                 borderRadius: '50%',
                 background: 'white',
-                border: `4px solid ${hasOptimization ? '#3498db' : (isEntree ? '#3498db' : '#ffa500')}`,
+                border: `${isMobile ? '3px' : '4px'} solid ${hasOptimization ? '#3498db' : (isEntree ? '#3498db' : '#ffa500')}`,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -1507,21 +1592,26 @@ const Budget = () => {
                 boxShadow: hasOptimization 
                   ? '0 4px 15px rgba(52, 152, 219, 0.4), 0 0 0 3px rgba(52, 152, 219, 0.2)'
                   : '0 4px 15px rgba(0,0,0,0.15)',
-                padding: '10px',
+                padding: isMobile ? '5px' : '10px',
                 boxSizing: 'border-box',
                 filter: isLocked ? 'blur(4px)' : (isExpired ? 'grayscale(100%)' : 'none'),
                 opacity: isLocked ? 0.5 : (isExpired ? 0.5 : 1),
-                pointerEvents: isLocked ? 'none' : 'auto'
+                pointerEvents: isLocked ? 'none' : 'auto',
+                flexShrink: 0
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.08)';
-                e.currentTarget.style.boxShadow = `0 8px 25px ${isEntree ? 'rgba(52, 152, 219, 0.5)' : 'rgba(255, 165, 0, 0.5)'}`;
+                if (!isMobile) {
+                  e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.08)';
+                  e.currentTarget.style.boxShadow = `0 8px 25px ${isEntree ? 'rgba(52, 152, 219, 0.5)' : 'rgba(255, 165, 0, 0.5)'}`;
+                }
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)';
-                e.currentTarget.style.boxShadow = hasOptimization 
-                  ? '0 4px 15px rgba(52, 152, 219, 0.4), 0 0 0 3px rgba(52, 152, 219, 0.2)'
-                  : '0 4px 15px rgba(0,0,0,0.15)';
+                if (!isMobile) {
+                  e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)';
+                  e.currentTarget.style.boxShadow = hasOptimization 
+                    ? '0 4px 15px rgba(52, 152, 219, 0.4), 0 0 0 3px rgba(52, 152, 219, 0.2)'
+                    : '0 4px 15px rgba(0,0,0,0.15)';
+                }
               }}
             >
               {/* Badge verrou pour items verrouillés */}
@@ -1610,12 +1700,12 @@ const Budget = () => {
                 </div>
               )}
               <span style={{
-                fontSize: '0.85em',
+                fontSize: isMobile ? '0.6em' : '0.85em',
                 fontWeight: '600',
                 color: '#2c3e50',
                 textAlign: 'center',
-                lineHeight: 1.2,
-                maxWidth: '90%',
+                lineHeight: 1.1,
+                maxWidth: '95%',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 display: '-webkit-box',
@@ -1625,10 +1715,10 @@ const Budget = () => {
                 {item.description}
               </span>
               <span style={{
-                fontSize: '1em',
+                fontSize: isMobile ? '0.6em' : '1em',
                 fontWeight: 'bold',
                 color: isEntree ? '#3498db' : '#ffa500',
-                marginTop: '5px'
+                marginTop: isMobile ? '1px' : '5px'
               }}>
                 {isCredit ? (isEntree ? '-' : '+') : (isEntree ? '+' : '-')}{formatMontantShort(item.montant)}
               </span>
@@ -1644,23 +1734,44 @@ const Budget = () => {
     
     const isExpanded = expandedSection === 'linked';
     
+    // 📱 Mobile: positionner à gauche des cercles centraux
+    const mobileLinkedStyles = isMobile ? {
+      position: 'absolute',
+      top: '42%',
+      left: '10px',
+      transform: 'translateY(-50%)',
+      width: 'auto',
+      height: 'auto',
+      zIndex: 100,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center'
+    } : {
+      position: 'absolute',
+      top: '55px',
+      left: '15%',
+      right: '15%',
+      height: isExpanded ? '180px' : '70px',
+      zIndex: 100,
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'flex-start',
+      gap: '25px',
+      flexWrap: 'wrap',
+      paddingTop: '5px'
+    };
+    
     return (
       <div
         onMouseEnter={() => setExpandedSection('linked')}
         onMouseLeave={() => setExpandedSection(null)}
+        onClick={(e) => { 
+          e.stopPropagation(); 
+          if (isMobile && !isExpanded) setExpandedSection('linked'); 
+        }}
         style={{
-          position: 'absolute',
-          top: '55px',
-          left: '15%',
-          right: '15%',
-          height: isExpanded ? '180px' : '70px',
-          zIndex: 100,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'flex-start',
-          gap: '25px',
-          flexWrap: 'wrap',
-          paddingTop: '5px',
+          ...mobileLinkedStyles,
           background: isExpanded ? 'transparent' : 'transparent',
           borderRadius: '20px',
           boxShadow: 'none'
@@ -1669,45 +1780,45 @@ const Budget = () => {
         {!isExpanded && (
           <div style={{
             display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
             alignItems: 'center',
             cursor: 'pointer',
             background: 'transparent',
-            borderRadius: '50px',
-            padding: '10px 20px',
-            border: isDark ? '3px solid rgba(255,255,255,0.5)' : '3px solid rgba(102, 126, 234, 0.4)',
-            boxShadow: '0 4px 20px rgba(0,0,0,0.15)'
+            borderRadius: isMobile ? '15px' : '50px',
+            padding: isMobile ? '8px' : '10px 20px',
+            border: 'none',
+            boxShadow: 'none',
+            backdropFilter: 'none'
           }}>
             <div style={{
-              width: '50px',
-              height: '50px',
+              width: isMobile ? '35px' : '50px',
+              height: isMobile ? '35px' : '50px',
               borderRadius: '50%',
               background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
-              border: '3px solid white',
+              border: isMobile ? '2px solid white' : '3px solid white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               boxShadow: '0 4px 15px rgba(52, 152, 219, 0.4)',
               zIndex: 2
             }}>
-              <span style={{ color: 'white', fontSize: '1.3em' }}>🔗</span>
+              <span style={{ color: 'white', fontSize: isMobile ? '0.9em' : '1.3em' }}>🔗</span>
             </div>
             <div style={{
-              width: '50px',
-              height: '50px',
+              width: isMobile ? '35px' : '50px',
+              height: isMobile ? '35px' : '50px',
               borderRadius: '50%',
               background: 'linear-gradient(135deg, #f39c12 0%, #e67e22 100%)',
-              border: '3px solid white',
+              border: isMobile ? '2px solid white' : '3px solid white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginLeft: '-18px',
+              marginLeft: isMobile ? '0' : '-18px',
+              marginTop: isMobile ? '-10px' : '0',
               zIndex: 1
             }}>
-              <span style={{ color: 'white', fontWeight: 'bold', fontSize: '1.1em' }}>{findLinkedItems.length}</span>
+              <span style={{ color: 'white', fontWeight: 'bold', fontSize: isMobile ? '0.85em' : '1.1em' }}>{findLinkedItems.length}</span>
             </div>
-            <span style={{ marginLeft: '12px', color: isDark ? 'white' : '#1e293b', fontWeight: '600', fontSize: '0.9em', textShadow: isDark ? '0 1px 3px rgba(0,0,0,0.3)' : 'none' }}>
-              {t('budget.transfers')}
-            </span>
           </div>
         )}
 
@@ -1796,15 +1907,15 @@ const Budget = () => {
   };
 
   const renderPlatformContent = () => (
-    <div onClick={(e) => e.stopPropagation()} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
+    <div onClick={() => { if (isMobile && expandedSection) setExpandedSection(null); }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
       {/* Cercle externe avec pulse orange/doré */}
       <div style={{
         position: 'absolute',
         left: '50%',
-        top: '58%',
+        top: isMobile ? '42%' : '58%',
         transform: 'translate(-50%, -50%)',
-        width: isFullScreen ? '520px' : '420px',
-        height: isFullScreen ? '520px' : '420px',
+        width: isMobile ? '280px' : (isFullScreen ? '520px' : '420px'),
+        height: isMobile ? '280px' : (isFullScreen ? '520px' : '420px'),
         borderRadius: '50%',
         border: '3px solid transparent',
         background: isDark 
@@ -1818,10 +1929,10 @@ const Budget = () => {
       <div style={{
         position: 'absolute',
         left: '50%',
-        top: '58%',
+        top: isMobile ? '42%' : '58%',
         transform: 'translate(-50%, -50%)',
-        width: isFullScreen ? '440px' : '350px',
-        height: isFullScreen ? '440px' : '350px',
+        width: isMobile ? '230px' : (isFullScreen ? '440px' : '350px'),
+        height: isMobile ? '230px' : (isFullScreen ? '440px' : '350px'),
         borderRadius: '50%',
         border: '4px solid transparent',
         background: isDark 
@@ -1835,18 +1946,18 @@ const Budget = () => {
       <div style={{
         position: 'absolute',
         left: '50%',
-        top: '58%',
+        top: isMobile ? '42%' : '58%',
         transform: 'translate(-50%, -50%)',
         textAlign: 'center',
         zIndex: 20
       }}>
-        <p style={{ color: isDark ? 'rgba(255,255,255,0.8)' : '#64748b', fontSize: '0.95em', margin: '0 0 8px', fontWeight: '600' }}>{t('budget.monthlyBalance')}</p>
+        <p style={{ color: isDark ? 'rgba(255,255,255,0.8)' : '#64748b', fontSize: isMobile ? '0.8em' : '0.95em', margin: '0 0 8px', fontWeight: '600' }}>{t('budget.monthlyBalance')}</p>
         <p 
           data-tooltip="balance"
           style={{
-            fontSize: isFullScreen ? '2.8em' : '2.4em',
+            fontSize: isMobile ? '1.8em' : (isFullScreen ? '2.8em' : '2.4em'),
             fontWeight: 'bold',
-            margin: '0 0 20px',
+            margin: isMobile ? '0 0 12px' : '0 0 20px',
             color: budgetSummary.balance >= 0 ? '#3498db' : '#ffa500',
             textShadow: isDark ? '0 2px 10px rgba(0,0,0,0.1)' : 'none'
           }}
@@ -1873,17 +1984,17 @@ const Budget = () => {
           </div>
         )}
         
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'center', gap: isMobile ? '15px' : '20px' }}>
           <button
             type="button"
             title={t('budget.addEntry')}
             className={entrees.length === 0 ? 'add-button-pulse' : ''}
             onClick={(e) => { e.stopPropagation(); openAddForm('entrees'); }}
             style={{
-              width: '55px', height: '55px', borderRadius: '50%',
+              width: isMobile ? '42px' : '55px', height: isMobile ? '42px' : '55px', borderRadius: '50%',
               border: '3px solid #3498db',
               background: 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
-              color: 'white', fontSize: '2em', cursor: 'pointer',
+              color: 'white', fontSize: isMobile ? '1.5em' : '2em', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 15px rgba(52, 152, 219, 0.4)', transition: 'transform 0.2s'
             }}
@@ -1896,10 +2007,10 @@ const Budget = () => {
             title={t('budget.addExpense')}
             onClick={(e) => { e.stopPropagation(); openAddForm('sorties'); }}
             style={{
-              width: '55px', height: '55px', borderRadius: '50%',
+              width: isMobile ? '42px' : '55px', height: isMobile ? '42px' : '55px', borderRadius: '50%',
               border: '3px solid #ffa500',
               background: 'linear-gradient(135deg, #ffa500 0%, #ff8c00 100%)',
-              color: 'white', fontSize: '2em', cursor: 'pointer',
+              color: 'white', fontSize: isMobile ? '1.5em' : '2em', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               boxShadow: '0 4px 15px rgba(255, 165, 0, 0.4)', transition: 'transform 0.2s'
             }}
@@ -2161,8 +2272,16 @@ const Budget = () => {
           alignItems: 'flex-start',
           marginBottom: '20px'
         }}>
-          <h1 style={{ fontSize: '1.8em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b', display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
-            📊 {t('budget.title')}
+          <h1 style={{ 
+            fontSize: isMobile ? '1.3em' : '1.8em', 
+            fontWeight: 'bold', 
+            color: isDark ? 'white' : '#1e293b', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '8px', 
+            margin: 0
+          }}>
+            📋 {t('budget.title')}
           </h1>
           
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
@@ -2172,39 +2291,17 @@ const Budget = () => {
                 style={{ 
                 background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)', 
                 borderRadius: '10px', 
-                padding: '8px 16px',
+                padding: isMobile ? '6px 12px' : '8px 16px',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
+                gap: isMobile ? '6px' : '8px',
                 boxShadow: '0 4px 15px rgba(155, 89, 182, 0.3)',
                 cursor: 'help'
               }}>
-                <span style={{ fontSize: '0.8em', color: 'rgba(255,255,255,0.9)' }}>📅 {t('budget.dailyBudget')}</span>
-                <span style={{ fontSize: '1.1em', fontWeight: 'bold', color: 'white' }}>{formatMontant(budgetSummary.budgetJournalier)}</span>
+                <span style={{ fontSize: isMobile ? '0.7em' : '0.8em', color: 'rgba(255,255,255,0.9)' }}>📅 {t('budget.dailyBudget')}</span>
+                <span style={{ fontSize: isMobile ? '0.9em' : '1.1em', fontWeight: 'bold', color: 'white' }}>{formatMontant(budgetSummary.budgetJournalier)}</span>
               </div>
             )}
-            
-            {/* Bouton Œil pour masquer/afficher les soldes */}
-            <button
-              onClick={toggleBalances}
-              title={balancesHidden ? t('budget.showBalances') : t('budget.hideBalances')}
-              style={{
-                background: balancesHidden ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.9)',
-                border: balancesHidden ? 'none' : '2px solid #e0e0e0',
-                borderRadius: '50%',
-                width: '36px',
-                height: '36px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                fontSize: '1.1em',
-                transition: 'all 0.3s',
-                boxShadow: balancesHidden ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 8px rgba(0,0,0,0.1)'
-              }}
-            >
-              {balancesHidden ? '👁️‍🗨️' : '👁️'}
-            </button>
           </div>
         </div>
 
@@ -2232,91 +2329,110 @@ const Budget = () => {
           }}
         >
           <div style={{ 
-            padding: '15px 30px',
+            padding: isMobile ? '10px 15px' : '15px 30px',
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'flex-start',
             flexShrink: 0
           }}>
-            <h1 style={{ fontSize: '1.8em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b', display: 'flex', alignItems: 'center', gap: '10px', margin: '25px 0 0 0' }}>
-              📊 {t('budget.title')}
+            <h1 style={{ 
+              fontSize: isMobile ? '1.3em' : '1.8em', 
+              fontWeight: 'bold', 
+              color: isDark ? 'white' : '#1e293b', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '10px', 
+              margin: isMobile ? '15px 0 0 0' : '25px 0 0 0'
+            }}>
+              📋 {t('budget.title')}
             </h1>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', marginTop: '25px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end' }}>
-                {budgetSummary.budgetJournalier !== 0 && (
-                  <div 
-                    title={`${formatMontant(budgetSummary.balance)} ÷ ${budgetSummary.joursRestants} ${t('budget.daysRemaining')} = ${formatMontant(budgetSummary.budgetJournalier)}/${t('common.day')}`}
-                    style={{ 
-                    background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)', 
-                    borderRadius: '10px', 
-                    padding: '10px 20px',
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: isMobile ? '10px' : '15px', marginTop: isMobile ? '15px' : '25px' }}>
+              {budgetSummary.budgetJournalier !== 0 && (
+                <div 
+                  title={`${formatMontant(budgetSummary.balance)} ÷ ${budgetSummary.joursRestants} ${t('budget.daysRemaining')} = ${formatMontant(budgetSummary.budgetJournalier)}/${t('common.day')}`}
+                  style={{ 
+                  background: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)', 
+                  borderRadius: '10px', 
+                  padding: isMobile ? '6px 12px' : '10px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: isMobile ? '6px' : '10px',
+                  boxShadow: '0 4px 15px rgba(155, 89, 182, 0.3)',
+                  cursor: 'help'
+                }}>
+                  <span style={{ fontSize: isMobile ? '0.7em' : '0.9em', color: 'rgba(255,255,255,0.9)' }}>📅 {t('budget.dailyBudget')}</span>
+                  <span style={{ fontSize: isMobile ? '0.95em' : '1.2em', fontWeight: 'bold', color: 'white' }}>{formatMontant(budgetSummary.budgetJournalier)}</span>
+                </div>
+              )}
+              
+              {/* 📱 Mobile: Boutons X et Œil en colonne verticale */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                <button
+                  onClick={(e) => { 
+                    e.stopPropagation(); 
+                    if (isMobile) {
+                      // Mobile: ouvrir le menu sidebar
+                      window.dispatchEvent(new CustomEvent('openSidebar'));
+                    } else {
+                      setIsFullScreen(false);
+                    }
+                  }}
+                  style={{
+                    width: isMobile ? '36px' : '40px',
+                    height: isMobile ? '36px' : '40px',
+                    borderRadius: '50%',
+                    border: isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)',
+                    background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                    color: isDark ? 'white' : '#64748b',
+                    fontSize: isMobile ? '1em' : '1.2em',
+                    cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
-                    boxShadow: '0 4px 15px rgba(155, 89, 182, 0.3)',
-                    cursor: 'help'
-                  }}>
-                    <span style={{ fontSize: '0.9em', color: 'rgba(255,255,255,0.9)' }}>📅 {t('budget.dailyBudget')}</span>
-                    <span style={{ fontSize: '1.2em', fontWeight: 'bold', color: 'white' }}>{formatMontant(budgetSummary.budgetJournalier)}</span>
-                  </div>
-                )}
+                    justifyContent: 'center',
+                    transition: 'all 0.3s'
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = '#e74c3c';
+                    e.currentTarget.style.color = 'white';
+                    e.currentTarget.style.borderColor = '#e74c3c';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+                    e.currentTarget.style.color = isDark ? 'white' : '#64748b';
+                    e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
+                  }}
+                >
+                  ✕
+                </button>
                 
                 {/* Bouton Œil pour masquer/afficher les soldes */}
                 <button
                   onClick={toggleBalances}
                   title={balancesHidden ? t('budget.showBalances') : t('budget.hideBalances')}
                   style={{
-                    background: balancesHidden ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.9)',
-                    border: balancesHidden ? 'none' : '2px solid #e0e0e0',
                     borderRadius: '50%',
-                    width: '40px',
-                    height: '40px',
+                    width: isMobile ? '36px' : '40px',
+                    height: isMobile ? '36px' : '40px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
-                    fontSize: '1.2em',
+                    fontSize: isMobile ? '1em' : '1.2em',
                     transition: 'all 0.3s',
-                    boxShadow: balancesHidden ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 8px rgba(0,0,0,0.1)'
+                    border: balancesHidden 
+                      ? 'none' 
+                      : (isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)'),
+                    background: balancesHidden 
+                      ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                      : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
+                    color: balancesHidden ? 'white' : (isDark ? 'white' : '#64748b'),
+                    boxShadow: balancesHidden ? '0 4px 15px rgba(102, 126, 234, 0.4)' : 'none'
                   }}
                 >
                   {balancesHidden ? '👁️‍🗨️' : '👁️'}
                 </button>
               </div>
-              
-              <button
-                onClick={(e) => { 
-                  e.stopPropagation(); 
-                  setIsFullScreen(false);
-                }}
-                style={{
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  border: isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)',
-                  background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                  color: isDark ? 'white' : '#64748b',
-                  fontSize: '1.2em',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.3s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = '#e74c3c';
-                  e.currentTarget.style.color = 'white';
-                  e.currentTarget.style.borderColor = '#e74c3c';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
-                  e.currentTarget.style.color = isDark ? 'white' : '#64748b';
-                  e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
-                }}
-              >
-                ✕
-              </button>
             </div>
           </div>
 

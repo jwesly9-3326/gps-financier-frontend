@@ -10,9 +10,17 @@ import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
 
 const LandingPage = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [isNight, setIsNight] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  // Détecter la taille de l'écran
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   useEffect(() => {
     const checkTime = () => {
@@ -40,29 +48,63 @@ const LandingPage = () => {
         height: `${size}px`,
         borderRadius: '50%',
         border: `${Math.max(3, size / 12)}px solid transparent`,
-        background: 'linear-gradient(#040449, #040449) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
+        background: 'linear-gradient(#040449, #040449) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box',
         animation: 'gps-ring-spin 3s linear infinite',
         boxShadow: '0 0 20px rgba(255, 165, 0, 0.6)'
       }} />
     </div>
   );
 
-  // 🗺️ Milestones de la trajectoire GPS
-  const milestones = [
-    { emoji: '🏠', label: 'Départ', x: 80, y: 680, color: '#60a5fa' },
-    { emoji: '🛡️', label: 'Urgence', x: 220, y: 580, color: '#22d3ee' },
-    { emoji: '🎓', label: 'Enfant', x: 380, y: 560, color: '#22d3ee' },
-    { emoji: '📚', label: 'Formation', x: 580, y: 580, color: '#22d3ee' },
-    { emoji: '🌱', label: 'Voyage', x: 780, y: 560, color: '#22d3ee' },
-    { emoji: '🏖️', label: 'Vacances', x: 900, y: 460, color: '#22d3ee' },
-    { emoji: '🎯', label: 'Objectif', x: 1030, y: 380, color: '#22d3ee' },
-    { emoji: '🧭', label: 'Liberté', x: 1155, y: 330, color: '#818cf8' }
+  // 🗺️ Points de la trajectoire financière avec icônes
+  // 8 points pour desktop
+  const trajectoryPoints = [
+    { x: 50, y: 400, icon: '🏠', color: '#818cf8' },
+    { x: 200, y: 380, icon: '🛡️', color: '#a5b4fc' },
+    { x: 370, y: 340, icon: '🎓', color: '#fbbf24' },
+    { x: 540, y: 350, icon: '📚', color: '#f59e0b' },
+    { x: 710, y: 330, icon: '🌱', color: '#f59e0b' },
+    { x: 900, y: 310, icon: '🏖️', color: '#f97316' },
+    { x: 1100, y: 200, icon: '🎯', color: '#22c55e' },
+    { x: 1300, y: 120, icon: '🧭', color: '#22c55e' }
   ];
 
-  // 📍 Générer le path SVG pour la trajectoire
-  const generatePath = () => {
-    const points = milestones.map(m => `${m.x},${m.y}`);
-    return `M ${points.join(' L ')}`;
+  // 5 points simplifiés pour mobile
+  const mobileTrajectoryPoints = [
+    { x: 30, y: 170, icon: '🏠', color: '#818cf8' },
+    { x: 100, y: 140, icon: '🛡️', color: '#a5b4fc' },
+    { x: 180, y: 100, icon: '🎓', color: '#fbbf24' },
+    { x: 280, y: 60, icon: '🎯', color: '#22c55e' },
+    { x: 370, y: 30, icon: '🧭', color: '#22c55e' }
+  ];
+
+  // Points actifs selon la taille d'écran
+  const activePoints = isMobile ? mobileTrajectoryPoints : trajectoryPoints;
+
+  // 📍 Générer le path SVG pour la trajectoire financière (courbe lisse)
+  const generatePath = (points) => {
+    if (points.length < 2) return '';
+    
+    let path = `M ${points[0].x},${points[0].y}`;
+    
+    for (let i = 1; i < points.length; i++) {
+      const prev = points[i - 1];
+      const curr = points[i];
+      
+      // Points de contrôle pour courbe de Bézier
+      const cp1x = prev.x + (curr.x - prev.x) * 0.5;
+      const cp1y = prev.y;
+      const cp2x = prev.x + (curr.x - prev.x) * 0.5;
+      const cp2y = curr.y;
+      
+      path += ` C ${cp1x},${cp1y} ${cp2x},${cp2y} ${curr.x},${curr.y}`;
+    }
+    
+    return path;
+  };
+
+  // 💵 Formater les montants selon la langue
+  const formatAmount = (amount) => {
+    return i18n.language === 'fr' ? `${amount} $` : `$${amount}`;
   };
 
   return (
@@ -89,166 +131,266 @@ const LandingPage = () => {
         opacity: 0.6,
         pointerEvents: 'none'
       }} />
+      
+      {/* 🟦 Quadrillage/Grille en arrière-plan - style très subtil */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: `
+          linear-gradient(rgba(99, 102, 241, 0.04) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(99, 102, 241, 0.04) 1px, transparent 1px)
+        `,
+        backgroundSize: '50px 50px',
+        opacity: 0.6,
+        pointerEvents: 'none'
+      }} />
+      
+      {/* Lignes horizontales très subtiles */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        backgroundImage: `
+          repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 49px,
+            rgba(99, 102, 241, 0.02) 49px,
+            rgba(99, 102, 241, 0.02) 50px
+          )
+        `,
+        opacity: 0.5,
+        pointerEvents: 'none'
+      }} />
 
-      {/* Header simple */}
+      {/* Header responsive */}
       <header style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '20px 40px',
+        padding: isMobile ? '100px 20px 15px 20px' : '20px 60px 20px 120px',
         maxWidth: '1400px',
         margin: '0 auto',
         position: 'relative',
         zIndex: 10
       }}>
-        {/* Logo PL4TO avec O animé - AGRANDI */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        {/* Logo PL4TO avec O animé */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px' }}>
           <span style={{ 
             color: 'white', 
-            fontSize: '2.4em', 
+            fontSize: isMobile ? '1.5em' : '2.4em', 
             fontWeight: 'bold',
             letterSpacing: '2px'
           }}>
             PL4T
           </span>
-          <AnimatedO size={50} />
+          <AnimatedO size={isMobile ? 32 : 50} />
         </div>
         
         {/* Language Switcher + Bouton Connexion */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '15px' }}>
           <LanguageSwitcher style="toggle" />
           
-          <button
-            onClick={() => navigate('/login')}
-            style={{
-              background: 'rgba(255,255,255,0.15)',
-              border: '2px solid rgba(255,255,255,0.3)',
-              color: 'white',
-              padding: '10px 25px',
-              borderRadius: '25px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              transition: 'all 0.3s',
-              backdropFilter: 'blur(10px)'
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background = 'rgba(255,255,255,0.25)';
-              e.target.style.borderColor = 'white';
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = 'rgba(255,255,255,0.15)';
-              e.target.style.borderColor = 'rgba(255,255,255,0.3)';
-            }}
-          >
-            {t('landing.login')}
-          </button>
+          {/* Bouton Connexion - caché sur mobile car déjà dans CTA "Déjà membre?" */}
+          {!isMobile && (
+            <button
+              onClick={() => navigate('/login')}
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                border: '2px solid rgba(255,255,255,0.3)',
+                color: 'white',
+                padding: '10px 25px',
+                borderRadius: '25px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                transition: 'all 0.3s',
+                backdropFilter: 'blur(10px)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'rgba(255,255,255,0.25)';
+                e.target.style.borderColor = 'white';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'rgba(255,255,255,0.15)';
+                e.target.style.borderColor = 'rgba(255,255,255,0.3)';
+              }}
+            >
+              {t('landing.login')}
+            </button>
+          )}
         </div>
       </header>
+
+      {/* 💰 Axe Y (Vertical) - Responsive */}
+      <div style={{
+        position: 'fixed',
+        bottom: isMobile ? '120px' : '50px',
+        left: isMobile ? '5px' : '15px',
+        top: isMobile ? '150px' : '100px',
+        display: 'flex',
+        flexDirection: 'column-reverse',
+        justifyContent: 'space-between',
+        alignItems: 'flex-start',
+        zIndex: 5,
+        opacity: isMobile ? 0.15 : 0.25,
+        pointerEvents: 'none'
+      }}>
+        {(isMobile ? ['1K', '25K', '100K', '500K'] : ['50', '250', '1K', '5K', '25K', '100K', '500K', '1M']).map((amount, i) => (
+          <span key={i} style={{
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: isMobile ? '7px' : '9px',
+            fontFamily: 'monospace'
+          }}>
+            {formatAmount(amount)}
+          </span>
+        ))}
+      </div>
+      
+      {/* 📅 Axe X (Horizontal) - Responsive */}
+      <div style={{
+        position: 'fixed',
+        bottom: isMobile ? '10px' : '15px',
+        left: isMobile ? '20px' : '50px',
+        right: isMobile ? '20px' : '30px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        zIndex: 5,
+        opacity: isMobile ? 0.15 : 0.25,
+        pointerEvents: 'none'
+      }}>
+        {(isMobile ? ['2026', '2035', '2045', '2060'] : ['2026', '2030', '2035', '2040', '2045', '2050', '2055', '2060']).map((year, i) => (
+          <span key={i} style={{
+            color: 'rgba(255,255,255,0.6)',
+            fontSize: isMobile ? '7px' : '9px',
+            fontFamily: 'monospace'
+          }}>
+            {year}
+          </span>
+        ))}
+      </div>
+      
+      {/* 🗺️ SVG Trajectoire Financière - Responsive */}
+      <svg 
+        viewBox={isMobile ? "0 0 400 200" : "0 0 1400 450"}
+        style={{
+          position: isMobile ? 'absolute' : 'fixed',
+          bottom: isMobile ? '100px' : '50px',
+          left: isMobile ? '10px' : '50px',
+          right: isMobile ? '10px' : '30px',
+          height: isMobile ? '20vh' : '55vh',
+          zIndex: 3,
+          opacity: isMobile ? 0.7 : 1
+        }}
+        preserveAspectRatio={isMobile ? "xMidYMid meet" : "none"}
+      >
+        {/* Définitions des gradients */}
+        <defs>
+          {/* Gradient pour la trajectoire financière (bleu -> orange -> vert) */}
+          <linearGradient id="trajectoryGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#6366f1" stopOpacity="0.7" />
+            <stop offset="20%" stopColor="#818cf8" />
+            <stop offset="40%" stopColor="#d4d4d8" />
+            <stop offset="55%" stopColor="#fbbf24" />
+            <stop offset="75%" stopColor="#f97316" />
+            <stop offset="100%" stopColor="#22c55e" />
+          </linearGradient>
+          
+          {/* Glow filter pour la trajectoire */}
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+          
+          {/* Filter pour les points */}
+          <filter id="pointGlow" x="-100%" y="-100%" width="300%" height="300%">
+            <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* 🛤️ Trajectoire principale - courbe financière */}
+        <path
+          d={generatePath(activePoints)}
+          fill="none"
+          stroke="url(#trajectoryGradient)"
+          strokeWidth={isMobile ? "3" : "4"}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          filter="url(#glow)"
+          style={{
+            strokeDasharray: '3000',
+            strokeDashoffset: '0',
+            animation: 'drawPath 3s ease-out forwards'
+          }}
+        />
+
+        {/* 🟠 Points avec icônes le long de la trajectoire */}
+        {activePoints.map((point, index) => (
+          <g key={index} style={{ animation: `fadeInBubble 0.5s ease-out ${index * 0.15}s forwards`, opacity: 0 }}>
+            {/* Halo extérieur */}
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={isMobile ? "16" : "22"}
+              fill="none"
+              stroke={point.color}
+              strokeWidth="2"
+              strokeOpacity="0.4"
+            />
+            {/* Cercle de fond */}
+            <circle
+              cx={point.x}
+              cy={point.y}
+              r={isMobile ? "12" : "16"}
+              fill="rgba(4, 4, 73, 0.9)"
+              stroke={point.color}
+              strokeWidth="2"
+              filter="url(#pointGlow)"
+            />
+            {/* Icône emoji */}
+            <text
+              x={point.x}
+              y={point.y + (isMobile ? 4 : 5)}
+              textAnchor="middle"
+              fontSize={isMobile ? "10" : "14"}
+              style={{ userSelect: 'none' }}
+            >
+              {point.icon}
+            </text>
+          </g>
+        ))}
+
+        {/* 🔵 Point animé qui parcourt la trajectoire */}
+        <circle r={isMobile ? "3" : "5"} fill="#fbbf24" filter="url(#pointGlow)">
+          <animateMotion
+            dur="10s"
+            repeatCount="indefinite"
+            path={generatePath(activePoints)}
+          />
+        </circle>
+      </svg>
 
       {/* 🎯 Hero Section avec trajectoire GPS */}
       <main style={{
         maxWidth: '1400px',
         margin: '0 auto',
-        padding: '0 40px',
+        padding: isMobile ? '0 25px' : '0 40px',
         position: 'relative',
         minHeight: 'calc(100vh - 100px)'
       }}>
         
-        {/* 🗺️ SVG Trajectoire GPS - En arrière-plan */}
-        <svg 
-          viewBox="0 0 1300 800" 
-          style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '100%',
-            maxWidth: '1300px',
-            height: 'auto',
-            zIndex: 1,
-            opacity: 0.9
-          }}
-        >
-          {/* Définitions des gradients */}
-          <defs>
-            {/* Gradient pour la trajectoire */}
-            <linearGradient id="trajectoryGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#60a5fa" />
-              <stop offset="50%" stopColor="#3b82f6" />
-              <stop offset="100%" stopColor="#818cf8" />
-            </linearGradient>
-            
-            {/* Glow filter pour la trajectoire */}
-            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-            
-            {/* Filter pour les bulles */}
-            <filter id="bubbleGlow" x="-100%" y="-100%" width="300%" height="300%">
-              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
-              <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-              </feMerge>
-            </filter>
-          </defs>
-
-          {/* 🛤️ Trajectoire principale - ligne courbe */}
-          <path
-            d={generatePath()}
-            fill="none"
-            stroke="url(#trajectoryGradient)"
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            filter="url(#glow)"
-            style={{
-              strokeDasharray: '2000',
-              strokeDashoffset: '0',
-              animation: 'drawPath 3s ease-out forwards'
-            }}
-          />
-
-          {/* 🔵 Point animé qui parcourt la trajectoire */}
-          <circle r="8" fill="#22d3ee" filter="url(#bubbleGlow)">
-            <animateMotion
-              dur="8s"
-              repeatCount="indefinite"
-              path={generatePath()}
-            />
-          </circle>
-
-          {/* 🎯 Bulles des milestones */}
-          {milestones.map((milestone, index) => (
-            <g key={index} style={{ animation: `fadeInBubble 0.5s ease-out ${index * 0.15}s forwards`, opacity: 0 }}>
-              {/* Cercle de fond avec glow */}
-              <circle
-                cx={milestone.x}
-                cy={milestone.y}
-                r="35"
-                fill="rgba(4, 4, 73, 0.8)"
-                stroke={milestone.color}
-                strokeWidth="2"
-                filter="url(#bubbleGlow)"
-              />
-              {/* Emoji */}
-              <text
-                x={milestone.x}
-                y={milestone.y + 8}
-                textAnchor="middle"
-                fontSize="28"
-                style={{ userSelect: 'none' }}
-              >
-                {milestone.emoji}
-              </text>
-            </g>
-          ))}
-        </svg>
-
         {/* 📝 Contenu texte - Centré verticalement */}
         <div style={{
           position: 'relative',
@@ -257,11 +399,11 @@ const LandingPage = () => {
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          minHeight: 'calc(100vh - 200px)',
+          minHeight: 'calc(100vh - 250px)',
           textAlign: 'center',
-          paddingTop: '120px'
+          paddingTop: '60px'
         }}>
-          {/* Titre principal émotionnel */}
+          {/* Titre principal - L'invention de PL4TO */}
           <h1 style={{
             fontSize: 'clamp(2.5em, 5vw, 4em)',
             fontWeight: 'bold',
@@ -270,10 +412,10 @@ const LandingPage = () => {
             textShadow: '0 4px 30px rgba(0,0,0,0.5)',
             lineHeight: '1.2'
           }}>
-            {t('landing.discover')}
+            {t('landing.subtitle')}
           </h1>
 
-          {/* Sous-titre */}
+          {/* Sous-titre - Vois enfin où tu vas */}
           <p style={{
             fontSize: 'clamp(1.2em, 2.5vw, 1.6em)',
             color: 'rgba(255,255,255,0.9)',
@@ -282,10 +424,10 @@ const LandingPage = () => {
             lineHeight: '1.5',
             textShadow: '0 2px 15px rgba(0,0,0,0.3)'
           }}>
-            {t('landing.subtitle')}
+            {t('landing.discover')}
           </p>
 
-          {/* Tagline */}
+          {/* Tagline - Finis l'incertitude */}
           <p style={{
             fontSize: 'clamp(1em, 2vw, 1.3em)',
             color: 'rgba(255,255,255,0.75)',
@@ -299,10 +441,12 @@ const LandingPage = () => {
           {/* CTA Buttons */}
           <div style={{
             display: 'flex',
-            gap: '20px',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: isMobile ? '12px' : '20px',
             justifyContent: 'center',
-            flexWrap: 'wrap',
-            marginBottom: '25px'
+            alignItems: 'center',
+            marginBottom: '25px',
+            width: isMobile ? '100%' : 'auto'
           }}>
             <button
               onClick={() => navigate('/register')}
@@ -310,13 +454,15 @@ const LandingPage = () => {
                 background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
                 color: 'white',
                 border: 'none',
-                padding: '18px 40px',
+                padding: isMobile ? '16px 30px' : '18px 40px',
                 borderRadius: '50px',
-                fontSize: '1.1em',
+                fontSize: isMobile ? '1em' : '1.1em',
                 fontWeight: 'bold',
                 cursor: 'pointer',
                 transition: 'all 0.3s',
-                boxShadow: '0 8px 30px rgba(255, 152, 0, 0.4)'
+                boxShadow: '0 8px 30px rgba(255, 152, 0, 0.4)',
+                width: isMobile ? '100%' : 'auto',
+                maxWidth: isMobile ? '280px' : 'none'
               }}
               onMouseEnter={(e) => {
                 e.target.style.transform = 'translateY(-3px) scale(1.02)';
@@ -583,7 +729,7 @@ const LandingPage = () => {
         
         @keyframes drawPath {
           0% {
-            stroke-dashoffset: 2000;
+            stroke-dashoffset: 3000;
           }
           100% {
             stroke-dashoffset: 0;

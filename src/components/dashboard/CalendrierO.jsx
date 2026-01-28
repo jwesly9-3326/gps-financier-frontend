@@ -61,7 +61,7 @@ const ALL_SEASONAL_EVENTS = [
   { month: 11, day: 31, titleKey: 'events.newYearsEve', descKey: 'events.newYearsEveDesc', categoryKey: 'events.categories.holidays', icon: '🥂', borderColor: '#9b59b6', priority: 2 },
 ];
 
-const CalendrierO = ({ interactive = true }) => {
+const CalendrierO = ({ interactive = true, isMobile = false }) => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const { canAccessGpsView } = useSubscription();
@@ -228,23 +228,25 @@ const CalendrierO = ({ interactive = true }) => {
 
   return (
     <div style={{ marginBottom: '20px' }}>
-      {/* En-tête */}
+      {/* En-tête - Responsive */}
       <div style={{ 
         display: 'flex', 
+        flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '15px' 
+        alignItems: isMobile ? 'flex-start' : 'center', 
+        marginBottom: '15px',
+        gap: isMobile ? '12px' : '0'
       }}>
         <div>
           <h2 style={{ 
-            fontSize: '1.8em', 
+            fontSize: isMobile ? '1.4em' : '1.8em', 
             fontWeight: 'bold', 
             color: isDark ? 'white' : '#1e293b',
             marginBottom: '3px'
           }}>
             🔮 {t('dashboard.calendarO.title')}
           </h2>
-          <p style={{ fontSize: '1em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', margin: 0 }}>
+          <p style={{ fontSize: isMobile ? '0.85em' : '1em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', margin: 0 }}>
             {t('dashboard.calendarO.subtitle')}
           </p>
         </div>
@@ -253,14 +255,15 @@ const CalendrierO = ({ interactive = true }) => {
         <div style={{ 
           display: 'flex', 
           gap: '8px',
-          pointerEvents: interactive ? 'auto' : 'none'
+          pointerEvents: interactive ? 'auto' : 'none',
+          width: isMobile ? '100%' : 'auto'
         }}>
           {['3', '6', '12'].map(period => (
             <button
               key={period}
               onClick={interactive ? () => setSelectedPeriod(period) : undefined}
               style={{
-                padding: '6px 14px',
+                padding: isMobile ? '8px 0' : '6px 14px',
                 border: 'none',
                 background: selectedPeriod === period ? '#e74c3c' : '#3498db',
                 color: 'white',
@@ -268,7 +271,8 @@ const CalendrierO = ({ interactive = true }) => {
                 cursor: interactive ? 'pointer' : 'default',
                 fontWeight: '600',
                 transition: 'all 0.3s',
-                fontSize: '0.9em'
+                fontSize: isMobile ? '0.85em' : '0.9em',
+                flex: isMobile ? 1 : 'none'
               }}
             >
               {t('dashboard.calendarO.months', { count: period })}
@@ -277,12 +281,15 @@ const CalendrierO = ({ interactive = true }) => {
         </div>
       </div>
 
-      {/* 3 CARTES */}
+      {/* 3 CARTES - Responsive avec scroll VERTICAL sur mobile */}
       <div style={{ 
-        display: 'grid', 
-        gridTemplateColumns: 'repeat(3, 1fr)', 
+        display: isMobile ? 'flex' : 'grid',
+        flexDirection: isMobile ? 'column' : 'row',
+        gridTemplateColumns: isMobile ? 'none' : 'repeat(3, 1fr)',
         gap: '15px',
-        marginBottom: '15px'
+        marginBottom: '15px',
+        overflowX: 'visible',
+        overflowY: 'visible'
       }}>
         {upcomingEvents.length > 0 ? upcomingEvents.map((event) => {
           const monthYear = formatMonthYear(event.date);
@@ -295,14 +302,16 @@ const CalendrierO = ({ interactive = true }) => {
               style={{
                 background: 'white',
                 borderRadius: '14px',
-                padding: '18px',
+                padding: isMobile ? '15px' : '18px',
                 boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
                 borderTop: `4px solid ${event.borderColor}`,
                 cursor: interactive && isGpsAccessible ? 'pointer' : 'default',
                 transition: 'all 0.3s',
                 position: 'relative',
                 pointerEvents: interactive ? 'auto' : 'none',
-                opacity: interactive && !isGpsAccessible ? 0.7 : 1
+                opacity: interactive && !isGpsAccessible ? 0.7 : 1,
+                width: isMobile ? '100%' : 'auto',
+                flex: 'none'
               }}
               onMouseEnter={interactive && isGpsAccessible ? (e) => {
                 e.currentTarget.style.transform = 'translateY(-6px)';
@@ -318,7 +327,7 @@ const CalendrierO = ({ interactive = true }) => {
                 position: 'absolute',
                 top: '12px',
                 right: '12px',
-                fontSize: '0.65em',
+                fontSize: isMobile ? '0.6em' : '0.65em',
                 background: event.borderColor,
                 color: 'white',
                 padding: '3px 8px',
@@ -329,14 +338,14 @@ const CalendrierO = ({ interactive = true }) => {
               </span>
 
               {/* Icône */}
-              <div style={{ fontSize: '2.5em', marginBottom: '8px' }}>
+              <div style={{ fontSize: isMobile ? '2em' : '2.5em', marginBottom: '8px' }}>
                 {event.icon}
               </div>
 
               {/* Titre */}
               <h3 style={{ 
                 fontWeight: 'bold', 
-                fontSize: '1.1em', 
+                fontSize: isMobile ? '1em' : '1.1em', 
                 color: '#2c3e50',
                 marginBottom: '5px'
               }}>
@@ -345,7 +354,7 @@ const CalendrierO = ({ interactive = true }) => {
 
               {/* Description */}
               <p style={{ 
-                fontSize: '0.9em', 
+                fontSize: isMobile ? '0.8em' : '0.9em', 
                 color: event.borderColor,
                 fontWeight: '600',
                 marginBottom: '8px'
@@ -355,11 +364,11 @@ const CalendrierO = ({ interactive = true }) => {
 
               {/* Date + Catégorie */}
               <div style={{ marginBottom: '10px' }}>
-                <p style={{ fontSize: '0.8em', color: '#7f8c8d', marginBottom: '2px' }}>
+                <p style={{ fontSize: isMobile ? '0.75em' : '0.8em', color: '#7f8c8d', marginBottom: '2px' }}>
                   {monthYear}
                 </p>
                 <span style={{
-                  fontSize: '0.65em',
+                  fontSize: isMobile ? '0.6em' : '0.65em',
                   background: `${event.borderColor}15`,
                   color: event.borderColor,
                   padding: '2px 6px',
@@ -374,7 +383,7 @@ const CalendrierO = ({ interactive = true }) => {
               {isGpsAccessible && (
                 <div style={{ 
                   color: '#3498db', 
-                  fontSize: '0.8em', 
+                  fontSize: isMobile ? '0.75em' : '0.8em', 
                   fontWeight: '600'
                 }}>
                   {t('dashboard.calendarO.viewOnJourney')}
@@ -384,16 +393,17 @@ const CalendrierO = ({ interactive = true }) => {
           );
         }) : (
           <div style={{
-            gridColumn: 'span 3',
+            gridColumn: isMobile ? 'auto' : 'span 3',
             textAlign: 'center',
-            padding: '30px',
+            padding: isMobile ? '20px' : '30px',
             background: isDark ? 'rgba(255,255,255,0.08)' : '#ffffff',
             borderRadius: '14px',
             border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
-            boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.2)' : '0 4px 15px rgba(0,0,0,0.08)'
+            boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.2)' : '0 4px 15px rgba(0,0,0,0.08)',
+            minWidth: isMobile ? '100%' : 'auto'
           }}>
-            <span style={{ fontSize: '2.5em' }}>🎉</span>
-            <p style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', marginTop: '8px' }}>
+            <span style={{ fontSize: isMobile ? '2em' : '2.5em' }}>🎉</span>
+            <p style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', marginTop: '8px', fontSize: isMobile ? '0.85em' : '1em' }}>
               {t('dashboard.calendarO.noEvents', { months: selectedPeriod })}
             </p>
           </div>

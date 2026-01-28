@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import InstallPWA from './components/common/InstallPWA';
 import { AuthProvider } from './context/AuthContext';
 import { UserDataProvider } from './context/UserDataContext';
 import { SubscriptionProvider } from './context/SubscriptionContext';
@@ -75,6 +76,8 @@ function App() {
         <SubscriptionProvider>
           <UserDataProvider>
             <AppContent />
+            {/* 📲 PWA Installation Banner */}
+            <InstallPWA />
           </UserDataProvider>
         </SubscriptionProvider>
       </AuthProvider>

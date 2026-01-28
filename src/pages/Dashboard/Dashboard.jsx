@@ -23,8 +23,25 @@ const Dashboard = () => {
   const { user } = useAuth();
   const { userData, isLoading: isUserDataLoading } = useUserData();
   const navigate = useNavigate();
-  const [isFullScreen, setIsFullScreen] = useState(false);
   const [showContinueBar, setShowContinueBar] = useState(false);
+  
+  // 📱 Détection mobile
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // 📱 Mobile: démarrer directement en plein écran | Desktop: mode aperçu
+  const [isFullScreen, setIsFullScreen] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // Si on passe de desktop à mobile, activer plein écran
+      // Si on passe de mobile à desktop, désactiver plein écran
+      setIsFullScreen(mobile);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // ✅ État pour savoir si l'utilisateur a fermé le modal manuellement
   const [modalDismissed, setModalDismissed] = useState(false);
@@ -169,55 +186,147 @@ const Dashboard = () => {
 
   const activeGoals = financialGoals.map(getGoalProgress);
 
-  // 💳 Prochaines dépenses (sorties du budget)
-  const upcomingExpenses = budgetSorties.map((sortie, index) => {
-    const getNextDate = (jourRecurrence, frequence) => {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0); // Normaliser à minuit
-      const jour = parseInt(jourRecurrence) || 1;
-      let nextDate = new Date(today.getFullYear(), today.getMonth(), jour);
-      nextDate.setHours(0, 0, 0, 0); // Normaliser à minuit
-      
-      // Si la date est passée ou aujourd'hui, calculer la prochaine occurrence
-      if (nextDate <= today) {
-        if (frequence === 'mensuel') {
-          nextDate.setMonth(nextDate.getMonth() + 1);
-        } else if (frequence === 'bimensuel') {
-          // Ajouter 14 jours depuis la date originale
-          while (nextDate <= today) {
-            nextDate.setDate(nextDate.getDate() + 14);
-          }
-        } else if (frequence === 'hebdomadaire') {
-          // Ajouter 7 jours jusqu'à être dans le futur
-          while (nextDate <= today) {
-            nextDate.setDate(nextDate.getDate() + 7);
-          }
-        } else {
-          // Par défaut, ajouter un mois
-          nextDate.setMonth(nextDate.getMonth() + 1);
-        }
-      }
-      
-      return nextDate.toISOString().split('T')[0];
-    };
-
-    const nextDate = getNextDate(sortie.jourRecurrence, sortie.frequence);
-    const amount = parseFloat(sortie.montant) || 0;
+  // 💳 Prochaines dépenses (sorties du budget) - Utilise la même logique que GPSFinancier
+  const getUpcomingExpenses = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const results = [];
     
-    let priority = 'low';
-    if (amount >= 500) priority = 'high';
-    else if (amount >= 100) priority = 'medium';
-
-    return {
-      id: sortie.id || index + 1,
-      name: sortie.description || t('budget.expenses'),
-      amount: amount,
-      date: nextDate,
-      type: 'expense',
-      priority: priority,
-      frequence: sortie.frequence
+    // Helper function identique à GPSFinancier
+    const parseLocalDate = (dateStr) => {
+      if (!dateStr) return null;
+      const [year, month, day] = dateStr.split('-').map(Number);
+      return new Date(year, month - 1, day);
     };
-  }).sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // Vérifier si une transaction correspond à une date donnée (même logique que GPS)
+    const checkTransactionForDate = (date, item) => {
+      const dateDay = date.getDate();
+      const lastDayOfMonth = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+      const jour = parseInt(item.jourRecurrence) || 1;
+      
+      const checkDayMatch = (jourRecurrence) => {
+        if (jourRecurrence > lastDayOfMonth) {
+          return dateDay === lastDayOfMonth;
+        }
+        return dateDay === jourRecurrence;
+      };
+      
+      switch (item.frequence) {
+        case 'mensuel':
+          return checkDayMatch(jour);
+        case 'quinzaine':
+          const firstDay = Math.min(jour, lastDayOfMonth);
+          const secondDay = Math.min(jour + 15, lastDayOfMonth);
+          return dateDay === firstDay || dateDay === secondDay;
+        case 'bimensuel':
+          if (item.jourSemaine && item.dateReference) {
+            const refDate = parseLocalDate(item.dateReference);
+            if (!refDate) return false;
+            const diffTime = date.getTime() - refDate.getTime();
+            const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays >= 0 && diffDays % 14 === 0;
+          } else {
+            return checkDayMatch(jour);
+          }
+        case 'hebdomadaire':
+          if (item.jourSemaine !== undefined && item.jourSemaine !== '') {
+            return date.getDay() === parseInt(item.jourSemaine);
+          } else {
+            return date.getDay() === (jour % 7);
+          }
+        case 'trimestriel':
+          if (item.dateDepart) {
+            const startDate = parseLocalDate(item.dateDepart);
+            if (!startDate) return false;
+            const startDay = startDate.getDate();
+            const startMonth = startDate.getMonth();
+            const startYear = startDate.getFullYear();
+            const currentMonth = date.getMonth();
+            const currentYear = date.getFullYear();
+            if (item.dateFinRecurrence) {
+              const endDate = parseLocalDate(item.dateFinRecurrence);
+              if (endDate && date > endDate) return false;
+            }
+            const monthsDiff = (currentYear - startYear) * 12 + (currentMonth - startMonth);
+            return monthsDiff >= 0 && monthsDiff % 3 === 0 && checkDayMatch(startDay);
+          } else {
+            return checkDayMatch(jour) && date.getMonth() % 3 === 0;
+          }
+        case 'semestriel':
+          if (item.dateDepart) {
+            const startDate = parseLocalDate(item.dateDepart);
+            if (!startDate) return false;
+            const startDay = startDate.getDate();
+            const startMonth = startDate.getMonth();
+            const startYear = startDate.getFullYear();
+            const currentMonth = date.getMonth();
+            const currentYear = date.getFullYear();
+            if (item.dateFinRecurrence) {
+              const endDate = parseLocalDate(item.dateFinRecurrence);
+              if (endDate && date > endDate) return false;
+            }
+            const monthsDiff = (currentYear - startYear) * 12 + (currentMonth - startMonth);
+            return monthsDiff >= 0 && monthsDiff % 6 === 0 && checkDayMatch(startDay);
+          } else {
+            return checkDayMatch(jour) && (date.getMonth() === 0 || date.getMonth() === 6);
+          }
+        case 'uneFois':
+          if (item.dateDepart) {
+            const targetDate = parseLocalDate(item.dateDepart);
+            if (!targetDate) return false;
+            return date.getFullYear() === targetDate.getFullYear() &&
+                   date.getMonth() === targetDate.getMonth() &&
+                   date.getDate() === targetDate.getDate();
+          }
+          return false;
+        case 'annuel':
+          const targetMonth = item.moisRecurrence ? (parseInt(item.moisRecurrence) - 1) : 0;
+          return checkDayMatch(jour) && date.getMonth() === targetMonth;
+        default:
+          return checkDayMatch(jour);
+      }
+    };
+    
+    // Itérer sur les 90 prochains jours pour trouver les prochaines transactions
+    const maxDays = 90;
+    const processedItems = new Set(); // Pour éviter les doublons (une seule prochaine date par item)
+    
+    for (let dayOffset = 1; dayOffset <= maxDays; dayOffset++) {
+      const checkDate = new Date(today);
+      checkDate.setDate(today.getDate() + dayOffset);
+      
+      budgetSorties.forEach((sortie, index) => {
+        const itemKey = sortie.id || `sortie-${index}`;
+        
+        // Si on a déjà trouvé la prochaine date pour cet item, skip
+        if (processedItems.has(itemKey)) return;
+        
+        if (checkTransactionForDate(checkDate, sortie)) {
+          processedItems.add(itemKey);
+          const amount = parseFloat(sortie.montant) || 0;
+          let priority = 'low';
+          if (amount >= 500) priority = 'high';
+          else if (amount >= 100) priority = 'medium';
+          
+          results.push({
+            id: sortie.id || index + 1,
+            name: sortie.description || t('budget.expenses'),
+            amount: amount,
+            date: checkDate.toISOString().split('T')[0],
+            type: 'expense',
+            priority: priority,
+            frequence: sortie.frequence
+          });
+        }
+      });
+    }
+    
+    // Trier par date
+    return results.sort((a, b) => new Date(a.date) - new Date(b.date));
+  };
+  
+  const upcomingExpenses = getUpcomingExpenses();
 
   // 🔔 Générer des alertes dynamiques
   const generateAlerts = () => {
@@ -348,13 +457,13 @@ const Dashboard = () => {
     <>
       {/* SECTION 1: CALENDRIER O */}
       <div data-tooltip="calendar">
-        <CalendrierO interactive={interactive} />
+        <CalendrierO interactive={interactive} isMobile={isMobile} />
       </div>
 
       {/* SECTION 2: TABLEAU DE BORD */}
       <div>
         <h2 style={{ 
-          fontSize: '1.8em', 
+          fontSize: isMobile ? '1.4em' : '1.8em', 
           fontWeight: 'bold', 
           color: isDark ? 'white' : '#1e293b',
           marginBottom: '15px',
@@ -365,17 +474,17 @@ const Dashboard = () => {
           <span style={{
             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
             borderRadius: '8px',
-            padding: '6px 10px',
+            padding: isMobile ? '5px 8px' : '6px 10px',
             fontSize: '0.8em'
           }}>📊</span>
           {t('dashboard.title')}
         </h2>
 
-        {/* 3 CARTES */}
+        {/* 3 CARTES - Responsive */}
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(3, 1fr)', 
-          gap: '20px'
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(3, 1fr)', 
+          gap: isMobile ? '15px' : '20px'
         }}>
           {/* CARTE 1: Alertes */}
           <div
@@ -383,8 +492,8 @@ const Dashboard = () => {
             onClick={interactive && gpsAccessible ? () => navigate('/gps') : undefined}
             style={{
               background: isDark ? 'rgba(255,255,255,0.08)' : '#ffffff',
-              borderRadius: '16px',
-              padding: '20px',
+              borderRadius: isMobile ? '14px' : '16px',
+              padding: isMobile ? '15px' : '20px',
               boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.2)' : '0 4px 15px rgba(0,0,0,0.08)',
               border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
               transition: 'all 0.3s',
@@ -416,31 +525,31 @@ const Dashboard = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              marginBottom: '15px'
+              marginBottom: isMobile ? '12px' : '15px'
             }}>
               <div style={{
-                width: '40px',
-                height: '40px',
+                width: isMobile ? '36px' : '40px',
+                height: isMobile ? '36px' : '40px',
                 borderRadius: '12px',
                 background: 'linear-gradient(135deg, #ff980020 0%, #ffc10720 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.3em'
+                fontSize: isMobile ? '1.1em' : '1.3em'
               }}>
                 🔔
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b' }}>
+                <h3 style={{ margin: 0, fontSize: isMobile ? '0.95em' : '1em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b' }}>
                   {t('dashboard.alerts.title')}
                 </h3>
-                <p style={{ margin: 0, fontSize: '0.75em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
+                <p style={{ margin: 0, fontSize: isMobile ? '0.7em' : '0.75em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
                   {alerts.length} {alerts.length > 1 ? t('dashboard.alerts.notifications') : t('dashboard.alerts.notification')}
                 </p>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '6px' : '8px' }}>
               {alerts.slice(0, 3).map((alert) => {
                 const style = getAlertStyle(alert.type);
                 return (
@@ -448,16 +557,16 @@ const Dashboard = () => {
                     key={alert.id} 
                     style={{
                       background: style.bg,
-                      borderRadius: '10px',
-                      padding: '10px 12px',
+                      borderRadius: isMobile ? '8px' : '10px',
+                      padding: isMobile ? '8px 10px' : '10px 12px',
                       borderLeft: `3px solid ${style.border}`,
                       display: 'flex',
                       alignItems: 'flex-start',
                       gap: '8px'
                     }}
                   >
-                    <span style={{ fontSize: '0.9em' }}>{style.icon}</span>
-                    <p style={{ fontSize: '0.8em', fontWeight: '500', color: '#2c3e50', margin: 0, lineHeight: '1.3' }}>
+                    <span style={{ fontSize: isMobile ? '0.8em' : '0.9em' }}>{style.icon}</span>
+                    <p style={{ fontSize: isMobile ? '0.75em' : '0.8em', fontWeight: '500', color: '#2c3e50', margin: 0, lineHeight: '1.3' }}>
                       {alert.message}
                     </p>
                   </div>
@@ -472,8 +581,8 @@ const Dashboard = () => {
             onClick={interactive && gpsAccessible ? () => navigate('/gps') : undefined}
             style={{
               background: isDark ? 'rgba(255,255,255,0.08)' : '#ffffff',
-              borderRadius: '16px',
-              padding: '20px',
+              borderRadius: isMobile ? '14px' : '16px',
+              padding: isMobile ? '15px' : '20px',
               boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.2)' : '0 4px 15px rgba(0,0,0,0.08)',
               border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
               transition: 'all 0.3s',
@@ -505,61 +614,90 @@ const Dashboard = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              marginBottom: '15px'
+              marginBottom: isMobile ? '12px' : '15px'
             }}>
               <div style={{
-                width: '40px',
-                height: '40px',
+                width: isMobile ? '36px' : '40px',
+                height: isMobile ? '36px' : '40px',
                 borderRadius: '12px',
                 background: 'linear-gradient(135deg, #ffa50020 0%, #ff6b0020 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.3em'
+                fontSize: isMobile ? '1.1em' : '1.3em'
               }}>
                 💳
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b' }}>
+                <h3 style={{ margin: 0, fontSize: isMobile ? '0.95em' : '1em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b' }}>
                   {t('dashboard.upcoming.title')}
                 </h3>
-                <p style={{ margin: 0, fontSize: '0.75em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
+                <p style={{ margin: 0, fontSize: isMobile ? '0.7em' : '0.75em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
                   {upcomingExpenses.length} {upcomingExpenses.length > 1 ? t('dashboard.upcoming.stopsPlanned') : t('dashboard.upcoming.stopPlanned')}
                 </p>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {upcomingExpenses.length > 0 ? upcomingExpenses.slice(0, 3).map((expense) => (
-                <div 
-                  key={expense.id} 
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    padding: '8px 10px',
-                    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-                    borderRadius: '8px'
-                  }}
-                >
-                  <div>
-                    <p style={{ fontWeight: '600', color: isDark ? 'white' : '#1e293b', margin: 0, fontSize: '0.85em' }}>
-                      {expense.name}
-                    </p>
-                    <p style={{ fontSize: '0.7em', color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b', margin: '2px 0 0' }}>
-                      {formatDate(expense.date)}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '5px' : '6px' }}>
+              {upcomingExpenses.length > 0 ? upcomingExpenses.slice(0, 3).map((expense) => {
+                const expenseDate = new Date(expense.date);
+                return (
+                  <div 
+                    key={expense.id}
+                    onClick={() => {
+                      if (interactive) {
+                        navigate('/gps', {
+                          state: {
+                            targetDate: expense.date,
+                            targetMonth: expenseDate.getMonth(),
+                            targetYear: expenseDate.getFullYear(),
+                            eventTitle: expense.name,
+                            viewMode: 'day',
+                            startInNormalMode: true
+                          }
+                        });
+                      }
+                    }}
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: isMobile ? '6px 8px' : '8px 10px',
+                      background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                      borderRadius: isMobile ? '6px' : '8px',
+                      cursor: interactive ? 'pointer' : 'default',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (interactive) {
+                        e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)';
+                        e.currentTarget.style.transform = 'translateX(4px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)';
+                      e.currentTarget.style.transform = 'translateX(0)';
+                    }}
+                  >
+                    <div>
+                      <p style={{ fontWeight: '600', color: isDark ? 'white' : '#1e293b', margin: 0, fontSize: isMobile ? '0.8em' : '0.85em' }}>
+                        {expense.name}
+                      </p>
+                      <p style={{ fontSize: isMobile ? '0.65em' : '0.7em', color: interactive ? '#3498db' : (isDark ? 'rgba(255,255,255,0.6)' : '#64748b'), margin: '2px 0 0', textDecoration: interactive ? 'underline' : 'none' }}>
+                        📅 {formatDate(expense.date)} {interactive && '→'}
+                      </p>
+                    </div>
+                    <p style={{ fontWeight: 'bold', color: '#ffa500', margin: 0, fontSize: isMobile ? '0.85em' : '0.9em' }}>
+                      -{formatCurrency(expense.amount)}
                     </p>
                   </div>
-                  <p style={{ fontWeight: 'bold', color: '#ffa500', margin: 0, fontSize: '0.9em' }}>
-                    -{formatCurrency(expense.amount)}
-                  </p>
-                </div>
-              )) : (
-                <div style={{ textAlign: 'center', padding: '15px 0' }}>
-                  <p style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', fontSize: '0.85em', marginBottom: '5px' }}>
+                );
+              }) : (
+                <div style={{ textAlign: 'center', padding: isMobile ? '12px 0' : '15px 0' }}>
+                  <p style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', fontSize: isMobile ? '0.8em' : '0.85em', marginBottom: '5px' }}>
                     {t('dashboard.upcoming.noStops')}
                   </p>
-                  <span style={{ color: '#3498db', fontSize: '0.8em', fontWeight: '600' }}>
+                  <span style={{ color: '#3498db', fontSize: isMobile ? '0.75em' : '0.8em', fontWeight: '600' }}>
                     {t('dashboard.upcoming.exploreJourney')}
                   </span>
                 </div>
@@ -573,8 +711,8 @@ const Dashboard = () => {
             onClick={interactive && objectifsAccessible ? () => navigate('/objectifs') : undefined}
             style={{
               background: isDark ? 'rgba(255,255,255,0.08)' : '#ffffff',
-              borderRadius: '16px',
-              padding: '20px',
+              borderRadius: isMobile ? '14px' : '16px',
+              padding: isMobile ? '15px' : '20px',
               boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.2)' : '0 4px 15px rgba(0,0,0,0.08)',
               border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
               transition: 'all 0.3s',
@@ -606,31 +744,31 @@ const Dashboard = () => {
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              marginBottom: '15px'
+              marginBottom: isMobile ? '12px' : '15px'
             }}>
               <div style={{
-                width: '40px',
-                height: '40px',
+                width: isMobile ? '36px' : '40px',
+                height: isMobile ? '36px' : '40px',
                 borderRadius: '12px',
                 background: 'linear-gradient(135deg, #9b59b620 0%, #e91e6320 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: '1.3em'
+                fontSize: isMobile ? '1.1em' : '1.3em'
               }}>
                 🧭
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: '1em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b' }}>
+                <h3 style={{ margin: 0, fontSize: isMobile ? '0.95em' : '1em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b' }}>
                   {t('dashboard.goals.title')}
                 </h3>
-                <p style={{ margin: 0, fontSize: '0.75em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
+                <p style={{ margin: 0, fontSize: isMobile ? '0.7em' : '0.75em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
                   {activeGoals.length} {activeGoals.length > 1 ? t('dashboard.goals.destinations') : t('dashboard.goals.destination')}
                 </p>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : '10px' }}>
               {activeGoals.length > 0 ? activeGoals.slice(0, 3).map((goal) => {
                 const goalColor = goal.isCredit ? '#ffa500' : getGoalColor(goal.type);
                 return (
@@ -639,19 +777,19 @@ const Dashboard = () => {
                       <p style={{ 
                         fontWeight: '600', 
                         color: isDark ? 'white' : '#1e293b', 
-                        fontSize: '0.8em', 
+                        fontSize: isMobile ? '0.75em' : '0.8em', 
                         margin: 0,
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap',
-                        maxWidth: '150px'
+                        maxWidth: isMobile ? '180px' : '150px'
                       }}
                         title={goal.nom}
                       >
                         {goal.nom}
                       </p>
                       <p style={{ 
-                        fontSize: '0.75em', 
+                        fontSize: isMobile ? '0.7em' : '0.75em', 
                         color: goal.progress >= 100 ? '#27ae60' : goalColor, 
                         margin: 0,
                         fontWeight: 'bold'
@@ -663,7 +801,7 @@ const Dashboard = () => {
                       width: '100%', 
                       background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)', 
                       borderRadius: '8px', 
-                      height: '6px',
+                      height: isMobile ? '5px' : '6px',
                       overflow: 'hidden'
                     }}>
                       <div 
@@ -671,7 +809,7 @@ const Dashboard = () => {
                           background: goal.progress >= 100 
                             ? 'linear-gradient(90deg, #27ae60, #2ecc71)' 
                             : `linear-gradient(90deg, ${goalColor}, ${goalColor}dd)`,
-                          height: '6px', 
+                          height: isMobile ? '5px' : '6px', 
                           borderRadius: '8px',
                           width: `${Math.min(goal.progress, 100)}%`,
                           transition: 'width 0.5s ease-out'
@@ -681,11 +819,11 @@ const Dashboard = () => {
                   </div>
                 );
               }) : (
-                <div style={{ textAlign: 'center', padding: '15px 0' }}>
-                  <p style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', fontSize: '0.85em', marginBottom: '5px' }}>
+                <div style={{ textAlign: 'center', padding: isMobile ? '12px 0' : '15px 0' }}>
+                  <p style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', fontSize: isMobile ? '0.8em' : '0.85em', marginBottom: '5px' }}>
                     {t('dashboard.goals.noDestinations')}
                   </p>
-                  <span style={{ color: '#9b59b6', fontSize: '0.8em', fontWeight: '600' }}>
+                  <span style={{ color: '#9b59b6', fontSize: isMobile ? '0.75em' : '0.8em', fontWeight: '600' }}>
                     {t('goals.addDestination')} →
                   </span>
                 </div>
@@ -709,12 +847,14 @@ const Dashboard = () => {
         background: showContinueBar 
           ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
           : isDark ? 'transparent' : '#ffffff',
-        padding: showContinueBar ? '15px 25px' : '12px 25px',
+        padding: showContinueBar 
+          ? (isMobile ? '12px 15px' : '15px 25px') 
+          : (isMobile ? '10px 15px' : '12px 25px'),
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'flex-end',
         borderTopLeftRadius: '50px',
-        minHeight: '60px',
+        minHeight: isMobile ? '50px' : '60px',
         transition: 'all 0.3s ease'
       }}>
         {showContinueBar ? (
@@ -724,10 +864,10 @@ const Dashboard = () => {
               background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
               border: 'none',
               borderRadius: '25px',
-              padding: '12px 30px',
+              padding: isMobile ? '10px 20px' : '12px 30px',
               color: 'white',
               fontWeight: 'bold',
-              fontSize: '1em',
+              fontSize: isMobile ? '0.9em' : '1em',
               cursor: 'pointer',
               boxShadow: '0 4px 15px rgba(255, 152, 0, 0.4)',
               transition: 'all 0.3s'
@@ -758,7 +898,7 @@ const Dashboard = () => {
           background: isDark ? 'linear-gradient(180deg, #040449 0%, #100261 100%)' : '#ffffff',
           overflow: 'hidden',
           cursor: 'pointer',
-          padding: '25px 30px 25px 30px',
+          padding: isMobile ? '15px 15px 15px 15px' : '25px 30px 25px 30px',
           borderTopLeftRadius: '0'
         }}
       >
@@ -784,7 +924,7 @@ const Dashboard = () => {
         >
           {/* Header plein écran */}
           <div style={{ 
-            padding: '12px 30px',
+            padding: isMobile ? '10px 15px' : '12px 30px',
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
@@ -792,27 +932,35 @@ const Dashboard = () => {
             flexShrink: 0
           }}>
             <h1 style={{ 
-              fontSize: '1.3em', 
+              fontSize: isMobile ? '1.1em' : '1.3em', 
               fontWeight: 'bold', 
               color: isDark ? 'white' : '#1e293b', 
               display: 'flex', 
               alignItems: 'center', 
               gap: '10px', 
-              margin: 0 
+              margin: 0
             }}>
               🏠 {t('nav.home')}
             </h1>
             
             <button
-              onClick={() => setIsFullScreen(false)}
+              onClick={() => {
+                if (isMobile) {
+                  // Mobile: ouvrir le menu sidebar
+                  window.dispatchEvent(new CustomEvent('openSidebar'));
+                } else {
+                  // Desktop: revenir à la vue aperçu
+                  setIsFullScreen(false);
+                }
+              }}
               style={{
-                width: '36px',
-                height: '36px',
+                width: isMobile ? '32px' : '36px',
+                height: isMobile ? '32px' : '36px',
                 borderRadius: '50%',
                 border: isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)',
                 background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
                 color: isDark ? 'white' : '#475569',
-                fontSize: '1.1em',
+                fontSize: isMobile ? '1em' : '1.1em',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -838,7 +986,7 @@ const Dashboard = () => {
           <div style={{ 
             flex: 1, 
             overflow: 'auto',
-            padding: '20px 30px',
+            padding: isMobile ? '15px 15px' : '20px 30px',
             background: 'transparent'
           }}>
             {renderContent(true)}

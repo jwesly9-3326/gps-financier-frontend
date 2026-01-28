@@ -37,8 +37,8 @@ const AnimatedOButton = ({ size = 45, glow = false, isDark = true }) => (
       borderRadius: '50%',
       border: '3px solid transparent',
       background: isDark 
-        ? 'linear-gradient(#040449, #100261) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box'
-        : 'linear-gradient(#ffffff, #ffffff) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
+        ? 'linear-gradient(#040449, #100261) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box'
+        : 'linear-gradient(#ffffff, #ffffff) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box',
       animation: glow ? 'gps-ring-spin 2s linear infinite, gps-glow 1s ease-in-out infinite' : 'gps-ring-spin 3s linear infinite',
       boxShadow: glow ? '0 0 25px rgba(255, 165, 0, 0.8)' : '0 0 15px rgba(255, 165, 0, 0.5)'
     }} />
@@ -153,8 +153,21 @@ const Comptes = () => {
     console.log(`[Comptes] ${accountName} marqué comme confirmé pour ${todayKey}`);
   };
   
-  // État pour le mode plein écran
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  // 📱 Détection mobile
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // État pour le mode plein écran - Démarre en fullscreen sur mobile
+  const [isFullScreen, setIsFullScreen] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setIsFullScreen(mobile);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // État pour masquer/afficher les soldes
   const [balancesHidden, setBalancesHidden] = useState(() => {
@@ -175,7 +188,17 @@ const Comptes = () => {
   // Toggle local pour afficher/masquer les soldes
   const toggleBalances = (e) => {
     e.stopPropagation();
-    setBalancesHidden(!balancesHidden);
+    const newValue = !balancesHidden;
+    setBalancesHidden(newValue);
+    
+    // Sauvegarder dans localStorage
+    const saved = localStorage.getItem('pl4to_security_settings');
+    const settings = saved ? JSON.parse(saved) : {};
+    settings.hideBalances = newValue;
+    localStorage.setItem('pl4to_security_settings', JSON.stringify(settings));
+    
+    // Émettre un événement pour synchroniser les autres pages
+    window.dispatchEvent(new CustomEvent('securitySettingsChanged', { detail: { hideBalances: newValue } }));
   };
   
   // Gérer le clic sur le pare-brise: plein écran
@@ -871,7 +894,7 @@ const Comptes = () => {
     const adjustedFontSize = baseFontSize * fontSizeMultiplier;
     
     // Couleur uniforme pour tous les comptes (orange/or brillant)
-    const borderGradient = 'linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700)';
+    const borderGradient = 'linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700)';
     const glowColor = 'rgba(255, 165, 0, 0.4)';
 
     return (
@@ -1203,6 +1226,473 @@ const Comptes = () => {
     }, 0);
   
   const valeurNette = totalActifs - totalPassifs;
+
+  // 📱 État pour le compte actif dans le snap scroll mobile
+  const [activeAccountIndex, setActiveAccountIndex] = useState(0);
+  const mobileScrollRef = useRef(null);
+  
+  // Détecter le compte visible lors du scroll
+  useEffect(() => {
+    const container = mobileScrollRef.current;
+    if (!container || !isMobile) return;
+    
+    const handleScroll = () => {
+      const scrollTop = container.scrollTop;
+      const itemHeight = container.clientHeight;
+      const newIndex = Math.round(scrollTop / itemHeight);
+      if (newIndex !== activeAccountIndex && newIndex >= 0 && newIndex <= accounts.length) {
+        setActiveAccountIndex(newIndex);
+      }
+    };
+    
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [isMobile, activeAccountIndex, accounts.length]);
+  
+  // Fonction pour scroller vers un compte spécifique
+  const scrollToAccount = (index) => {
+    const container = mobileScrollRef.current;
+    if (!container) return;
+    const itemHeight = container.clientHeight;
+    container.scrollTo({ top: index * itemHeight, behavior: 'smooth' });
+  };
+
+  // 📱 Rendu mobile: Snap scroll vertical - un compte par écran
+  const renderMobileContent = () => {
+    const totalItems = accounts.length + (!isGoMode ? 1 : 0);
+    
+    return (
+      <div style={{ 
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        bottom: 0, 
+        overflow: 'hidden' 
+      }}>
+        {/* Conteneur principal avec snap scroll */}
+        <div 
+          ref={mobileScrollRef}
+          style={{
+            height: '100%',
+            overflowY: 'auto',
+            scrollSnapType: 'y mandatory',
+            scrollBehavior: 'smooth',
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
+          {/* Chaque compte prend 100% de la hauteur visible */}
+          {accounts.map((account, index) => {
+            const soldeInfo = isGoMode ? getGoSoldeForAccount(account.nom) : getSoldeForAccount(account.nom);
+            const soldeValue = isGoMode && animatingGoAccounts[account.nom] !== undefined
+              ? animatingGoAccounts[account.nom]
+              : parseFloat(soldeInfo?.solde) || 0;
+            const isCredit = account.type === 'credit';
+            const isLocked = index >= limits.maxAccounts;
+            
+            // Calcul taille police adaptative
+            const getMobileFontSize = () => {
+              const formatted = formatMontant(soldeValue);
+              const digits = formatted.replace(/[^0-9]/g, '').length;
+              if (digits >= 7) return '0.95em';
+              if (digits >= 6) return '1.05em';
+              if (digits >= 5) return '1.15em';
+              return '1.3em';
+            };
+            
+            return (
+              <div 
+                key={account.id || index}
+                style={{
+                  height: 'calc(100vh - 140px)',
+                  minHeight: 'calc(100vh - 140px)',
+                  scrollSnapAlign: 'start',
+                  scrollSnapStop: 'always',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '15px',
+                  position: 'relative',
+                  filter: isLocked ? 'blur(4px)' : 'none',
+                  opacity: isLocked ? 0.6 : 1
+                }}
+              >
+                {/* Badge verrou */}
+                {isLocked && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    zIndex: 100,
+                    filter: 'none',
+                    background: 'rgba(0,0,0,0.7)',
+                    borderRadius: '50%',
+                    width: '60px',
+                    height: '60px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.8em'
+                  }}>
+                    🔒
+                  </div>
+                )}
+                
+                {/* ===== CONTENEUR AVEC DATE + PARE-BRISE ===== */}
+                <div style={{
+                  width: '100%',
+                  maxWidth: '320px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center'
+                }}>
+                  {/* 📅 DATE AU-DESSUS DU PARE-BRISE */}
+                  <div style={{
+                    background: 'rgba(255,255,255,0.95)',
+                    padding: '8px 18px',
+                    borderRadius: '20px',
+                    border: '1px solid rgba(102, 126, 234, 0.3)',
+                    boxShadow: '0 2px 10px rgba(0,0,0,0.1)',
+                    marginBottom: '12px'
+                  }}>
+                    <span style={{ fontSize: '0.8em', fontWeight: '600', color: '#2c3e50' }}>
+                      📅 {isGoMode ? goFormattedDate : formattedDate}
+                    </span>
+                  </div>
+                  
+                  {/* Demi-cercle HAUT */}
+                  <div style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '200px',
+                    borderRadius: '300px 300px 0 0',
+                    border: '3px solid transparent',
+                    borderBottom: 'none',
+                    background: isDark 
+                      ? 'linear-gradient(180deg, rgba(26, 35, 126, 0.75) 0%, rgba(13, 17, 63, 0.85) 100%) padding-box, linear-gradient(180deg, rgba(255,255,255,0.6), rgba(255,255,255,0.2), rgba(255,255,255,0.4), rgba(255,255,255,0.1)) border-box'
+                      : 'linear-gradient(180deg, rgba(102, 126, 234, 0.08) 0%, rgba(102, 126, 234, 0.15) 100%) padding-box, linear-gradient(180deg, rgba(102, 126, 234, 0.4), rgba(102, 126, 234, 0.2), rgba(102, 126, 234, 0.3), rgba(102, 126, 234, 0.15)) border-box',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: isDark 
+                      ? '0 -4px 20px rgba(0,0,0,0.2), inset 0 0 40px rgba(102, 126, 234, 0.1)'
+                      : '0 -4px 20px rgba(102, 126, 234, 0.1), inset 0 0 40px rgba(102, 126, 234, 0.05)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {/* Cercle du compte - taille réduite */}
+                    <div style={{
+                      position: 'relative',
+                      width: '120px',
+                      height: '120px'
+                    }}>
+                      <div style={{
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        border: '4px solid transparent',
+                        background: isDark 
+                          ? 'linear-gradient(#040449, #100261) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box'
+                          : 'linear-gradient(#ffffff, #ffffff) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box',
+                        animation: 'gps-ring-spin 3s linear infinite',
+                        boxShadow: '0 0 25px rgba(255, 165, 0, 0.5)'
+                      }} />
+                      <div style={{
+                        position: 'absolute',
+                        top: '4px',
+                        left: '4px',
+                        right: '4px',
+                        bottom: '4px',
+                        borderRadius: '50%',
+                        background: isDark 
+                          ? 'linear-gradient(180deg, #040449 0%, #100261 100%)'
+                          : 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '5px'
+                      }}>
+                        <div style={{ fontSize: '1.6em', marginBottom: '2px' }}>
+                          {getAccountIcon(account.type)}
+                        </div>
+                        <div style={{
+                          fontSize: getMobileFontSize(),
+                          fontWeight: 'bold',
+                          color: isCredit ? '#ffa500' : '#3498db',
+                          textAlign: 'center',
+                          lineHeight: 1.1
+                        }}>
+                          {!balancesHidden ? formatMontant(soldeValue) : '••••••'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Nom et type */}
+                    <div style={{
+                      fontSize: '1.1em',
+                      fontWeight: '600',
+                      color: isDark ? 'white' : '#1e293b',
+                      textAlign: 'center',
+                      marginTop: '10px'
+                    }}>
+                      {account.nom}
+                    </div>
+                    <div style={{
+                      fontSize: '0.85em',
+                      color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b'
+                    }}>
+                      {getTypeLabel(account.type)}
+                    </div>
+                  </div>
+
+                  {/* Demi-cercle BAS */}
+                  <div style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '80px',
+                    borderRadius: '0 0 300px 300px',
+                    border: '3px solid transparent',
+                    borderTop: 'none',
+                    marginTop: '-3px',
+                    background: isDark 
+                      ? 'linear-gradient(180deg, rgba(13, 17, 63, 0.85) 0%, rgba(26, 35, 126, 0.75) 100%) padding-box, linear-gradient(180deg, rgba(255,255,255,0.1), rgba(255,255,255,0.4), rgba(255,255,255,0.2), rgba(255,255,255,0.6)) border-box'
+                      : 'linear-gradient(180deg, rgba(102, 126, 234, 0.15) 0%, rgba(102, 126, 234, 0.08) 100%) padding-box, linear-gradient(180deg, rgba(102, 126, 234, 0.15), rgba(102, 126, 234, 0.3), rgba(102, 126, 234, 0.2), rgba(102, 126, 234, 0.4)) border-box',
+                    backdropFilter: 'blur(10px)',
+                    boxShadow: isDark 
+                      ? '0 4px 20px rgba(0,0,0,0.2)'
+                      : '0 4px 20px rgba(102, 126, 234, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {/* Boutons Modifier/Supprimer */}
+                    {!isGoMode && !isLocked && (
+                      <div style={{
+                        display: 'flex',
+                        gap: '20px'
+                      }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleEditClick(account, soldeInfo); }}
+                          style={{
+                            background: 'white',
+                            border: '2px solid #ff9800',
+                            borderRadius: '50%',
+                            width: '44px',
+                            height: '44px',
+                            fontSize: '1.1em',
+                            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          ✏️
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteClick(account); }}
+                          style={{
+                            background: 'white',
+                            border: '2px solid #e74c3c',
+                            borderRadius: '50%',
+                            width: '44px',
+                            height: '44px',
+                            fontSize: '1.1em',
+                            boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Page "Ajouter un compte" */}
+          {!isGoMode && (
+            <div style={{
+              height: 'calc(100vh - 140px)',
+              minHeight: 'calc(100vh - 140px)',
+              scrollSnapAlign: 'start',
+              scrollSnapStop: 'always',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '15px'
+            }}>
+              <div style={{
+                width: '100%',
+                maxWidth: '320px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center'
+              }}>
+                {/* Demi-cercle HAUT dashed */}
+                <div 
+                  onClick={handleAddClick}
+                  style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '180px',
+                    borderRadius: '300px 300px 0 0',
+                    border: '3px dashed rgba(102, 126, 234, 0.4)',
+                    borderBottom: 'none',
+                    background: isDark 
+                      ? 'linear-gradient(180deg, rgba(26, 35, 126, 0.4) 0%, rgba(13, 17, 63, 0.5) 100%)'
+                      : 'linear-gradient(180deg, rgba(102, 126, 234, 0.05) 0%, rgba(102, 126, 234, 0.1) 100%)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{
+                    width: '90px',
+                    height: '90px',
+                    borderRadius: '50%',
+                    border: '3px dashed rgba(102, 126, 234, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: isDark 
+                      ? 'linear-gradient(180deg, #040449 0%, #100261 100%)'
+                      : 'linear-gradient(180deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.2) 100%)'
+                  }}>
+                    <span style={{ fontSize: '2.5em', color: isDark ? 'white' : '#667eea', fontWeight: 'bold' }}>+</span>
+                  </div>
+                  <div style={{
+                    fontSize: '1em',
+                    fontWeight: '600',
+                    color: isDark ? 'rgba(255,255,255,0.8)' : '#64748b',
+                    marginTop: '12px'
+                  }}>
+                    {t('accounts.addAccount')}
+                  </div>
+                </div>
+
+                {/* Demi-cercle BAS dashed */}
+                <div 
+                  onClick={handleAddClick}
+                  style={{
+                    position: 'relative',
+                    width: '100%',
+                    height: '70px',
+                    borderRadius: '0 0 300px 300px',
+                    border: '3px dashed rgba(102, 126, 234, 0.4)',
+                    borderTop: 'none',
+                    marginTop: '-3px',
+                    background: isDark 
+                      ? 'linear-gradient(180deg, rgba(13, 17, 63, 0.5) 0%, rgba(26, 35, 126, 0.4) 100%)'
+                      : 'linear-gradient(180deg, rgba(102, 126, 234, 0.1) 0%, rgba(102, 126, 234, 0.05) 100%)',
+                    cursor: 'pointer'
+                  }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Indicateurs de pagination (dots) */}
+        <div style={{
+          position: 'absolute',
+          right: '12px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          zIndex: 10
+        }}>
+          {Array.from({ length: totalItems }).map((_, index) => (
+            <div
+              key={index}
+              onClick={() => scrollToAccount(index)}
+              style={{
+                width: activeAccountIndex === index ? '12px' : '8px',
+                height: activeAccountIndex === index ? '12px' : '8px',
+                borderRadius: '50%',
+                background: activeAccountIndex === index 
+                  ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                  : isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+                boxShadow: activeAccountIndex === index ? '0 0 8px rgba(102, 126, 234, 0.5)' : 'none'
+              }}
+            />
+          ))}
+        </div>
+
+        {/* 📱 Boutons flottants en haut à droite */}
+        {!isGoMode && (
+          <div style={{
+            position: 'absolute',
+            top: '15px',
+            right: '15px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            alignItems: 'flex-end',
+            zIndex: 20
+          }}>
+            {/* Bouton + Ajouter un compte */}
+            <button
+              onClick={(e) => { e.stopPropagation(); handleAddClick(); }}
+              style={{
+                padding: '10px 16px',
+                background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+                border: 'none',
+                borderRadius: '25px',
+                color: 'white',
+                fontWeight: 'bold',
+                fontSize: '0.85em',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 4px 15px rgba(76, 175, 80, 0.4)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <span>➕</span>
+              <span>{t('accounts.addAccount')}</span>
+            </button>
+          </div>
+        )}
+
+        {/* Indicateur de scroll */}
+        {accounts.length > 0 && (
+          <div style={{
+            position: 'absolute',
+            bottom: '20px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            opacity: activeAccountIndex < totalItems - 1 ? 0.6 : 0,
+            transition: 'opacity 0.3s',
+            pointerEvents: 'none'
+          }}>
+            <span style={{ fontSize: '0.75em', color: isDark ? 'white' : '#64748b', marginBottom: '4px' }}>
+              Swipe
+            </span>
+            <span style={{ fontSize: '1.2em' }}>↓</span>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   // Contenu de la plateforme (réutilisé en mode normal et plein écran)
   const renderPlatformContent = () => (
@@ -1813,27 +2303,7 @@ const Comptes = () => {
               </button>
             )}
             
-            {/* Bouton Œil pour masquer/afficher les soldes */}
-            <button
-              onClick={(e) => { e.stopPropagation(); toggleBalances(e); }}
-              title={balancesHidden ? "Afficher les soldes" : "Masquer les soldes"}
-              style={{
-                background: balancesHidden ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.9)',
-                border: balancesHidden ? 'none' : '2px solid #e0e0e0',
-                borderRadius: '50%',
-                width: '40px',
-                height: '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                fontSize: '1.2em',
-                transition: 'all 0.3s',
-                boxShadow: balancesHidden ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 8px rgba(0,0,0,0.1)'
-              }}
-            >
-              {balancesHidden ? '👁️‍🗨️' : '👁️'}
-            </button>
+
           </div>
         </div>
 
@@ -1861,42 +2331,46 @@ const Comptes = () => {
         >
           {/* Header plein écran */}
           <div style={{ 
-            padding: '15px 30px',
+            padding: isMobile ? '10px 15px' : '15px 30px',
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
             background: 'transparent',
             flexShrink: 0
           }}>
+            {/* Titre - à gauche */}
             <h1 style={{ 
-              fontSize: '1.8em', 
+              fontSize: isMobile ? '1.1em' : '1.8em', 
               fontWeight: 'bold', 
               color: isDark ? 'white' : '#1e293b', 
               display: 'flex', 
               alignItems: 'center', 
               gap: '10px', 
-              margin: 0,
-              position: 'relative',
-              top: '15px'
+              margin: 0
             }}>
               💼 {t('accounts.title')}
             </h1>
-              
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              {/* Bouton Fermer */}
+            
+            {/* Boutons à droite */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '8px' : '10px' }}>
+              {/* Bouton Fermer (X) */}
               <button
                 onClick={(e) => { 
-                  e.stopPropagation(); 
-                  setIsFullScreen(false);
+                  e.stopPropagation();
+                  if (isMobile) {
+                    window.dispatchEvent(new CustomEvent('openSidebar'));
+                  } else {
+                    setIsFullScreen(false);
+                  }
                 }}
                 style={{
-                  width: '40px',
-                  height: '40px',
+                  width: isMobile ? '32px' : '40px',
+                  height: isMobile ? '32px' : '40px',
                   borderRadius: '50%',
                   border: isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)',
                   background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
                   color: isDark ? 'white' : '#64748b',
-                  fontSize: '1.2em',
+                  fontSize: isMobile ? '1em' : '1.2em',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1916,384 +2390,131 @@ const Comptes = () => {
               >
                 ✕
               </button>
-            </div>
-          </div>
-
-          {/* Contenu plein écran */}
-          <div 
-            style={{ flex: 1, position: 'relative', overflow: 'hidden' }}
-          >
-            {/* Bouton Ajouter + Bouton Œil sur la plateforme (plein écran) */}
-            <div style={{
-              position: 'absolute',
-              top: '20px',
-              right: '40px',
-              zIndex: 50,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-              alignItems: 'flex-end'
-            }}>
-              {!isGoMode && (
-                <button
-                  data-tooltip="add-account"
-                  onClick={(e) => { e.stopPropagation(); handleAddClick(); }}
-                  style={{
-                    padding: '10px 18px',
-                    background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-                    border: 'none',
-                    borderRadius: '10px',
-                    color: 'white',
-                    fontWeight: 'bold',
-                    fontSize: '0.9em',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
-                    transition: 'all 0.3s'
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.transform = 'translateY(-2px)';
-                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(76, 175, 80, 0.4)';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.transform = 'translateY(0)';
-                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(76, 175, 80, 0.3)';
-                  }}
-                >
-                  <span>➕</span>
-                  <span>{t('accounts.addAccount')}</span>
-                </button>
-              )}
               
-              {/* Bouton Œil pour masquer/afficher les soldes */}
+              {/* Bouton Œil */}
               <button
                 onClick={toggleBalances}
                 title={balancesHidden ? "Afficher les soldes" : "Masquer les soldes"}
                 style={{
-                  background: balancesHidden ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.9)',
-                  border: balancesHidden ? 'none' : '2px solid #e0e0e0',
+                  width: isMobile ? '32px' : '40px',
+                  height: isMobile ? '32px' : '40px',
                   borderRadius: '50%',
-                  width: '40px',
-                  height: '40px',
+                  border: balancesHidden 
+                    ? 'none' 
+                    : (isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)'),
+                  background: balancesHidden 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                    : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
+                  color: balancesHidden ? 'white' : (isDark ? 'white' : '#64748b'),
+                  fontSize: isMobile ? '1em' : '1.2em',
+                  cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: '1.2em',
                   transition: 'all 0.3s',
-                  boxShadow: balancesHidden ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 8px rgba(0,0,0,0.1)'
+                  boxShadow: balancesHidden ? '0 4px 15px rgba(102, 126, 234, 0.4)' : 'none'
                 }}
               >
                 {balancesHidden ? '👁️‍🗨️' : '👁️'}
               </button>
             </div>
-            
-            {renderPlatformContent()}
           </div>
-          
-          {/* Bouton Faire avancer mon portefeuille - EN BAS À DROITE */}
-          <div style={{
-            position: 'fixed',
-            bottom: '50px',
-            right: '30px',
-            zIndex: 1000
-          }}>
-            <button
-              onClick={() => {
-                if (isGuideComplete) {
-                  navigate('/gps?fullscreen=true');
-                }
-              }}
-              title={!isGuideComplete ? t('nav.locked') : (t('accounts.advancePortfolioHint') || 'Visualisez l\'évolution de vos soldes jour par jour')}
-              style={{
-                padding: '12px 20px',
-                background: !isGuideComplete 
-                  ? 'linear-gradient(135deg, #666 0%, #444 100%)'
-                  : 'linear-gradient(135deg, #3498db 0%, #2980b9 100%)',
-                border: 'none',
-                borderRadius: '25px',
-                color: 'white',
-                fontWeight: 'bold',
-                fontSize: '1em',
-                cursor: !isGuideComplete ? 'not-allowed' : 'pointer',
+
+          {/* Contenu plein écran */}
+          <div 
+            style={{ flex: 1, position: 'relative', overflow: isMobile ? 'auto' : 'hidden' }}
+          >
+            {/* Bouton Ajouter + Bouton Œil sur la plateforme (plein écran) - DESKTOP ONLY */}
+            {!isMobile && (
+              <div style={{
+                position: 'absolute',
+                top: '20px',
+                right: '40px',
+                zIndex: 50,
                 display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                boxShadow: !isGuideComplete 
-                  ? '0 4px 15px rgba(100, 100, 100, 0.3)'
-                  : '0 4px 15px rgba(52, 152, 219, 0.4)',
-                transition: 'all 0.3s',
-                opacity: !isGuideComplete ? 0.6 : 1
-              }}
-            >
-              🛤️ {t('accounts.advancePortfolio')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* ========== MODAL CONFIRMATION TRANSACTIONS DU JOUR ========== */}
-      {showTransactionConfirmModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.5)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '20px'
-        }}>
-          <div style={{
-            background: 'white',
-            borderRadius: '20px',
-            maxWidth: '600px',
-            width: '100%',
-            maxHeight: '85vh',
-            overflow: 'hidden',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-            animation: 'modal-appear 0.25s ease-out'
-          }}>
-            {/* Header */}
-            <div style={{
-              padding: '25px 30px',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-              color: 'white'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '1.8em' }}>🔔</span>
-                <div>
-                  <h2 style={{ margin: 0, fontSize: '1.3em' }}>Transactions du jour</h2>
-                  <p style={{ margin: '5px 0 0', opacity: 0.9, fontSize: '0.9em' }}>
-                    📅 {formattedDate}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Corps */}
-            <div style={{ padding: '25px 30px', maxHeight: '50vh', overflowY: 'auto' }}>
-              {Object.keys(transactionsByAccount).length === 0 ? (
-                <p style={{ textAlign: 'center', color: '#7f8c8d' }}>
-                  Aucune transaction prévue aujourd'hui.
-                </p>
-              ) : (
-                Object.entries(transactionsByAccount).map(([accountName, data]) => {
-                  const account = accounts.find(a => a.nom === accountName);
-                  const soldeInfo = soldes.find(s => s.accountName === accountName);
-                  const currentSolde = parseFloat(soldeInfo?.solde) || 0;
-                  const isCredit = account?.type === 'credit';
-                  const isConfirmed = confirmedAccounts.has(accountName);
-                  
-                  let newSolde;
-                  if (isCredit) {
-                    newSolde = currentSolde - data.totalEntrees + data.totalSorties;
-                  } else {
-                    newSolde = currentSolde + data.totalEntrees - data.totalSorties;
-                  }
-
-                  return (
-                    <div key={accountName} style={{
-                      background: isConfirmed ? 'rgba(39, 174, 96, 0.1)' : '#f8f9fa',
-                      borderRadius: '15px',
-                      padding: '20px',
-                      marginBottom: '15px',
-                      border: isConfirmed ? '2px solid #27ae60' : '2px solid #e0e0e0'
-                    }}>
-                      {/* Header compte */}
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginBottom: '15px'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ 
-                            fontSize: '1.5em',
-                            background: getAccountColor(account?.type),
-                            padding: '8px',
-                            borderRadius: '10px'
-                          }}>
-                            {getAccountIcon(account?.type)}
-                          </span>
-                          <div>
-                            <div style={{ fontWeight: 'bold', color: '#2c3e50' }}>{accountName}</div>
-                            <div style={{ fontSize: '0.8em', color: '#7f8c8d' }}>
-                              Solde actuel: {formatMontant(currentSolde)}
-                            </div>
-                          </div>
-                        </div>
-                        {isConfirmed && (
-                          <span style={{
-                            background: '#27ae60',
-                            color: 'white',
-                            padding: '5px 12px',
-                            borderRadius: '20px',
-                            fontSize: '0.8em',
-                            fontWeight: 'bold'
-                          }}>
-                            ✓ Confirmé
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Entrées */}
-                      {data.entrees.length > 0 && (
-                        <div style={{ marginBottom: '10px' }}>
-                          {data.entrees.map((e, i) => (
-                            <div key={i} style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              padding: '8px 12px',
-                              background: 'rgba(52, 152, 219, 0.1)',
-                              borderRadius: '8px',
-                              marginBottom: '5px'
-                            }}>
-                              <span style={{ color: '#2c3e50' }}>↓ {e.description}</span>
-                              <span style={{ fontWeight: 'bold', color: '#3498db' }}>
-                                {isCredit ? '-' : '+'}{formatMontant(e.montant)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Sorties */}
-                      {data.sorties.length > 0 && (
-                        <div style={{ marginBottom: '10px' }}>
-                          {data.sorties.map((s, i) => (
-                            <div key={i} style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              padding: '8px 12px',
-                              background: 'rgba(255, 165, 0, 0.1)',
-                              borderRadius: '8px',
-                              marginBottom: '5px'
-                            }}>
-                              <span style={{ color: '#2c3e50' }}>↑ {s.description}</span>
-                              <span style={{ fontWeight: 'bold', color: '#ffa500' }}>
-                                {isCredit ? '+' : '-'}{formatMontant(s.montant)}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Nouveau solde et bouton confirmer */}
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        marginTop: '15px',
-                        paddingTop: '15px',
-                        borderTop: '1px solid #e0e0e0'
-                      }}>
-                        <div>
-                          <span style={{ fontSize: '0.85em', color: '#7f8c8d' }}>Nouveau solde: </span>
-                          <span style={{
-                            fontSize: '1.2em',
-                            fontWeight: 'bold',
-                            color: isCredit 
-                              ? (newSolde > 0 ? '#ffa500' : '#3498db')
-                              : (newSolde >= 0 ? '#3498db' : '#ffa500')
-                          }}>
-                            {formatMontant(newSolde)}
-                          </span>
-                        </div>
-                        {!isConfirmed && (
-                          <button
-                            onClick={() => handleConfirmAccount(accountName)}
-                            style={{
-                              padding: '10px 20px',
-                              background: 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)',
-                              border: 'none',
-                              borderRadius: '10px',
-                              color: 'white',
-                              fontWeight: 'bold',
-                              cursor: 'pointer',
-                              transition: 'all 0.3s'
-                            }}
-                          >
-                            ✓ Confirmer
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* Footer */}
-            <div style={{
-              padding: '20px 30px',
-              borderTop: '1px solid #eee',
-              display: 'flex',
-              justifyContent: 'space-between',
-              gap: '15px'
-            }}>
-              <button
-                onClick={handleCloseConfirmModal}
-                style={{
-                  padding: '12px 25px',
-                  background: 'white',
-                  border: '2px solid #bdc3c7',
-                  borderRadius: '10px',
-                  color: '#7f8c8d',
-                  fontWeight: '600',
-                  cursor: 'pointer',
-                  fontSize: '1em'
-                }}
-              >
-                Plus tard
-              </button>
-              <div style={{ display: 'flex', gap: '10px' }}>
-                {hasUnconfirmedTransactions && Object.keys(transactionsByAccount).length > 1 && (
+                flexDirection: 'column',
+                gap: '10px',
+                alignItems: 'flex-end'
+              }}>
+                {!isGoMode && (
                   <button
-                    onClick={handleConfirmAll}
+                    data-tooltip="add-account"
+                    onClick={(e) => { e.stopPropagation(); handleAddClick(); }}
                     style={{
-                      padding: '12px 25px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      padding: '10px 18px',
+                      background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
                       border: 'none',
                       borderRadius: '10px',
                       color: 'white',
-                      fontWeight: '600',
+                      fontWeight: 'bold',
+                      fontSize: '0.9em',
                       cursor: 'pointer',
-                      fontSize: '1em'
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
+                      transition: 'all 0.3s'
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 20px rgba(76, 175, 80, 0.4)';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 15px rgba(76, 175, 80, 0.3)';
                     }}
                   >
-                    ✓ Tout confirmer
-                  </button>
-                )}
-                {!hasUnconfirmedTransactions && (
-                  <button
-                    onClick={handleCloseConfirmModal}
-                    style={{
-                      padding: '12px 25px',
-                      background: 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)',
-                      border: 'none',
-                      borderRadius: '10px',
-                      color: 'white',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      fontSize: '1em'
-                    }}
-                  >
-                    ✓ Terminé
+                    <span>➕</span>
+                    <span>{t('accounts.addAccount')}</span>
                   </button>
                 )}
               </div>
-            </div>
+            )}
+            
+            {/* Affichage mobile ou desktop */}
+            {isMobile ? renderMobileContent() : renderPlatformContent()}
           </div>
+
         </div>
       )}
+      </div>
+    </div>
 
-            {/* ========== MODAL DE MODIFICATION ========== */}
+      {/* Modal de guide utilisateur */}
+      <PageGuideModal 
+        isOpen={showGuide}
+        onClose={closeModal}
+        page="comptes"
+      />
+      
+      {/* Tour de tooltips interactif */}
+      <TooltipTour
+        isActive={isTooltipActive}
+        currentStep={tooltipStep}
+        totalSteps={tooltipTotal}
+        tooltip={currentTooltip}
+        onNext={nextTooltip}
+        onPrev={prevTooltip}
+        onSkip={skipTooltips}
+      />
+      
+      {/* Toast notifications */}
+      {toast && (
+        <Toast 
+          message={toast.message} 
+          type={toast.type} 
+          onClose={hideToast}
+        />
+      )}
+
+      {/* Modal d'upgrade (restrictions abonnement) */}
+      <UpgradeModal
+        isOpen={upgradeModal.isOpen}
+        onClose={() => setUpgradeModal({ isOpen: false, type: null })}
+        featureType={upgradeModal.type}
+      />
+
+      {/* ===== MODAL DE MODIFICATION ===== */}
       {editingAccount && (
         <div style={{
           position: 'fixed',
@@ -2301,28 +2522,25 @@ const Comptes = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(5px)',
+          background: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000,
+          zIndex: 2000,
           padding: '20px'
         }}>
           <div style={{
-            background: 'linear-gradient(180deg, #040449 0%, #100261 100%)',
+            background: isDark ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' : 'white',
             borderRadius: '20px',
             padding: '30px',
-            maxWidth: '500px',
             width: '100%',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-            border: '2px solid rgba(255,165,0,0.3)'
+            maxWidth: '400px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            animation: 'modal-appear 0.3s ease-out'
           }}>
-            <h2 style={{
-              fontSize: '1.5em',
-              fontWeight: 'bold',
-              color: 'white',
-              marginBottom: '25px',
+            <h2 style={{ 
+              margin: '0 0 25px 0', 
+              color: isDark ? 'white' : '#1e293b',
               display: 'flex',
               alignItems: 'center',
               gap: '10px'
@@ -2330,142 +2548,121 @@ const Comptes = () => {
               ✏️ {t('accounts.editAccount')}
             </h2>
 
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '1.1em',
-                color: 'white',
-                marginBottom: '8px',
-                fontWeight: '700'
-              }}>
-                {t('accounts.accountName')}
-              </label>
-              <input
-                type="text"
-                value={editForm.nom}
-                onChange={(e) => setEditForm({ ...editForm, nom: e.target.value })}
-                style={{
-                  width: '100%',
-                  padding: '14px 16px',
-                  fontSize: '1.05em',
-                  border: '2px solid rgba(255,165,0,0.5)',
-                  borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.95)',
-                  color: '#2c3e50',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                  fontWeight: '500'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#ffa500'}
-                onBlur={(e) => e.target.style.borderColor = 'rgba(255,165,0,0.5)'}
-              />
-            </div>
-
-            {/* Limite de crédit (seulement pour les comptes crédit) */}
-            {editingAccount.type === 'credit' && (
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '1.1em',
-                  color: 'white',
-                  marginBottom: '8px',
-                  fontWeight: '700'
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Nom */}
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '600',
+                  color: isDark ? 'rgba(255,255,255,0.9)' : '#374151'
                 }}>
-                  {t('accounts.limit')} ($)
+                  {t('accounts.form.name')}
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setShowEditLimiteNumpadModal(true)}
+                <input
+                  type="text"
+                  value={editForm.nom}
+                  onChange={(e) => setEditForm({ ...editForm, nom: e.target.value })}
                   style={{
                     width: '100%',
-                    height: '48px',
-                    padding: '14px 16px',
+                    padding: '12px 15px',
+                    border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid #e5e7eb',
+                    borderRadius: '10px',
+                    fontSize: '1em',
+                    background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                    color: isDark ? 'white' : '#1e293b',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Solde */}
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '600',
+                  color: isDark ? 'rgba(255,255,255,0.9)' : '#374151'
+                }}>
+                  {editingAccount.type === 'credit' ? t('accounts.form.balance') : t('accounts.form.balance')}
+                </label>
+                <div 
+                  onClick={() => setShowNumpadModal(true)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 15px',
+                    border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid #e5e7eb',
+                    borderRadius: '10px',
                     fontSize: '1.2em',
-                    border: `3px solid ${getAccountColor(editingAccount?.type)}`,
-                    borderRadius: '12px',
-                    outline: 'none',
+                    fontWeight: 'bold',
+                    background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                    color: editingAccount.type === 'credit' ? '#ffa500' : '#3498db',
                     boxSizing: 'border-box',
-                    background: 'rgba(255,255,255,0.95)',
-                    color: getAccountColor(editingAccount?.type),
-                    fontWeight: '700',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'space-between',
-                    transition: 'all 0.3s'
+                    justifyContent: 'space-between'
                   }}
                 >
-                  <span>{editForm.limite ? formatMontant(parseFloat(editForm.limite)) : '0,00 $'}</span>
-                  <span style={{ fontSize: '0.7em', opacity: 0.6 }}>⌨️</span>
-                </button>
-                <p style={{ fontSize: '0.85em', color: 'rgba(255,255,255,0.8)', marginTop: '8px' }}>
-                  💳 {t('accounts.creditAvailable')}: {formatMontant((parseFloat(editForm.limite) || 0) - (parseFloat(editForm.solde) || 0))}
-                </p>
+                  <span>{formatMontant(parseFloat(editForm.solde) || 0)}</span>
+                  <span style={{ fontSize: '0.8em', opacity: 0.6 }}>⌨️</span>
+                </div>
               </div>
-            )}
 
-            <div style={{ marginBottom: '30px' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '1.1em',
-                color: 'white',
-                marginBottom: '8px',
-                fontWeight: '700'
-              }}>
-                {t('accounts.balance')} ($)
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowNumpadModal(true)}
-                style={{
-                  width: '100%',
-                  height: '48px',
-                  padding: '14px 16px',
-                  fontSize: '1.2em',
-                  border: `3px solid ${getAccountColor(editingAccount?.type)}`,
-                  borderRadius: '12px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  background: 'rgba(255,255,255,0.95)',
-                  color: getAccountColor(editingAccount?.type),
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  transition: 'all 0.3s'
-                }}
-              >
-                <span>{editForm.solde ? formatMontant(parseFloat(editForm.solde)) : '0,00 $'}</span>
-                <span style={{ fontSize: '0.7em', opacity: 0.6 }}>⌨️</span>
-              </button>
+              {/* Limite (pour crédit uniquement) */}
+              {editingAccount.type === 'credit' && (
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: '8px', 
+                    fontWeight: '600',
+                    color: isDark ? 'rgba(255,255,255,0.9)' : '#374151'
+                  }}>
+                    {t('accounts.form.limit')}
+                  </label>
+                  <div 
+                    onClick={() => setShowEditLimiteNumpadModal(true)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 15px',
+                      border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid #e5e7eb',
+                      borderRadius: '10px',
+                      fontSize: '1.2em',
+                      fontWeight: 'bold',
+                      background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                      color: '#e74c3c',
+                      boxSizing: 'border-box',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <span>{formatMontant(parseFloat(editForm.limite) || 0)}</span>
+                    <span style={{ fontSize: '0.8em', opacity: 0.6 }}>⌨️</span>
+                  </div>
+                </div>
+              )}
             </div>
 
-            <div style={{
-              display: 'flex',
-              gap: '15px',
+            {/* Boutons */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '15px', 
+              marginTop: '30px',
               justifyContent: 'flex-end'
             }}>
               <button
                 onClick={handleCancelEdit}
                 style={{
-                  padding: '14px 28px',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '2px solid rgba(255,255,255,0.3)',
-                  borderRadius: '12px',
-                  color: 'white',
+                  padding: '12px 25px',
+                  background: isDark ? 'rgba(255,255,255,0.1)' : '#f3f4f6',
+                  border: 'none',
+                  borderRadius: '10px',
+                  color: isDark ? 'white' : '#374151',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  fontSize: '1em',
                   transition: 'all 0.3s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
                 }}
               >
                 {t('common.cancel')}
@@ -2473,34 +2670,25 @@ const Comptes = () => {
               <button
                 onClick={handleSaveEdit}
                 style={{
-                  padding: '14px 28px',
-                  background: 'linear-gradient(135deg, #ffa500 0%, #ff8c00 100%)',
+                  padding: '12px 25px',
+                  background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
                   border: 'none',
-                  borderRadius: '12px',
+                  borderRadius: '10px',
                   color: 'white',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  fontSize: '1em',
-                  boxShadow: '0 4px 15px rgba(255,165,0,0.4)',
+                  boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
                   transition: 'all 0.3s'
                 }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.boxShadow = '0 6px 25px rgba(255,165,0,0.6)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(255,165,0,0.4)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }}
               >
-                ✓
+                ✓ {t('common.save')}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* ========== NUMPAD MODAL POUR LE SOLDE ========== */}
+      
+      {/* NumpadModal pour modification du solde */}
       <NumpadModal
         isOpen={showNumpadModal}
         onClose={() => setShowNumpadModal(false)}
@@ -2509,22 +2697,11 @@ const Comptes = () => {
           setShowNumpadModal(false);
         }}
         initialValue={editForm.solde}
-        title={t('accounts.balance')}
-        allowNegative={editingAccount?.type === 'credit'}
-      />
-      {/* ========== NUMPAD MODAL POUR LA LIMITE (AJOUT) ========== */}
-      <NumpadModal
-        isOpen={showAddLimiteNumpadModal}
-        onClose={() => setShowAddLimiteNumpadModal(false)}
-        onConfirm={(value) => {
-          setNewAccount({ ...newAccount, limite: value.toString() });
-          setShowAddLimiteNumpadModal(false);
-        }}
-        initialValue={newAccount.limite}
-        title={newAccount.type === 'hypotheque' ? t('accounts.mortgageAmount', 'Montant hypothèque') : t('accounts.limit')}
+        title={t('accounts.form.enterBalance')}
         allowNegative={false}
       />
-      {/* ========== NUMPAD MODAL POUR LA LIMITE (MODIFICATION) ========== */}
+      
+      {/* NumpadModal pour modification de la limite */}
       <NumpadModal
         isOpen={showEditLimiteNumpadModal}
         onClose={() => setShowEditLimiteNumpadModal(false)}
@@ -2533,22 +2710,11 @@ const Comptes = () => {
           setShowEditLimiteNumpadModal(false);
         }}
         initialValue={editForm.limite}
-        title={t('accounts.limit')}
+        title={t('accounts.form.enterLimit')}
         allowNegative={false}
       />
-{/* ========== NUMPAD MODAL POUR L'AJOUT ========== */}
-      <NumpadModal
-        isOpen={showAddNumpadModal}
-        onClose={() => setShowAddNumpadModal(false)}
-        onConfirm={(value) => {
-          setNewAccount({ ...newAccount, solde: value.toString() });
-          setShowAddNumpadModal(false);
-        }}
-        initialValue={newAccount.solde}
-        title={t('accounts.balance')}
-        allowNegative={newAccount.type === 'credit'}
-      />
-      {/* ========== MODAL D'AJOUT ========== */}
+
+      {/* ===== MODAL D'AJOUT ===== */}
       {showAddModal && (
         <div style={{
           position: 'fixed',
@@ -2556,234 +2722,230 @@ const Comptes = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(5px)',
+          background: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000,
-          overflowY: 'auto',
+          zIndex: 2000,
           padding: '20px'
         }}>
           <div style={{
-            background: 'linear-gradient(180deg, #040449 0%, #100261 100%)',
+            background: isDark ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' : 'white',
             borderRadius: '20px',
             padding: '30px',
-            maxWidth: '550px',
             width: '100%',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-            border: '2px solid rgba(76,175,80,0.3)',
-            margin: 'auto'
+            maxWidth: '450px',
+            maxHeight: '90vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            animation: 'modal-appear 0.3s ease-out'
           }}>
-            <h2 style={{
-              fontSize: '1.5em',
-              fontWeight: 'bold',
-              color: 'white',
-              marginBottom: '25px',
+            <h2 style={{ 
+              margin: '0 0 25px 0', 
+              color: isDark ? 'white' : '#1e293b',
               display: 'flex',
               alignItems: 'center',
               gap: '10px'
             }}>
-              ➕ {t('accounts.newAccount')}
+              ➕ {t('accounts.addNewAccount')}
             </h2>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '1.1em',
-                color: 'white',
-                marginBottom: '8px',
-                fontWeight: '700'
-              }}>
-                {t('accounts.accountName')} <span style={{ color: '#e74c3c' }}>*</span>
-              </label>
-              <input
-                type="text"
-                value={newAccount.nom}
-                onChange={(e) => setNewAccount({ ...newAccount, nom: e.target.value })}
-                placeholder={t('accounts.accountNamePlaceholder')}
-                style={{
-                  width: '100%',
-                  padding: '14px 16px',
-                  fontSize: '1.05em',
-                  border: '2px solid rgba(76,175,80,0.5)',
-                  borderRadius: '12px',
-                  background: 'rgba(255,255,255,0.95)',
-                  color: '#2c3e50',
-                  boxSizing: 'border-box',
-                  outline: 'none',
-                  fontWeight: '500'
-                }}
-                onFocus={(e) => e.target.style.borderColor = '#4CAF50'}
-                onBlur={(e) => e.target.style.borderColor = 'rgba(76,175,80,0.5)'}
-                autoFocus
-              />
-            </div>
-
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '1.1em',
-                color: 'white',
-                marginBottom: '8px',
-                fontWeight: '700'
-              }}>
-                {t('accounts.accountType')} <span style={{ color: '#e74c3c' }}>*</span>
-              </label>
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '10px'
-              }}>
-                {[
-                  { value: 'cheque', labelKey: 'accounts.types.cheque', icon: '💳' },
-                  { value: 'epargne', labelKey: 'accounts.types.epargne', icon: '💰' },
-                  { value: 'credit', labelKey: 'accounts.types.credit', icon: '🏦' },
-                  { value: 'hypotheque', labelKey: 'accounts.types.hypotheque', icon: '🏠' }
-                ].map((option) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setNewAccount({ ...newAccount, type: option.value })}
-                    style={{
-                      padding: '12px',
-                      fontSize: '0.95em',
-                      fontWeight: '600',
-                      color: newAccount.type === option.value ? 'white' : 'rgba(255,255,255,0.9)',
-                      background: newAccount.type === option.value 
-                        ? getAccountColor(option.value)
-                        : 'rgba(255,255,255,0.1)',
-                      border: `2px solid ${newAccount.type === option.value ? getAccountColor(option.value) : 'rgba(255,255,255,0.3)'}`,
-                      borderRadius: '10px',
-                      cursor: 'pointer',
-                      transition: 'all 0.3s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    <span>{option.icon}</span>
-                    <span>{t(option.labelKey)}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {(newAccount.type === 'credit' || newAccount.type === 'hypotheque') && (
-              <div style={{ marginBottom: '20px' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '1.1em',
-                  color: 'white',
-                  marginBottom: '8px',
-                  fontWeight: '700'
-                }}>
-                  {newAccount.type === 'hypotheque' ? t('accounts.mortgageAmount', 'Montant hypothèque') : t('accounts.limit')} <span style={{ color: '#e74c3c' }}>*</span>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => setShowAddLimiteNumpadModal(true)}
-                  style={{
-                    width: '100%',
-                    height: '56px',
-                    padding: '14px 16px',
-                    fontSize: '1.2em',
-                    border: `3px solid ${getAccountColor(newAccount.type)}`,
-                    borderRadius: '12px',
-                    outline: 'none',
-                    boxSizing: 'border-box',
-                    background: 'rgba(255,255,255,0.95)',
-                    color: getAccountColor(newAccount.type),
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    transition: 'all 0.3s'
-                  }}
-                >
-                  <span>{newAccount.limite ? formatMontant(parseFloat(newAccount.limite)) : '0,00 $'}</span>
-                  <span style={{ fontSize: '0.7em', opacity: 0.6 }}>⌨️</span>
-                </button>
-              </div>
-            )}
-
-            <div style={{ marginBottom: '30px' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '1.1em',
-                color: 'white',
-                marginBottom: '8px',
-                fontWeight: '700'
-              }}>
-                {(newAccount.type === 'credit' || newAccount.type === 'hypotheque') ? t('accounts.balanceOwed') : t('accounts.balanceCurrent')} <span style={{ color: '#e74c3c' }}>*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => setShowAddNumpadModal(true)}
-                style={{
-                  width: '100%',
-                  height: '56px',
-                  padding: '14px 16px',
-                  fontSize: '1.3em',
-                  border: `3px solid ${getAccountColor(newAccount.type)}`,
-                  borderRadius: '12px',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  background: 'rgba(255,255,255,0.95)',
-                  color: getAccountColor(newAccount.type),
-                  fontWeight: '700',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  transition: 'all 0.3s'
-                }}
-              >
-                <span>{newAccount.solde ? formatMontant(parseFloat(newAccount.solde)) : '0,00 $'}</span>
-                <span style={{ fontSize: '0.7em', opacity: 0.6 }}>⌨️</span>
-              </button>
-              {(newAccount.type === 'credit' || newAccount.type === 'hypotheque') && (
-                <p style={{ fontSize: '0.8em', color: '#7f8c8d', marginTop: '5px' }}>
-                  {newAccount.type === 'hypotheque' ? t('accounts.mortgageOwedHint', 'Entrez le montant restant sur votre hypothèque') : t('accounts.balanceOwedHint')}
-                </p>
-              )}
-            </div>
 
             {/* Message d'erreur */}
             {formError && (
               <div style={{
-                padding: '12px 15px',
-                background: 'linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%)',
-                border: '2px solid #e74c3c',
+                background: 'rgba(231, 76, 60, 0.1)',
+                border: '1px solid #e74c3c',
                 borderRadius: '10px',
+                padding: '12px 15px',
                 marginBottom: '20px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px'
+                color: '#e74c3c',
+                fontSize: '0.9em'
               }}>
-                <span style={{ fontSize: '1.2em' }}>⚠️</span>
-                <span style={{ color: '#c0392b', fontWeight: '500' }}>{formError}</span>
+                ⚠️ {formError}
               </div>
             )}
 
-            <div style={{
-              display: 'flex',
-              gap: '15px',
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {/* Type de compte */}
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '600',
+                  color: isDark ? 'rgba(255,255,255,0.9)' : '#374151'
+                }}>
+                  {t('accounts.form.type')}
+                </label>
+                <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  {['cheque', 'epargne', 'credit', 'hypotheque'].map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setNewAccount({ ...newAccount, type, limite: (type === 'credit' || type === 'hypotheque') ? newAccount.limite : '' })}
+                      style={{
+                        padding: '10px 15px',
+                        background: newAccount.type === type 
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+                          : (isDark ? 'rgba(255,255,255,0.1)' : '#f3f4f6'),
+                        border: 'none',
+                        borderRadius: '10px',
+                        color: newAccount.type === type ? 'white' : (isDark ? 'rgba(255,255,255,0.8)' : '#374151'),
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.3s'
+                      }}
+                    >
+                      {getAccountIcon(type)} {getTypeLabel(type)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Nom */}
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '600',
+                  color: isDark ? 'rgba(255,255,255,0.9)' : '#374151'
+                }}>
+                  {t('accounts.form.name')} *
+                </label>
+                <input
+                  type="text"
+                  value={newAccount.nom}
+                  onChange={(e) => setNewAccount({ ...newAccount, nom: e.target.value })}
+                  placeholder={t('accounts.form.namePlaceholder')}
+                  style={{
+                    width: '100%',
+                    padding: '12px 15px',
+                    border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid #e5e7eb',
+                    borderRadius: '10px',
+                    fontSize: '1em',
+                    background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                    color: isDark ? 'white' : '#1e293b',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Institution */}
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '600',
+                  color: isDark ? 'rgba(255,255,255,0.9)' : '#374151'
+                }}>
+                  {t('accounts.form.institution')}
+                </label>
+                <input
+                  type="text"
+                  value={newAccount.institution}
+                  onChange={(e) => setNewAccount({ ...newAccount, institution: e.target.value })}
+                  placeholder={t('accounts.form.institutionPlaceholder')}
+                  style={{
+                    width: '100%',
+                    padding: '12px 15px',
+                    border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid #e5e7eb',
+                    borderRadius: '10px',
+                    fontSize: '1em',
+                    background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                    color: isDark ? 'white' : '#1e293b',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
+
+              {/* Solde initial */}
+              <div>
+                <label style={{ 
+                  display: 'block', 
+                  marginBottom: '8px', 
+                  fontWeight: '600',
+                  color: isDark ? 'rgba(255,255,255,0.9)' : '#374151'
+                }}>
+                  {newAccount.type === 'credit' ? t('accounts.form.currentBalance') : t('accounts.form.initialBalance')} *
+                </label>
+                <div 
+                  onClick={() => setShowAddNumpadModal(true)}
+                  style={{
+                    width: '100%',
+                    padding: '12px 15px',
+                    border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid #e5e7eb',
+                    borderRadius: '10px',
+                    fontSize: '1.2em',
+                    fontWeight: 'bold',
+                    background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                    color: newAccount.type === 'credit' ? '#ffa500' : '#3498db',
+                    boxSizing: 'border-box',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between'
+                  }}
+                >
+                  <span>{newAccount.solde ? formatMontant(parseFloat(newAccount.solde)) : t('accounts.form.tapToEnter')}</span>
+                  <span style={{ fontSize: '0.8em', opacity: 0.6 }}>⌨️</span>
+                </div>
+              </div>
+
+              {/* Limite (pour crédit) */}
+              {(newAccount.type === 'credit' || newAccount.type === 'hypotheque') && (
+                <div>
+                  <label style={{ 
+                    display: 'block', 
+                    marginBottom: '8px', 
+                    fontWeight: '600',
+                    color: isDark ? 'rgba(255,255,255,0.9)' : '#374151'
+                  }}>
+                    {t('accounts.form.creditLimit')} *
+                  </label>
+                  <div 
+                    onClick={() => setShowAddLimiteNumpadModal(true)}
+                    style={{
+                      width: '100%',
+                      padding: '12px 15px',
+                      border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid #e5e7eb',
+                      borderRadius: '10px',
+                      fontSize: '1.2em',
+                      fontWeight: 'bold',
+                      background: isDark ? 'rgba(255,255,255,0.1)' : 'white',
+                      color: '#e74c3c',
+                      boxSizing: 'border-box',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between'
+                    }}
+                  >
+                    <span>{newAccount.limite ? formatMontant(parseFloat(newAccount.limite)) : t('accounts.form.tapToEnter')}</span>
+                    <span style={{ fontSize: '0.8em', opacity: 0.6 }}>⌨️</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Boutons */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '15px', 
+              marginTop: '30px',
               justifyContent: 'flex-end'
             }}>
               <button
                 onClick={handleCancelAdd}
                 style={{
                   padding: '12px 25px',
-                  background: 'white',
-                  border: '2px solid #bdc3c7',
+                  background: isDark ? 'rgba(255,255,255,0.1)' : '#f3f4f6',
+                  border: 'none',
                   borderRadius: '10px',
-                  color: '#7f8c8d',
+                  color: isDark ? 'white' : '#374151',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  fontSize: '1em'
+                  transition: 'all 0.3s'
                 }}
               >
                 {t('common.cancel')}
@@ -2798,7 +2960,8 @@ const Comptes = () => {
                   color: 'white',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  fontSize: '1em'
+                  boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
+                  transition: 'all 0.3s'
                 }}
               >
                 ✓ {t('accounts.addAccount')}
@@ -2807,8 +2970,34 @@ const Comptes = () => {
           </div>
         </div>
       )}
+      
+      {/* NumpadModal pour ajout - solde initial */}
+      <NumpadModal
+        isOpen={showAddNumpadModal}
+        onClose={() => setShowAddNumpadModal(false)}
+        onConfirm={(value) => {
+          setNewAccount({ ...newAccount, solde: value.toString() });
+          setShowAddNumpadModal(false);
+        }}
+        initialValue={newAccount.solde}
+        title={newAccount.type === 'credit' ? t('accounts.form.enterCurrentBalance') : t('accounts.form.enterInitialBalance')}
+        allowNegative={false}
+      />
+      
+      {/* NumpadModal pour ajout - limite de crédit */}
+      <NumpadModal
+        isOpen={showAddLimiteNumpadModal}
+        onClose={() => setShowAddLimiteNumpadModal(false)}
+        onConfirm={(value) => {
+          setNewAccount({ ...newAccount, limite: value.toString() });
+          setShowAddLimiteNumpadModal(false);
+        }}
+        initialValue={newAccount.limite}
+        title={t('accounts.form.enterCreditLimit')}
+        allowNegative={false}
+      />
 
-      {/* ========== MODAL DE CONFIRMATION SUPPRESSION ========== */}
+      {/* ===== MODAL DE SUPPRESSION ===== */}
       {deletingAccount && (
         <div style={{
           position: 'fixed',
@@ -2816,82 +3005,53 @@ const Comptes = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(5px)',
+          background: 'rgba(0,0,0,0.7)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          zIndex: 1000
+          zIndex: 2000,
+          padding: '20px'
         }}>
           <div style={{
-            background: 'linear-gradient(180deg, #040449 0%, #100261 100%)',
+            background: isDark ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' : 'white',
             borderRadius: '20px',
-            padding: '35px 40px',
-            maxWidth: '450px',
-            width: '90%',
-            boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
-            border: '2px solid rgba(231,76,60,0.3)',
+            padding: '30px',
+            width: '100%',
+            maxWidth: '400px',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            animation: 'modal-appear 0.3s ease-out',
             textAlign: 'center'
           }}>
-            <div style={{
-              width: '70px',
-              height: '70px',
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, rgba(231,76,60,0.2) 0%, rgba(192,57,43,0.3) 100%)',
-              border: '2px solid rgba(231,76,60,0.4)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              margin: '0 auto 20px',
-              fontSize: '2em'
+            <div style={{ fontSize: '3em', marginBottom: '20px' }}>🗑️</div>
+            <h2 style={{ 
+              margin: '0 0 15px 0', 
+              color: isDark ? 'white' : '#1e293b'
             }}>
-              🗑️
-            </div>
-
-            <h2 style={{
-              fontSize: '1.4em',
-              fontWeight: 'bold',
-              color: 'white',
-              marginBottom: '15px'
-            }}>
-              {t('accounts.deleteAccount')}
+              {t('accounts.confirmDelete')}
             </h2>
-
-            <p style={{
-              fontSize: '1em',
-              color: 'rgba(255,255,255,0.8)',
-              marginBottom: '25px',
-              lineHeight: '1.5'
+            <p style={{ 
+              color: isDark ? 'rgba(255,255,255,0.7)' : '#6b7280',
+              marginBottom: '25px'
             }}>
-              {t('accounts.deleteConfirm')}<br/>
-              <strong style={{ color: '#e74c3c' }}>"{deletingAccount.nom}"</strong> ?
+              {t('accounts.deleteWarning', { name: deletingAccount.nom })}
             </p>
 
-            <div style={{
-              display: 'flex',
-              gap: '15px',
+            <div style={{ 
+              display: 'flex', 
+              gap: '15px', 
               justifyContent: 'center'
             }}>
               <button
                 onClick={handleCancelDelete}
                 style={{
-                  padding: '12px 30px',
-                  background: 'rgba(255,255,255,0.1)',
-                  border: '2px solid rgba(255,255,255,0.3)',
+                  padding: '12px 25px',
+                  background: isDark ? 'rgba(255,255,255,0.1)' : '#f3f4f6',
+                  border: 'none',
                   borderRadius: '10px',
-                  color: 'white',
+                  color: isDark ? 'white' : '#374151',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  fontSize: '1em',
                   transition: 'all 0.3s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.2)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.5)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
                 }}
               >
                 {t('common.cancel')}
@@ -2899,24 +3059,15 @@ const Comptes = () => {
               <button
                 onClick={handleConfirmDelete}
                 style={{
-                  padding: '12px 30px',
+                  padding: '12px 25px',
                   background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
                   border: 'none',
                   borderRadius: '10px',
                   color: 'white',
                   fontWeight: '600',
                   cursor: 'pointer',
-                  fontSize: '1em',
-                  boxShadow: '0 4px 15px rgba(231,76,60,0.4)',
+                  boxShadow: '0 4px 15px rgba(231, 76, 60, 0.3)',
                   transition: 'all 0.3s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 25px rgba(231, 76, 60, 0.6)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(231,76,60,0.4)';
                 }}
               >
                 🗑️ {t('common.delete')}
@@ -2925,889 +3076,218 @@ const Comptes = () => {
           </div>
         </div>
       )}
-      
-      {/* ========== MODAL GO - FAIRE AVANCER MON PORTEFEUILLE ========== */}
-      {isGoMode && (
-        <div 
-          className="go-mode-container"
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'linear-gradient(180deg, #040449 0%, #100261 100%)',
-            zIndex: 2000,
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}
-          onWheel={(e) => {
-            e.preventDefault();
-            const daysToAdd = e.deltaY > 0 ? 1 : -1;
-            setGoDayIndex(prev => Math.max(0, Math.min(goDisplayData.length - 1, prev + daysToAdd)));
-            // Mettre à jour la direction de la flèche
-            setScrollDirection(e.deltaY > 0 ? 'forward' : 'backward');
-          }}
-        >
-          {/* Header avec logo à gauche, calendrier au centre absolu, bouton fermer à droite */}
-          <div style={{
-            padding: '12px 30px 8px',
-            position: 'relative',
-            minHeight: '160px'
-          }}>
-            {/* Côté gauche: Logo PL4TO + Titre en dessous */}
-            <div style={{
-              position: 'absolute',
-              left: '30px',
-              top: '12px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '5px'
-            }}>
-              {/* Logo PL4TO */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0px'
-              }}>
-                <span style={{
-                  color: 'white',
-                  fontSize: '1.6em',
-                  fontWeight: 'bold',
-                  letterSpacing: '2px'
-                }}>
-                  PL4T
-                </span>
-                {/* O animé */}
-                <div style={{
-                  position: 'relative',
-                  width: '35px',
-                  height: '35px'
-                }}>
-                  <div style={{
-                    position: 'absolute',
-                    width: '100%',
-                    height: '100%',
-                    borderRadius: '50%',
-                    border: '3px solid transparent',
-                    background: 'linear-gradient(#040449, #040449) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
-                    animation: 'gps-ring-spin 3s linear infinite'
-                  }} />
-                </div>
-              </div>
-              
-              {/* Titre en dessous du logo */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px'
-              }}>
-                <span style={{ fontSize: '1.1em' }}>🛤️</span>
-                <span style={{
-                  color: 'rgba(255,255,255,0.85)',
-                  fontSize: '0.95em',
-                  fontWeight: '500',
-                  letterSpacing: '0.3px'
-                }}>
-                  {t('accounts.goMode.navigate')}
-                </span>
-              </div>
-            </div>
-            
-            {/* Centre absolu: Flèche de direction + Mini-Calendrier Dynamique */}
-            <div style={{
-              position: 'absolute',
-              left: '50%',
-              top: '12px',
-              transform: 'translateX(-50%)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '15px'
-            }}>
-              {/* Flèche de direction à gauche du calendrier */}
-              <div style={{
-                width: '45px',
-                height: '45px',
-                background: 'rgba(255, 255, 255, 0.1)',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                border: '2px solid rgba(255, 255, 255, 0.2)'
-              }}>
-                <span style={{ 
-                  fontSize: '1.6em',
-                  color: 'white',
-                  lineHeight: '1',
-                  animation: 'float-arrow 1.5s ease-in-out infinite'
-                }}>
-                  {scrollDirection === 'forward' ? '⇧' : '⇩'}
-                </span>
-              </div>
-              
-              {/* Mini-Calendrier Dynamique */}
-              <div style={{
-                background: 'rgba(255,255,255,0.08)',
-                borderRadius: '16px',
-                padding: '10px 15px',
-                border: '1px solid rgba(255,255,255,0.15)',
-                backdropFilter: 'blur(10px)'
-              }}>
-                {(() => {
-                  const currentDate = goDisplayData[goDayIndex]?.date || new Date();
-                  const year = currentDate.getFullYear();
-                  const month = currentDate.getMonth();
-                  const selectedDay = currentDate.getDate();
-                  
-                  // Premier jour du mois et nombre de jours
-                  const firstDayOfMonth = new Date(year, month, 1).getDay();
-                  const daysInMonth = new Date(year, month + 1, 0).getDate();
-                  
-                  // Jours de la semaine
-                  const weekDays = i18n.language === 'fr' 
-                    ? ['D', 'L', 'M', 'M', 'J', 'V', 'S']
-                    : ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-                  
-                  // Nom du mois
-                  const monthName = currentDate.toLocaleDateString(i18n.language === 'fr' ? 'fr-CA' : 'en-CA', { month: 'long', year: 'numeric' });
-                  
-                  // Créer la grille des jours
-                  const days = [];
-                  for (let i = 0; i < firstDayOfMonth; i++) {
-                    days.push(null); // Jours vides avant le 1er
-                  }
-                  for (let d = 1; d <= daysInMonth; d++) {
-                    days.push(d);
-                  }
-                  
-                  return (
-                    <div style={{ minWidth: '200px' }}>
-                      {/* Mois et année */}
-                      <div style={{
-                        textAlign: 'center',
-                        marginBottom: '8px',
-                        color: 'white',
-                        fontSize: '0.85em',
-                        fontWeight: '600',
-                        textTransform: 'capitalize'
-                      }}>
-                        {monthName}
-                      </div>
-                      
-                      {/* En-têtes des jours */}
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(7, 1fr)',
-                        gap: '2px',
-                        marginBottom: '4px'
-                      }}>
-                        {weekDays.map((day, i) => (
-                          <div key={i} style={{
-                            textAlign: 'center',
-                            fontSize: '0.65em',
-                            color: 'rgba(255,255,255,0.5)',
-                            fontWeight: '500'
-                          }}>
-                            {day}
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {/* Grille des jours */}
-                      <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(7, 1fr)',
-                        gap: '2px'
-                      }}>
-                        {days.map((day, i) => (
-                          <div 
-                            key={i}
-                            style={{
-                              width: '24px',
-                              height: '24px',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.7em',
-                              fontWeight: day === selectedDay ? 'bold' : '400',
-                              color: day === selectedDay ? 'white' : 'rgba(255,255,255,0.6)',
-                              background: day === selectedDay 
-                                ? 'linear-gradient(135deg, #ffa500 0%, #ff6b00 100%)'
-                                : 'transparent',
-                              borderRadius: '50%',
-                              transition: 'all 0.3s ease',
-                              boxShadow: day === selectedDay 
-                                ? '0 0 12px rgba(255, 165, 0, 0.6)'
-                                : 'none'
-                            }}
-                          >
-                            {day || ''}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-            
-            {/* Côté droit: Bouton fermer */}
-            <button
-              onClick={() => {
-                setIsGoMode(false);
-                setGoDayIndex(0);
-              }}
-              style={{
-                position: 'absolute',
-                right: '30px',
-                top: '12px',
-                background: 'rgba(255,255,255,0.1)',
-                border: '2px solid rgba(255,255,255,0.3)',
-                borderRadius: '50%',
-                width: '50px',
-                height: '50px',
-                color: 'white',
-                fontSize: '1.5em',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.3s'
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(231, 76, 60, 0.8)';
-                e.currentTarget.style.borderColor = '#e74c3c';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)';
-              }}
-            >
-              ✕
-            </button>
-          </div>
-          
-          {/* ===== TIMELINE DE PROGRESSION ===== */}
-          <div style={{ 
-            position: 'relative', 
-            height: '40px',
-            margin: '50px 80px 0 80px',
-            display: 'flex',
-            alignItems: 'center'
-          }}>
-            {/* Ligne de fond (grise) */}
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '0',
-              right: '0',
-              height: '4px',
-              background: 'rgba(255, 255, 255, 0.15)',
-              borderRadius: '2px',
-              transform: 'translateY(-50%)'
-            }} />
-            
-            {/* Ligne de progression (orange) */}
-            <div style={{
-              position: 'absolute',
-              top: '50%',
-              left: '0',
-              width: `${goDisplayData.length > 0 ? ((goDayIndex + 1) / goDisplayData.length) * 100 : 0}%`,
-              height: '4px',
-              background: 'linear-gradient(90deg, #ffa500, #ff6b00)',
-              borderRadius: '2px',
-              transform: 'translateY(-50%)',
-              transition: 'width 0.3s ease-out',
-              boxShadow: '0 0 10px rgba(255, 165, 0, 0.5)'
-            }} />
-            
-            {/* Logo GPS Mobile */}
-            <div 
-              style={{
-                position: 'absolute',
-                left: `${goDisplayData.length > 0 ? ((goDayIndex + 1) / goDisplayData.length) * 100 : 0}%`,
-                top: '50%',
-                transform: 'translate(-50%, -50%)',
-                zIndex: 15,
-                transition: 'left 0.3s ease-out'
-              }}
-            >
-              <div style={{
-                width: '28px',
-                height: '28px',
-                borderRadius: '50%',
-                border: '3px solid transparent',
-                background: 'linear-gradient(#1e1b4b, #1e1b4b) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
-                animation: 'gps-ring-spin 3s linear infinite',
-                boxShadow: '0 0 15px rgba(255, 165, 0, 0.7)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }} />
-            </div>
-          </div>
-          
-          {/* ===== PANNEAU GAUCHE - ENTRÉES (Vitre gauche intérieure) ===== */}
-          <div style={{
-            position: 'absolute',
-            left: '15px',
-            top: 'calc(50% - 180px)',
-            bottom: '20px',
-            width: '280px',
-            background: 'rgba(0, 229, 255, 0.08)',
-            borderRadius: '20px 120px 120px 20px',
-            border: '2px solid rgba(0, 229, 255, 0.2)',
-            backdropFilter: 'blur(8px)',
-            padding: '20px 15px',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}>
-            {/* Header */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginBottom: '12px',
-              paddingBottom: '8px',
-              borderBottom: '1px solid rgba(0, 229, 255, 0.25)'
-            }}>
-              <span style={{ fontSize: '1em' }}>⬇️</span>
-              <span style={{
-                color: '#00E5FF',
-                fontWeight: 'bold',
-                fontSize: '0.85em',
-                textTransform: 'uppercase',
-                letterSpacing: '1px'
-              }}>{t('accounts.goMode.entries')}</span>
-            </div>
-            
-            {/* Liste des entrées du jour */}
-            <div 
-              style={{
-              flex: 1,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              {(() => {
-                const dayData = goDisplayData[goDayIndex];
-                if (!dayData?.accounts) return null;
-                
-                // Extraire toutes les entrées de tous les comptes
-                const allEntrees = [];
-                Object.entries(dayData.accounts).forEach(([accountName, accountData]) => {
-                  if (accountData.entrees && accountData.entrees.length > 0) {
-                    accountData.entrees.forEach(entree => {
-                      allEntrees.push({
-                        ...entree,
-                        compte: accountName
-                      });
-                    });
-                  }
-                });
-                
-                if (allEntrees.length === 0) {
-                  return (
-                    <div style={{
-                      color: 'rgba(255,255,255,0.3)',
-                      fontSize: '0.8em',
-                      textAlign: 'center',
-                      marginTop: '20px',
-                      fontStyle: 'italic'
-                    }}>
-                      {t('accounts.goMode.noTransaction')}
-                    </div>
-                  );
-                }
-                
-                return allEntrees.map((transaction, idx) => {
-                  const account = accounts.find(a => a.nom === transaction.compte);
-                  const isCredit = account?.type === 'credit';
-                  return (
-                  <div 
-                    key={`entree-${idx}-${goDayIndex}`}
-                    style={{
-                      background: 'rgba(0, 229, 255, 0.12)',
-                      borderRadius: '10px',
-                      padding: '8px 10px',
-                      animation: 'solde-slide-down 0.4s ease-out',
-                      animationDelay: `${idx * 0.1}s`,
-                      animationFillMode: 'both',
-                      borderLeft: '3px solid #00E5FF'
-                    }}
-                  >
-                    <div style={{
-                      fontSize: '0.75em',
-                      color: 'rgba(255,255,255,0.7)',
-                      marginBottom: '3px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis'
-                    }}>
-                      {transaction.description}
-                    </div>
-                    <div style={{
-                      fontSize: '1em',
-                      fontWeight: 'bold',
-                      color: '#00E5FF'
-                    }}>
-                      {isCredit ? '-' : '+'}{formatMontant(transaction.montant)}
-                    </div>
-                    <div style={{
-                      fontSize: '0.65em',
-                      color: 'rgba(255,255,255,0.5)',
-                      marginTop: '2px'
-                    }}>
-                      → {transaction.compte}
-                    </div>
-                  </div>
-                )});
-              })()}
-            </div>
-          </div>
-          
-          {/* ===== PANNEAU DROIT - SORTIES (Vitre droite intérieure) ===== */}
-          <div style={{
-            position: 'absolute',
-            right: '15px',
-            top: 'calc(50% - 180px)',
-            bottom: '20px',
-            width: '280px',
-            background: 'rgba(255, 145, 0, 0.08)',
-            borderRadius: '120px 20px 20px 120px',
-            border: '2px solid rgba(255, 145, 0, 0.2)',
-            backdropFilter: 'blur(8px)',
-            padding: '20px 15px',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden'
-          }}>
-            {/* Header */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'flex-end',
-              gap: '8px',
-              marginBottom: '12px',
-              paddingBottom: '8px',
-              borderBottom: '1px solid rgba(255, 145, 0, 0.25)'
-            }}>
-              <span style={{
-                color: '#FF9100',
-                fontWeight: 'bold',
-                fontSize: '0.85em',
-                textTransform: 'uppercase',
-                letterSpacing: '1px'
-              }}>{t('accounts.goMode.expenses')}</span>
-              <span style={{ fontSize: '1em' }}>⬆️</span>
-            </div>
-            
-            {/* Liste des sorties du jour */}
-            <div 
-              style={{
-              flex: 1,
-              overflowY: 'auto',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '8px'
-            }}>
-              {(() => {
-                const dayData = goDisplayData[goDayIndex];
-                if (!dayData?.accounts) return null;
-                
-                // Extraire toutes les sorties de tous les comptes
-                const allSorties = [];
-                Object.entries(dayData.accounts).forEach(([accountName, accountData]) => {
-                  if (accountData.sorties && accountData.sorties.length > 0) {
-                    accountData.sorties.forEach(sortie => {
-                      allSorties.push({
-                        ...sortie,
-                        compte: accountName
-                      });
-                    });
-                  }
-                });
-                
-                if (allSorties.length === 0) {
-                  return (
-                    <div style={{
-                      color: 'rgba(255,255,255,0.3)',
-                      fontSize: '0.8em',
-                      textAlign: 'center',
-                      marginTop: '20px',
-                      fontStyle: 'italic'
-                    }}>
-                      {t('accounts.goMode.noTransaction')}
-                    </div>
-                  );
-                }
-                
-                return allSorties.map((transaction, idx) => {
-                  const account = accounts.find(a => a.nom === transaction.compte);
-                  const isCredit = account?.type === 'credit';
-                  return (
-                  <div 
-                    key={`sortie-${idx}-${goDayIndex}`}
-                    style={{
-                      background: 'rgba(255, 145, 0, 0.12)',
-                      borderRadius: '10px',
-                      padding: '8px 10px',
-                      animation: 'solde-slide-down 0.4s ease-out',
-                      animationDelay: `${idx * 0.1}s`,
-                      animationFillMode: 'both',
-                      borderRight: '3px solid #FF9100'
-                    }}
-                  >
-                    <div style={{
-                      fontSize: '0.75em',
-                      color: 'rgba(255,255,255,0.7)',
-                      marginBottom: '3px',
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      textAlign: 'right'
-                    }}>
-                      {transaction.description}
-                    </div>
-                    <div style={{
-                      fontSize: '1em',
-                      fontWeight: 'bold',
-                      color: '#FF9100',
-                      textAlign: 'right'
-                    }}>
-                      {isCredit ? '+' : '-'}{formatMontant(transaction.montant)}
-                    </div>
-                    <div style={{
-                      fontSize: '0.65em',
-                      color: 'rgba(255,255,255,0.5)',
-                      marginTop: '2px',
-                      textAlign: 'right'
-                    }}>
-                      ← {transaction.compte}
-                    </div>
-                  </div>
-                )});
-              })()}
-            </div>
-          </div>
 
-          {/* Zone centrale avec le pare-brise complet */}
+      {/* ===== MODAL CONFIRMATION TRANSACTIONS DU JOUR ===== */}
+      {showTransactionConfirmModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 2000,
+          padding: '20px'
+        }}>
           <div style={{
-            flex: 1,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '10px 20px',
-            position: 'relative'
+            background: isDark ? 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)' : 'white',
+            borderRadius: '20px',
+            padding: '30px',
+            width: '100%',
+            maxWidth: '500px',
+            maxHeight: '80vh',
+            overflowY: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+            animation: 'modal-appear 0.3s ease-out'
           }}>
-            {/* ===== DEMI-CERCLE HAUT (Pare-brise) ===== */}
-            <div style={{
-              position: 'relative',
-              width: '90%',
-              maxWidth: '1200px',
-              height: '420px',
-              borderRadius: '575px 575px 0 0',
-              border: '4px solid rgba(255,255,255,0.95)',
-              borderBottom: 'none',
-              background: 'rgba(255,255,255,0.95)',
-              boxShadow: '0 -4px 25px rgba(0,0,0,0.1), inset 0 -4px 25px rgba(0,0,0,0.03)'
-            }}>
-              {/* Ligne de route décorative */}
-              <div style={{
-                position: 'absolute',
-                bottom: '25px',
-                left: '10%',
-                right: '10%',
-                height: '2px',
-                background: 'linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.4), transparent)',
-                borderRadius: '2px'
-              }} />
+            <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+              <div style={{ fontSize: '2.5em', marginBottom: '10px' }}>📅</div>
+              <h2 style={{ 
+                margin: '0 0 10px 0', 
+                color: isDark ? 'white' : '#1e293b'
+              }}>
+                {t('accounts.transactionsToday')}
+              </h2>
+              <p style={{ 
+                color: isDark ? 'rgba(255,255,255,0.7)' : '#6b7280',
+                margin: 0
+              }}>
+                {formattedDate}
+              </p>
+            </div>
 
-              {/* ===== AFFICHAGE DES COMPTES EN ARC ===== */}
-              {accounts.map((account, index) => {
-                const goSoldeInfo = getGoSoldeForAccount(account.nom);
-                const soldeValue = parseFloat(goSoldeInfo?.solde) || 0;
-                const pos = positions[index];
-                if (!pos) return null;
-                
-                const circleSize = accountCount <= 3 ? 140 : (accountCount <= 5 ? 120 : 105);
+            {/* Liste des transactions par compte */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {Object.entries(transactionsByAccount).map(([accountName, data]) => {
+                const account = accounts.find(a => a.nom === accountName);
+                const isConfirmed = confirmedAccounts.has(accountName);
                 
                 return (
-                  <div
-                    key={account.nom}
+                  <div 
+                    key={accountName}
                     style={{
-                      position: 'absolute',
-                      left: `${pos.left}%`,
-                      top: `${pos.top}%`,
-                      transform: 'translate(-50%, -50%)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '0px',
-                      transition: 'all 0.3s ease'
+                      background: isDark ? 'rgba(255,255,255,0.05)' : '#f9fafb',
+                      borderRadius: '15px',
+                      padding: '20px',
+                      border: isConfirmed 
+                        ? '2px solid #27ae60' 
+                        : (isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e5e7eb'),
+                      transition: 'all 0.3s'
                     }}
                   >
-                    {/* Cercle du compte - style page Comptes */}
-                    <div 
-                      style={{
-                        position: 'relative',
-                        width: `${circleSize}px`,
-                        height: `${circleSize}px`,
-                        cursor: 'default',
-                        transition: 'all 0.3s',
-                        zIndex: 2
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.transform = 'scale(1.08)';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)';
-                      }}
-                    >
-                      {/* Bordure animée gradient orange/jaune */}
-                      <div style={{
-                        position: 'absolute',
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '50%',
-                        border: '4px solid transparent',
-                        background: 'linear-gradient(white, white) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
-                        animation: 'gps-ring-spin 3s linear infinite',
-                        boxShadow: '0 0 20px rgba(255, 165, 0, 0.4)'
-                      }} />
-                      
-                      {/* Contenu intérieur blanc */}
-                      <div style={{
-                        position: 'absolute',
-                        top: '4px',
-                        left: '4px',
-                        right: '4px',
-                        bottom: '4px',
-                        borderRadius: '50%',
-                        background: 'white',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        {/* Emoji du compte */}
-                        <div style={{ 
-                          fontSize: circleSize > 120 ? '2.2em' : '1.8em'
-                        }}>
-                          {getAccountIcon(account.type)}
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Conteneur info avec fond comme l'arrière-plan */}
-                    <div style={{
-                      background: 'linear-gradient(180deg, #040449 0%, #100261 100%)',
-                      padding: '15px 22px 12px',
-                      borderRadius: '16px',
-                      marginTop: '-18px',
-                      paddingTop: '28px',
-                      minWidth: '130px',
-                      textAlign: 'center',
-                      boxShadow: '0 4px 15px rgba(4, 4, 73, 0.5)',
-                      zIndex: 1,
-                      border: '2px solid rgba(255,255,255,0.15)'
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      marginBottom: '15px'
                     }}>
-                      {/* Montant avec animation de comptage */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '1.5em' }}>{account ? getAccountIcon(account.type) : '💳'}</span>
+                        <span style={{ 
+                          fontWeight: 'bold', 
+                          color: isDark ? 'white' : '#1e293b'
+                        }}>
+                          {accountName}
+                        </span>
+                      </div>
+                      {isConfirmed && (
+                        <span style={{ color: '#27ae60', fontSize: '1.5em' }}>✓</span>
+                      )}
+                    </div>
+
+                    {/* Entrées */}
+                    {data.entrees.map((t, idx) => (
                       <div 
-                        key={`${account.nom}-${goDayIndex}`}
+                        key={`e-${idx}`}
                         style={{
-                          fontSize: '1.15em',
-                          fontWeight: 'bold',
-                          color: account.type === 'credit' ? '#ffa500' : '#3498db',
-                          marginBottom: '6px',
-                          animation: 'solde-glow 0.5s ease-out',
-                          textShadow: '0 1px 3px rgba(0,0,0,0.2)'
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          padding: '8px 0',
+                          borderBottom: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e5e7eb'
                         }}
                       >
-                        {formatMontant(animatingGoAccounts[account.nom] !== undefined ? animatingGoAccounts[account.nom] : soldeValue)}
+                        <span style={{ color: isDark ? 'rgba(255,255,255,0.8)' : '#374151' }}>
+                          ⬆️ {t.description}
+                        </span>
+                        <span style={{ color: '#27ae60', fontWeight: 'bold' }}>
+                          +{formatMontant(t.montant)}
+                        </span>
                       </div>
-                      
-                      {/* Nom du compte */}
-                      <div style={{
-                        fontSize: '0.9em',
-                        fontWeight: '600',
-                        color: 'white',
-                        marginBottom: '4px'
-                      }}>
-                        {account.nom}
+                    ))}
+
+                    {/* Sorties */}
+                    {data.sorties.map((t, idx) => (
+                      <div 
+                        key={`s-${idx}`}
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          padding: '8px 0',
+                          borderBottom: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #e5e7eb'
+                        }}
+                      >
+                        <span style={{ color: isDark ? 'rgba(255,255,255,0.8)' : '#374151' }}>
+                          ⬇️ {t.description}
+                        </span>
+                        <span style={{ color: '#e74c3c', fontWeight: 'bold' }}>
+                          -{formatMontant(t.montant)}
+                        </span>
                       </div>
-                      
-                      {/* Type */}
-                      <div style={{
-                        fontSize: '0.75em',
-                        color: 'rgba(255,255,255,0.75)'
-                      }}>
-                        {getTypeLabel(account.type)}
+                    ))}
+
+                    {/* Total et bouton confirmer */}
+                    <div style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center',
+                      marginTop: '15px',
+                      paddingTop: '10px'
+                    }}>
+                      <div>
+                        <span style={{ 
+                          color: isDark ? 'rgba(255,255,255,0.6)' : '#6b7280',
+                          fontSize: '0.85em'
+                        }}>
+                          {t('accounts.netChange')}:
+                        </span>
+                        <span style={{ 
+                          marginLeft: '10px',
+                          fontWeight: 'bold',
+                          color: (data.totalEntrees - data.totalSorties) >= 0 ? '#27ae60' : '#e74c3c'
+                        }}>
+                          {(data.totalEntrees - data.totalSorties) >= 0 ? '+' : ''}
+                          {formatMontant(data.totalEntrees - data.totalSorties)}
+                        </span>
                       </div>
+                      {!isConfirmed && (
+                        <button
+                          onClick={() => handleConfirmAccount(accountName)}
+                          style={{
+                            padding: '8px 16px',
+                            background: 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)',
+                            border: 'none',
+                            borderRadius: '8px',
+                            color: 'white',
+                            fontWeight: '600',
+                            fontSize: '0.85em',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          ✓ {t('common.confirm')}
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
               })}
             </div>
 
-            {/* ===== DEMI-CERCLE BAS ===== */}
-            <div style={{
-              position: 'relative',
-              width: '90%',
-              maxWidth: '1200px',
-              height: '140px',
-              borderRadius: '0 0 575px 575px',
-              border: '4px solid rgba(255,255,255,0.95)',
-              borderTop: 'none',
-              background: 'rgba(255,255,255,0.95)',
-              boxShadow: '0 4px 25px rgba(0,0,0,0.1), inset 0 4px 25px rgba(0,0,0,0.03)',
-              marginTop: '-4px'
-            }}>
-              {/* Ligne de route décorative */}
-              <div style={{
-                position: 'absolute',
-                top: '20px',
-                left: '10%',
-                right: '10%',
-                height: '2px',
-                background: 'linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.25), transparent)',
-                borderRadius: '2px'
-              }} />
-
-            </div>
-          </div>
-          
-          {/* ===== TUTORIEL MODE GO (affiché une seule fois) ===== */}
-          {showGoTutorial && (
-            <div style={{
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(0, 0, 0, 0.85)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
+            {/* Boutons du modal */}
+            <div style={{ 
+              display: 'flex', 
+              gap: '15px', 
+              marginTop: '25px',
               justifyContent: 'center',
-              zIndex: 100,
-              animation: 'modal-appear 0.3s ease-out'
+              flexWrap: 'wrap'
             }}>
-              <div style={{
-                background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
-                borderRadius: '25px',
-                padding: '40px 50px',
-                maxWidth: '500px',
-                textAlign: 'center',
-                border: '2px solid rgba(255, 165, 0, 0.3)',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
-              }}>
-                <div style={{ fontSize: '3em', marginBottom: '20px' }}>🛤️</div>
-                <h2 style={{ 
-                  color: 'white', 
-                  fontSize: '1.5em', 
-                  marginBottom: '15px',
-                  fontWeight: 'bold'
-                }}>
-                  {t('accounts.goMode.tutorialTitle') || 'Bienvenue dans le Mode Projection!'}
-                </h2>
-                <p style={{ 
-                  color: 'rgba(255,255,255,0.8)', 
-                  fontSize: '1em', 
-                  lineHeight: '1.6',
-                  marginBottom: '25px'
-                }}>
-                  {t('accounts.goMode.tutorialMessage') || 'Naviguez dans le temps pour voir l\'évolution prévue de vos soldes. Balayez l\'écran vers le haut ou vers le bas pour voyager dans le temps.'}
-                </p>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  marginBottom: '20px'
-                }}>
-                  <div style={{
-                    background: 'rgba(255,255,255,0.1)',
-                    padding: '12px 20px',
-                    borderRadius: '12px',
-                    color: 'white',
-                    fontSize: '0.9em',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px'
-                  }}>
-                    <span style={{ fontSize: '1.3em' }}>👆</span>
-                    <span>{t('accounts.goMode.scrollHint') || 'Balayer ↕ = Voyager dans le temps'}</span>
-                  </div>
-                </div>
+              {hasUnconfirmedTransactions && (
                 <button
-                  onClick={() => {
-                    localStorage.setItem('pl4to_go_tutorial_seen', 'true');
-                    setShowGoTutorial(false);
-                  }}
+                  onClick={handleConfirmAll}
                   style={{
-                    background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+                    padding: '12px 25px',
+                    background: 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)',
                     border: 'none',
-                    borderRadius: '25px',
-                    padding: '15px 40px',
+                    borderRadius: '10px',
                     color: 'white',
-                    fontWeight: 'bold',
-                    fontSize: '1.1em',
+                    fontWeight: '600',
                     cursor: 'pointer',
-                    boxShadow: '0 4px 20px rgba(255, 152, 0, 0.4)',
-                    transition: 'all 0.3s'
+                    boxShadow: '0 4px 15px rgba(39, 174, 96, 0.3)'
                   }}
                 >
-                  {t('accounts.goMode.gotIt') || 'Compris!'}
+                  ✓ {t('accounts.confirmAll')}
                 </button>
-              </div>
+              )}
+              <button
+                onClick={handleCloseConfirmModal}
+                style={{
+                  padding: '12px 25px',
+                  background: isDark ? 'rgba(255,255,255,0.1)' : '#f3f4f6',
+                  border: 'none',
+                  borderRadius: '10px',
+                  color: isDark ? 'white' : '#374151',
+                  fontWeight: '600',
+                  cursor: 'pointer'
+                }}
+              >
+                {hasUnconfirmedTransactions ? t('accounts.remindLater') : t('common.close')}
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
-      
-      {/* ========== MODAL UPGRADE (restrictions abonnement) ========== */}
-      <UpgradeModal
-        isOpen={upgradeModal.isOpen}
-        onClose={() => setUpgradeModal({ isOpen: false, type: null })}
-        limitType={upgradeModal.type}
-      />
-      
-      {/* ========== TOAST NOTIFICATIONS ========== */}
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          duration={3000}
-          onClose={hideToast}
-        />
-      )}
-      </div> {/* Fin conteneur blanc */}
-    </div> {/* Fin wrapper bleu */}
-    
-    {/* ===== TOOLTIP TOUR ===== */}
-    <TooltipTour
-      isActive={isTooltipActive}
-      currentTooltip={currentTooltip}
-      currentStep={tooltipStep}
-      totalSteps={tooltipTotal}
-      onNext={nextTooltip}
-      onPrev={prevTooltip}
-      onSkip={skipTooltips}
-    />
-    
-    {/* ===== MODAL GUIDE ONBOARDING ===== */}
-    <PageGuideModal
-      isOpen={showGuide}
-      onClose={closeModal}
-      icon="💼"
-      titleKey="accounts.guideModal.title"
-      messageKey="accounts.guideModal.message"
-      hintIcon="👆"
-      hintKey="accounts.guideModal.hint"
-    />
     </>
   );
 };

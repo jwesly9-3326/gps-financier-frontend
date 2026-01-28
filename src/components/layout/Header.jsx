@@ -9,7 +9,7 @@ import { useSubscription } from '../../context/SubscriptionContext';
 import { useTheme } from '../../context/ThemeContext';
 import useGuideProgress from '../../hooks/useGuideProgress';
 
-const Header = () => {
+const Header = ({ isMobile = false, toggleSidebar = () => {}, sidebarOpen = true }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { getTrialDaysRemaining, trialInfo } = useSubscription();
@@ -18,7 +18,9 @@ const Header = () => {
 
   // Obtenir le nom d'affichage (prénom > nom > email)
   const getDisplayName = () => {
+    if (user?.firstName) return user.firstName;
     if (user?.prenom) return user.prenom;
+    if (user?.lastName) return user.lastName;
     if (user?.nom) return user.nom;
     if (user?.email) return user.email;
     return 'Nouveau';
@@ -26,7 +28,9 @@ const Header = () => {
 
   // Obtenir l'initiale pour l'avatar
   const getInitial = () => {
+    if (user?.firstName) return user.firstName[0].toUpperCase();
     if (user?.prenom) return user.prenom[0].toUpperCase();
+    if (user?.lastName) return user.lastName[0].toUpperCase();
     if (user?.nom) return user.nom[0].toUpperCase();
     if (user?.email) return user.email[0].toUpperCase();
     return 'N';
@@ -58,7 +62,7 @@ const Header = () => {
         height: `${size}px`,
         borderRadius: '50%',
         border: '4px solid transparent',
-        background: `linear-gradient(${isDark ? '#040449' : '#ffffff'}, ${isDark ? '#040449' : '#ffffff'}) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box`,
+        background: `linear-gradient(${isDark ? '#040449' : '#ffffff'}, ${isDark ? '#040449' : '#ffffff'}) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box`,
         animation: 'gps-ring-spin 3s linear infinite',
         boxShadow: '0 0 15px rgba(255, 165, 0, 0.6)'
       }} />
@@ -66,30 +70,55 @@ const Header = () => {
   );
 
   return (
-    <div className="gps-app-header">
-      {/* Logo PL4TO avec O animé */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+    <div className="gps-app-header" style={{
+      padding: isMobile ? '10px 15px' : undefined
+    }}>
+      {/* Bouton Hamburger + Logo PL4TO */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '10px' }}>
+        {/* 📱 Bouton Hamburger - Mobile seulement */}
+        {isMobile && (
+          <button
+            onClick={toggleSidebar}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: isDark ? 'white' : '#1e3a8a',
+              fontSize: '1.5em',
+              cursor: 'pointer',
+              padding: '5px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {sidebarOpen ? '☰' : '☰'}
+          </button>
+        )}
+        
         <div>
           {/* Texte PL4TO avec O animé */}
           <div style={{ 
             color: isDark ? 'white' : '#1e3a8a', 
-            fontSize: '1.8em', 
+            fontSize: isMobile ? '1.4em' : '1.8em', 
             fontWeight: 'bold',
             letterSpacing: '1px',
             display: 'flex',
             alignItems: 'center'
           }}>
             <span>PL4T</span>
-            <AnimatedO size={36} />
+            <AnimatedO size={isMobile ? 28 : 36} />
           </div>
-          <div style={{ 
-            color: isDark ? 'rgba(255,255,255,0.75)' : '#1e3a8a', 
-            fontSize: '0.85em',
-            letterSpacing: '0.3px',
-            marginTop: '2px'
-          }}>
-            {t('common.tagline')}
-          </div>
+          {/* Tagline caché sur mobile */}
+          {!isMobile && (
+            <div style={{ 
+              color: isDark ? 'rgba(255,255,255,0.75)' : '#1e3a8a', 
+              fontSize: '0.85em',
+              letterSpacing: '0.3px',
+              marginTop: '2px'
+            }}>
+              {t('common.tagline')}
+            </div>
+          )}
         </div>
       </div>
 
@@ -98,45 +127,49 @@ const Header = () => {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '10px',
+          gap: isMobile ? '6px' : '10px',
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          padding: '8px 20px',
+          padding: isMobile ? '6px 12px' : '8px 20px',
           borderRadius: '25px',
           boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)'
         }}>
-          <span style={{ fontSize: '1.2em' }}>✨</span>
+          <span style={{ fontSize: isMobile ? '1em' : '1.2em' }}>✨</span>
           <div style={{ color: 'white', textAlign: 'center' }}>
-            <div style={{ fontSize: '0.75em', opacity: 0.9 }}>
-              {t('trial.freeTrialActive', 'Essai gratuit')}
-            </div>
-            <div style={{ fontWeight: 'bold', fontSize: '1.1em' }}>
-              {getTrialDaysRemaining()} {getTrialDaysRemaining() === 1 ? t('trial.dayRemaining') : t('trial.daysRemaining')}
+            {!isMobile && (
+              <div style={{ fontSize: '0.75em', opacity: 0.9 }}>
+                {t('trial.freeTrialActive', 'Essai gratuit')}
+              </div>
+            )}
+            <div style={{ fontWeight: 'bold', fontSize: isMobile ? '0.85em' : '1.1em' }}>
+              {getTrialDaysRemaining()}j
             </div>
           </div>
-          <span style={{ fontSize: '1.2em' }}>🎁</span>
+          <span style={{ fontSize: isMobile ? '1em' : '1.2em' }}>🎁</span>
         </div>
       )}
 
       {/* User Info */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-        {/* Greeting */}
-        <div style={{ color: isDark ? 'white' : '#1e3a8a', textAlign: 'right' }}>
-          <div style={{ fontSize: '0.9em', opacity: 0.8 }}>{getGreeting()} 👋😊</div>
-          <div style={{ 
-            fontWeight: 'bold',
-            maxWidth: '150px',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            whiteSpace: 'nowrap'
-          }}>
-            {getDisplayName()}
+      <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '20px' }}>
+        {/* Greeting - caché sur mobile */}
+        {!isMobile && (
+          <div style={{ color: isDark ? 'white' : '#1e3a8a', textAlign: 'right' }}>
+            <div style={{ fontSize: '0.9em', opacity: 0.8 }}>{getGreeting()} 👋😊</div>
+            <div style={{ 
+              fontWeight: 'bold',
+              maxWidth: '150px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap'
+            }}>
+              {getDisplayName()}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Avatar avec gradient plateforme */}
         <div style={{
-          width: '45px',
-          height: '45px',
+          width: isMobile ? '38px' : '45px',
+          height: isMobile ? '38px' : '45px',
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
           borderRadius: '50%',
           display: 'flex',
@@ -144,7 +177,7 @@ const Header = () => {
           justifyContent: 'center',
           color: 'white',
           fontWeight: 'bold',
-          fontSize: '1.2em',
+          fontSize: isMobile ? '1em' : '1.2em',
           boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
           border: '2px solid rgba(255,255,255,0.2)'
         }}>

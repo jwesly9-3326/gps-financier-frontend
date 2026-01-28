@@ -111,6 +111,24 @@ const GPSFinancier = ({ navigationMode = false, whatIfMode = false }) => {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
   const currentMonth = today.getMonth();
   
+  // 📱 Détection mobile et orientation
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768 || window.innerHeight <= 500);
+  const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      // Mobile si largeur <= 768 OU hauteur <= 500 (paysage mobile)
+      setIsMobile(window.innerWidth <= 768 || window.innerHeight <= 500);
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, []);
+  
   const [viewMode, setViewMode] = useState('day');
   const [hasInitializedView, setHasInitializedView] = useState(false);
   const [startDate, setStartDate] = useState(todayStr);
@@ -252,6 +270,17 @@ const GPSFinancier = ({ navigationMode = false, whatIfMode = false }) => {
   const [showPL4TORequestModal, setShowPL4TORequestModal] = useState(false); // Modal demande PL4TO 📊
   const [activeProposal, setActiveProposal] = useState(null);
   const [showOptimizationPopup, setShowOptimizationPopup] = useState(false); // Popup optimisation ♻️
+  const [showRotateToPortraitPopup, setShowRotateToPortraitPopup] = useState(false); // 📱 Popup demandant de pivoter avant de quitter Itinéraire
+  
+  // 📱 Quand le popup "Pivotez" est affiché et que l'utilisateur pivote en portrait -> retourner à Navigation
+  useEffect(() => {
+    if (showRotateToPortraitPopup && isPortrait) {
+      setShowRotateToPortraitPopup(false);
+      // Naviguer vers la page Navigation GPS
+      navigate('/gps');
+    }
+  }, [showRotateToPortraitPopup, isPortrait, navigate]);
+  
   const [routeGlowEffect, setRouteGlowEffect] = useState(false); // Effet de brillance route après optimisation
   const [showPaymentRecommendation, setShowPaymentRecommendation] = useState(null); // Recommandation réduction remboursement
   const [currentRecommendationIndex, setCurrentRecommendationIndex] = useState(0); // Index de la recommandation actuelle
@@ -318,7 +347,17 @@ const GPSFinancier = ({ navigationMode = false, whatIfMode = false }) => {
   // Toggle local pour afficher/masquer les soldes
   const toggleBalances = (e) => {
     e.stopPropagation();
-    setBalancesHidden(!balancesHidden);
+    const newValue = !balancesHidden;
+    setBalancesHidden(newValue);
+    
+    // Sauvegarder dans localStorage
+    const saved = localStorage.getItem('pl4to_security_settings');
+    const settings = saved ? JSON.parse(saved) : {};
+    settings.hideBalances = newValue;
+    localStorage.setItem('pl4to_security_settings', JSON.stringify(settings));
+    
+    // Émettre un événement pour synchroniser les autres pages
+    window.dispatchEvent(new CustomEvent('securitySettingsChanged', { detail: { hideBalances: newValue } }));
   };
 
   // Fonction pour changer de vue avec animation immédiate
@@ -503,6 +542,54 @@ const GPSFinancier = ({ navigationMode = false, whatIfMode = false }) => {
   const initialBalances = userData?.initialBalances?.soldes || [];
   const baseBudgetEntrees = userData?.budgetPlanning?.entrees || [];
   const baseBudgetSorties = userData?.budgetPlanning?.sorties || [];
+  
+  // 🔗 DÉTECTION DES TRANSFERTS LIÉS (même logique que Budget.jsx)
+  // Les transferts liés sont des mouvements entre comptes qui ne sont pas de vrais revenus
+  const findLinkedItems = useMemo(() => {
+    const links = [];
+    const usedEntrees = new Set();
+    const usedSorties = new Set();
+    
+    const getBaseName = (description) => {
+      if (!description) return '';
+      const beforeDash = description.split('-')[0].trim().toLowerCase();
+      return beforeDash;
+    };
+    
+    baseBudgetEntrees.forEach((entree, entreeIndex) => {
+      if (usedEntrees.has(entreeIndex)) return;
+      
+      const entreeBaseName = getBaseName(entree.description);
+      
+      baseBudgetSorties.forEach((sortie, sortieIndex) => {
+        if (usedSorties.has(sortieIndex)) return;
+        if (usedEntrees.has(entreeIndex)) return;
+        
+        const sortieBaseName = getBaseName(sortie.description);
+        
+        const sameMontant = Math.abs(parseFloat(entree.montant) - parseFloat(sortie.montant)) < 0.01;
+        const sameFrequence = entree.frequence === sortie.frequence;
+        const sameJour = entree.jourRecurrence === sortie.jourRecurrence;
+        const differentComptes = entree.compte && sortie.compte && entree.compte !== sortie.compte;
+        const sameBaseName = entreeBaseName && sortieBaseName && entreeBaseName === sortieBaseName;
+        
+        if (sameMontant && sameFrequence && sameJour && differentComptes && sameBaseName) {
+          links.push({ entreeIndex, sortieIndex, entree, sortie });
+          usedEntrees.add(entreeIndex);
+          usedSorties.add(sortieIndex);
+        }
+      });
+    });
+    
+    return links;
+  }, [baseBudgetEntrees, baseBudgetSorties]);
+  
+  // 🔗 Sets des index des entrées/sorties liées (pour filtrage rapide)
+  const linkedEntreeDescriptions = useMemo(() => 
+    new Set(findLinkedItems.map(l => l.entree.description)), 
+    [findLinkedItems]
+  );
+  
   // 📨 Charger la proposition PL4TO active
 useEffect(() => {
   const loadActiveProposal = async () => {
@@ -1432,17 +1519,34 @@ useEffect(() => {
         if (dayInRange) {
           // Le mois est dans la plage → naviguer vers vue JOUR
           setViewMode('day');
-          setIsFullScreen(true);
+          // Ne pas passer en plein écran si startInNormalMode est true
+          if (!location.state?.startInNormalMode) {
+            setIsFullScreen(true);
+          }
           
-          // Trouver le premier jour AVEC ACTIVITÉ dans ce mois (pour displayData)
-          const dayWithActivity = displayData.find(day => day.monthKey === monthKey);
+          // Trouver le jour cible: utiliser targetDate si fourni, sinon premier jour avec activité
+          const targetDateStr = location.state?.targetDate;
+          const dayToScrollTo = targetDateStr 
+            ? (displayData.find(day => day.dateStr === targetDateStr) || generateDayData.find(day => day.dateStr === targetDateStr))
+            : displayData.find(day => day.monthKey === monthKey);
           
           // Scroller vers la ligne après le rendu
           setTimeout(() => {
-            if (dayWithActivity) {
-              const element = document.getElementById(`row-${dayWithActivity.dateStr}`);
+            if (dayToScrollTo) {
+              const element = document.getElementById(`row-${dayToScrollTo.dateStr}`);
               if (element) {
                 element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                // Effet visuel pour indiquer la date cible
+                element.classList.add('goal-glow-orange');
+                setTimeout(() => element.classList.remove('goal-glow-orange'), 3000);
+              }
+            } else if (targetDateStr) {
+              // targetDate fourni mais pas trouvé dans displayData, essayer avec generateDayData
+              const element = document.getElementById(`row-${targetDateStr}`);
+              if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                element.classList.add('goal-glow-orange');
+                setTimeout(() => element.classList.remove('goal-glow-orange'), 3000);
               }
             } else {
               // Si pas d'activité ce mois, scroller vers le haut
@@ -1457,7 +1561,8 @@ useEffect(() => {
         }
         
         // Nettoyer le state via navigate pour vraiment effacer location.state
-        navigate('/gps?fullscreen=true', { replace: true, state: {} });
+        const cleanUrl = location.state?.startInNormalMode ? '/gps' : '/gps?fullscreen=true';
+        navigate(cleanUrl, { replace: true, state: {} });
         return;
       }
       
@@ -1470,8 +1575,10 @@ useEffect(() => {
       // Afficher l'animation de navigation
       setIsNavigatingToGoal(true);
       
-      // Activer le plein écran
-      setIsFullScreen(true);
+      // Activer le plein écran sauf si startInNormalMode
+      if (!location.state?.startInNormalMode) {
+        setIsFullScreen(true);
+      }
       
       // 1. D'abord activer la vue MOIS
       // changeViewMode pour O-JOUR et setPerspectiveView pour Navigation
@@ -1514,7 +1621,8 @@ useEffect(() => {
       }, 800);
       
       // Nettoyer le state
-      navigate('/gps?fullscreen=true', { replace: true, state: {} });
+      const cleanUrl = location.state?.startInNormalMode ? '/gps' : '/gps?fullscreen=true';
+      navigate(cleanUrl, { replace: true, state: {} });
     }
   }, [location.state, canAccessGpsView, generateDayData, displayData, navigate, changeViewMode]);
 
@@ -1579,14 +1687,14 @@ useEffect(() => {
         const dayAcc = day.accounts[acc.nom];
         const monthAcc = monthData.accounts[acc.nom];
         
-        // Ajouter les entrées avec le jour
+        // Ajouter les entrées avec le jour ET le compte
         dayAcc.entrees.forEach(t => {
-          monthAcc.entrees.push({ ...t, jour: day.date.getDate() });
+          monthAcc.entrees.push({ ...t, jour: day.date.getDate(), compte: acc.nom });
         });
         
-        // Ajouter les sorties avec le jour
+        // Ajouter les sorties avec le jour ET le compte
         dayAcc.sorties.forEach(t => {
-          monthAcc.sorties.push({ ...t, jour: day.date.getDate() });
+          monthAcc.sorties.push({ ...t, jour: day.date.getDate(), compte: acc.nom });
         });
         
         monthAcc.totalEntrees += dayAcc.totalEntrees;
@@ -1676,12 +1784,12 @@ useEffect(() => {
         const monthAcc = month.accounts[acc.nom];
         const yearAcc = yearData.accounts[acc.nom];
         
-        // Ajouter toutes les entrées du mois
+        // Ajouter toutes les entrées du mois (le compte est déjà inclus)
         monthAcc.entrees.forEach(t => {
           yearAcc.entrees.push({ ...t, month: month.month });
         });
         
-        // Ajouter toutes les sorties du mois
+        // Ajouter toutes les sorties du mois (le compte est déjà inclus)
         monthAcc.sorties.forEach(t => {
           yearAcc.sorties.push({ ...t, month: month.month });
         });
@@ -3018,7 +3126,8 @@ useEffect(() => {
           daysAway: diffDays,
           countEntrees: dayEntrees.length,
           countSorties: daySorties.length,
-          totalEntrees: dayEntrees.reduce((sum, e) => sum + e.montant, 0),
+          // 🔗 Filtrer les entrées liées (transferts internes) pour le vrai total
+          totalEntrees: dayEntrees.filter(e => !linkedEntreeDescriptions.has(e.description)).reduce((sum, e) => sum + e.montant, 0),
           totalSorties: daySorties.reduce((sum, s) => sum + s.montant, 0),
           entrees: dayEntrees,
           sorties: daySorties
@@ -3026,7 +3135,7 @@ useEffect(() => {
       }
     }
     return null;
-  }, [navigationDays, navIndex, accounts]);
+  }, [navigationDays, navIndex, accounts, linkedEntreeDescriptions]);
   
   // 🔄 Ref pour synchronisation Navigation depuis URL
   const hasInitializedNavFromUrl = useRef(false);
@@ -3176,6 +3285,9 @@ useEffect(() => {
       prevNavSoldes.current[acc.nom] = newSolde;
     });
   }, [navIndex, currentDay, accounts, animateNavAccountValue]);
+
+  // 📱 MOBILE: L'auto-éclatement des bulles est géré directement dans le rendu
+  // via la condition (isMobile && currentDay?.dateStr === group.dateStr)
 
   // MODE NAVIGATION - Helper functions (niveau supérieur)
   const calculateDaysFromCurrent = useCallback((dateStr) => {
@@ -4105,6 +4217,7 @@ useEffect(() => {
             🧭
           </div>
         </div>
+        )}
         
         <p style={{ 
           color: 'white', 
@@ -4477,7 +4590,8 @@ useEffect(() => {
           overflow: 'hidden'
         }}>
           
-          {/* 🆕 HEADER EN HAUT À DROITE - Titre du mode + Boutons */}
+          {/* 🆕 HEADER EN HAUT À DROITE - Titre du mode + Boutons (CACHÉ SUR MOBILE) */}
+          {!isMobile && (
           <div 
             data-tooltip="pilot-modes"
             style={{
@@ -4624,11 +4738,12 @@ useEffect(() => {
               </button>
             )}
           </div>
+          )}
           
-          {/* 🆕 BOUTONS ŒIL ET FERMER - En dessous des modes à droite */}
+          {/* 🆕 BOUTONS ŒIL ET FERMER - En haut à droite */}
           <div style={{
             position: 'absolute',
-            top: '70px',
+            top: isMobile ? '15px' : '70px',
             right: '15px',
             display: 'flex',
             gap: '8px',
@@ -4659,7 +4774,15 @@ useEffect(() => {
             
             {isFullScreen && !whatIfMode && (
               <button
-                onClick={(e) => { e.stopPropagation(); setIsFullScreen(false); }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (isMobile) {
+                    // 📱 Mobile: Ouvrir le sidebar
+                    window.dispatchEvent(new Event('openSidebar'));
+                  } else {
+                    setIsFullScreen(false); 
+                  }
+                }}
                 title={t('gps.actions.exitFullscreen')}
                 style={{
                   width: '36px', height: '36px', borderRadius: '50%',
@@ -4686,29 +4809,31 @@ useEffect(() => {
           {/* 🆕 INDICATEUR DE NAVIGATION - Titre + Prochaine activité */}
           <div style={{
             position: 'absolute',
-            top: '90px',
+            top: isMobile ? '35%' : '90px',
             left: '15px',
             zIndex: 100,
             display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
+            flexDirection: isMobile ? 'column' : 'row',
+            alignItems: isMobile ? 'flex-start' : 'center',
+            gap: isMobile ? '2px' : '12px'
           }}>
             {/* Titre Navigation + Intervalle */}
             <div 
               style={{
               color: isDark ? 'rgba(255,255,255,0.9)' : '#667eea',
-              fontSize: '1.3em',
+              fontSize: isMobile ? '1em' : '1.3em',
               fontWeight: 'bold',
               fontStyle: 'italic',
               textShadow: isDark ? '0 2px 10px rgba(0,0,0,0.5)' : 'none',
               display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
+              flexDirection: isMobile ? 'column' : 'row',
+              alignItems: isMobile ? 'flex-start' : 'center',
+              gap: isMobile ? '2px' : '8px'
             }}>
               <span>{t('gps.navigation.title')}</span>
               {nextActivity && (
-                <span style={{ color: '#ffd700', fontSize: '0.7em' }}>
-                  - {nextActivity.daysAway === 0 
+                <span style={{ color: '#ffd700', fontSize: isMobile ? '0.75em' : '0.7em' }}>
+                  {isMobile ? '' : '- '}{nextActivity.daysAway === 0 
                     ? t('gps.navigation.todayLabel')
                     : nextActivity.daysAway === 1 
                       ? t('gps.navigation.tomorrowLabel')
@@ -4734,8 +4859,8 @@ useEffect(() => {
               )}
             </div>
             
-            {/* Bulles de la prochaine activité */}
-            {nextActivity && (
+            {/* Bulles de la prochaine activité - Caché sur mobile */}
+            {nextActivity && !isMobile && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 {nextActivity.countEntrees > 0 && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -5019,11 +5144,11 @@ useEffect(() => {
             style={{
             position: 'absolute',
             right: '15px',
-            top: '50%',
-            transform: 'translateY(-50%)',
+            top: isMobile ? '70px' : '50%',
+            transform: isMobile ? 'none' : 'translateY(-50%)',
             display: 'flex',
             flexDirection: 'column',
-            gap: '12px',
+            gap: isMobile ? '8px' : '12px',
             zIndex: 100,
             alignItems: 'center'
           }}>
@@ -5053,8 +5178,10 @@ useEffect(() => {
               style={{ 
                 cursor: (showGuide || showContinueBar) ? 'not-allowed' : 'pointer',
                 opacity: (showGuide || showContinueBar) ? 0.5 : 1,
-                padding: '8px 12px',
-                borderRadius: '12px',
+                padding: isMobile ? '8px' : '8px 12px',
+                borderRadius: isMobile ? '50%' : '12px',
+                width: isMobile ? '36px' : 'auto',
+                height: isMobile ? '36px' : 'auto',
                 background: isDark 
                   ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.4) 0%, rgba(118, 75, 162, 0.4) 100%)'
                   : 'linear-gradient(135deg, rgba(102, 126, 234, 0.15) 0%, rgba(118, 75, 162, 0.15) 100%)',
@@ -5062,11 +5189,12 @@ useEffect(() => {
                 boxShadow: isDark ? '0 0 15px rgba(102, 126, 234, 0.3)' : '0 4px 15px rgba(102, 126, 234, 0.2)',
                 transition: 'all 0.3s',
                 color: isDark ? 'white' : '#1e293b',
-                fontSize: '0.7em',
+                fontSize: isMobile ? '1em' : '0.7em',
                 fontWeight: 'bold',
                 textShadow: isDark ? '0 2px 4px rgba(0,0,0,0.3)' : 'none',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '4px'
               }}
               onMouseEnter={(e) => {
@@ -5088,7 +5216,7 @@ useEffect(() => {
                   : '0 4px 15px rgba(102, 126, 234, 0.2)';
               }}
             >
-              🛣️ {t('gps.navigation.trajectoryButton')}
+              🛣️{!isMobile && ` ${t('gps.navigation.trajectoryButton')}`}
             </button>
             )}
             
@@ -5117,15 +5245,15 @@ useEffect(() => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '44px',
-                height: '44px',
+                width: isMobile ? '36px' : '44px',
+                height: isMobile ? '36px' : '44px',
                 borderRadius: '12px',
                 border: perspectiveView === 'year' ? '2px solid #00bcd4' : '2px solid rgba(255,255,255,0.2)',
                 background: perspectiveView === 'year' ? 'rgba(0, 188, 212, 0.3)' : 'rgba(255,255,255,0.05)',
                 cursor: (showGuide || showContinueBar) ? 'not-allowed' : 'pointer',
                 opacity: (showGuide || showContinueBar) ? 0.5 : 1,
                 transition: 'all 0.3s ease',
-                fontSize: '20px'
+                fontSize: isMobile ? '16px' : '20px'
               }}
             >
               🟣
@@ -5157,15 +5285,15 @@ useEffect(() => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '44px',
-                height: '44px',
+                width: isMobile ? '36px' : '44px',
+                height: isMobile ? '36px' : '44px',
                 borderRadius: '12px',
                 border: perspectiveView === 'month' ? '2px solid #5dade2' : '2px solid rgba(255,255,255,0.2)',
                 background: perspectiveView === 'month' ? 'rgba(46, 204, 113, 0.3)' : 'rgba(255,255,255,0.05)',
                 cursor: (showGuide || showContinueBar) ? 'not-allowed' : 'pointer',
                 opacity: (showGuide || showContinueBar) ? 0.5 : 1,
                 transition: 'all 0.3s ease',
-                fontSize: '20px'
+                fontSize: isMobile ? '16px' : '20px'
               }}
             >
               🟢
@@ -5193,15 +5321,15 @@ useEffect(() => {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                width: '44px',
-                height: '44px',
+                width: isMobile ? '36px' : '44px',
+                height: isMobile ? '36px' : '44px',
                 borderRadius: '12px',
                 border: perspectiveView === 'day' ? '2px solid #3498db' : '2px solid rgba(255,255,255,0.2)',
                 background: perspectiveView === 'day' ? 'rgba(52, 152, 219, 0.3)' : 'rgba(255,255,255,0.05)',
                 cursor: (showGuide || showContinueBar) ? 'not-allowed' : 'pointer',
                 opacity: (showGuide || showContinueBar) ? 0.5 : 1,
                 transition: 'all 0.3s ease',
-                fontSize: '20px'
+                fontSize: isMobile ? '16px' : '20px'
               }}
             >
               🔵
@@ -5311,9 +5439,13 @@ useEffect(() => {
             left: '0',
             right: '0',
             height: '2px',
-            background: isDark 
-              ? 'linear-gradient(90deg, transparent 0%, rgba(255,200,100,0.3) 30%, rgba(255,180,80,0.5) 50%, rgba(255,200,100,0.3) 70%, transparent 100%)'
-              : 'linear-gradient(90deg, transparent 0%, rgba(255,180,80,0.5) 30%, rgba(255,160,60,0.7) 50%, rgba(255,180,80,0.5) 70%, transparent 100%)',
+            background: whatIfMode === 'foundations'
+              ? 'linear-gradient(90deg, transparent 0%, rgba(46,204,113,0.3) 30%, rgba(39,174,96,0.5) 50%, rgba(46,204,113,0.3) 70%, transparent 100%)'
+              : whatIfMode === 'smartRoute'
+                ? 'linear-gradient(90deg, transparent 0%, rgba(0,188,212,0.3) 30%, rgba(0,151,167,0.5) 50%, rgba(0,188,212,0.3) 70%, transparent 100%)'
+                : (isDark 
+                  ? 'linear-gradient(90deg, transparent 0%, rgba(255,200,100,0.3) 30%, rgba(255,180,80,0.5) 50%, rgba(255,200,100,0.3) 70%, transparent 100%)'
+                  : 'linear-gradient(90deg, transparent 0%, rgba(255,180,80,0.5) 30%, rgba(255,160,60,0.7) 50%, rgba(255,180,80,0.5) 70%, transparent 100%)'),
             zIndex: 4
           }} />
           
@@ -5346,7 +5478,11 @@ useEffect(() => {
                 y1="100"
                 x2={perspectiveView === 'year' ? "38" : "43"}
                 y2="0"
-                stroke={isDark ? "rgba(255, 200, 100, 0.15)" : "rgba(255, 180, 80, 0.35)"}
+                stroke={whatIfMode === 'foundations' 
+                  ? "rgba(46, 204, 113, 0.25)" 
+                  : whatIfMode === 'smartRoute' 
+                    ? "rgba(0, 188, 212, 0.25)" 
+                    : (isDark ? "rgba(255, 200, 100, 0.15)" : "rgba(255, 180, 80, 0.35)")}
                 strokeWidth={isDark ? "0.3" : "0.5"}
               />
               {/* Ligne de fuite droite */}
@@ -5355,7 +5491,11 @@ useEffect(() => {
                 y1="100"
                 x2={perspectiveView === 'year' ? "62" : "57"}
                 y2="0"
-                stroke={isDark ? "rgba(255, 200, 100, 0.15)" : "rgba(255, 180, 80, 0.35)"}
+                stroke={whatIfMode === 'foundations' 
+                  ? "rgba(46, 204, 113, 0.25)" 
+                  : whatIfMode === 'smartRoute' 
+                    ? "rgba(0, 188, 212, 0.25)" 
+                    : (isDark ? "rgba(255, 200, 100, 0.15)" : "rgba(255, 180, 80, 0.35)")}
                 strokeWidth={isDark ? "0.3" : "0.5"}
               />
             </g>
@@ -5763,7 +5903,8 @@ useEffect(() => {
                     yearKey: year.yearKey,
                     entries: yearEntries,
                     sorties: yearSorties,
-                    totalEntrees: yearEntries.reduce((sum, e) => sum + e.montant, 0),
+                    // 🔗 Filtrer les entrées liées (transferts internes) pour le vrai total
+                    totalEntrees: yearEntries.filter(e => !linkedEntreeDescriptions.has(e.description)).reduce((sum, e) => sum + e.montant, 0),
                     totalSorties: yearSorties.reduce((sum, s) => sum + s.montant, 0),
                     countEntrees: yearEntries.length,
                     countSorties: yearSorties.length
@@ -5773,18 +5914,21 @@ useEffect(() => {
               
               const reversedGroups = [...allYearGroups].reverse();
               // Positions X ajustées pour la vue Année (plus proches du centre)
-              const x1Left = 12;  // Position la plus éloignée gauche
-              const x2Left = 40;  // Position la plus proche gauche (vers horizon)
-              const x1Right = 88; // Position la plus éloignée droite
-              const x2Right = 60; // Position la plus proche droite (vers horizon)
+              const x1Left = isMobile ? 18 : 12;  // Position la plus éloignée gauche
+              const x2Left = isMobile ? 42 : 40;  // Position la plus proche gauche (vers horizon)
+              const x1Right = isMobile ? 82 : 88; // Position la plus éloignée droite
+              const x2Right = isMobile ? 58 : 60; // Position la plus proche droite (vers horizon)
               
               const bubbles = [];
               
               reversedGroups.forEach((group, index) => {
+                // Sur mobile, cacher la première bulle (celle sur le calendrier)
+                if (isMobile && index === 0) return;
+                
                 const progressValues = [0.05, 0.27, 0.49, 0.85];
                 const progress = progressValues[index] || (0.05 + (index * 0.22));
                 const yPos = 25 + (62 * progress);
-                const baseSize = 70 + (progress * 190);
+                const baseSize = isMobile ? (50 + (progress * 120)) : (70 + (progress * 190));
                 
                 // BULLE ENTRÉES (gauche)
                 if (group.countEntrees > 0) {
@@ -5800,7 +5944,7 @@ useEffect(() => {
                           type: 'entree',
                           dayLabel: group.yearLabel,
                           daysAway: group.yearIndex,
-                          transactions: group.entries.slice(0, 20).map(e => ({ description: e.description, montant: e.montant, compte: e.compte })),
+                          transactions: [...group.entries].sort((a, b) => a.description.localeCompare(b.description)).map(e => ({ description: e.description, montant: e.montant, compte: e.compte })),
                           total: group.totalEntrees,
                           count: group.countEntrees
                         });
@@ -5870,7 +6014,7 @@ useEffect(() => {
                           type: 'sortie',
                           dayLabel: group.yearLabel,
                           daysAway: group.yearIndex,
-                          transactions: group.sorties.slice(0, 20).map(s => ({ description: s.description, montant: s.montant, compte: s.compte })),
+                          transactions: [...group.sorties].sort((a, b) => a.description.localeCompare(b.description)).map(s => ({ description: s.description, montant: s.montant, compte: s.compte })),
                           total: group.totalSorties,
                           count: group.countSorties
                         });
@@ -6033,7 +6177,8 @@ useEffect(() => {
                     monthKey: month.monthKey,
                     entries: monthEntries,
                     sorties: monthSorties,
-                    totalEntrees: monthEntries.reduce((sum, e) => sum + e.montant, 0),
+                    // 🔗 Filtrer les entrées liées (transferts internes) pour le vrai total
+                    totalEntrees: monthEntries.filter(e => !linkedEntreeDescriptions.has(e.description)).reduce((sum, e) => sum + e.montant, 0),
                     totalSorties: monthSorties.reduce((sum, s) => sum + s.montant, 0),
                     countEntrees: monthEntries.length,
                     countSorties: monthSorties.length
@@ -6042,19 +6187,22 @@ useEffect(() => {
               });
               
               const reversedGroups = [...allMonthGroups].reverse();
-              const x1Left = 10;
-              const x2Left = 43;
-              const x1Right = 90;
-              const x2Right = 57;
+              const x1Left = isMobile ? 16 : 10;
+              const x2Left = isMobile ? 44 : 43;
+              const x1Right = isMobile ? 84 : 90;
+              const x2Right = isMobile ? 56 : 57;
               
               const bubbles = [];
               
               reversedGroups.forEach((group, index) => {
+                // Sur mobile, cacher la première bulle (celle sur le calendrier)
+                if (isMobile && index === 0) return;
+                
                 // Espacement amélioré: plus d'espace entre les premières bulles
                 const progressValues = [0.05, 0.27, 0.49, 0.85];
                 const progress = progressValues[index] || (0.05 + (index * 0.22));
                 const yPos = 25 + (62 * progress);
-                const baseSize = 70 + (progress * 190);
+                const baseSize = isMobile ? (50 + (progress * 120)) : (70 + (progress * 190));
                 
                 // BULLE ENTRÉES (gauche)
                 if (group.countEntrees > 0) {
@@ -6070,7 +6218,7 @@ useEffect(() => {
                           type: 'entree',
                           dayLabel: group.monthLabel,
                           daysAway: group.monthIndex,
-                          transactions: group.entries.slice(0, 20).map(e => ({ description: e.description, montant: e.montant, compte: e.compte })),
+                          transactions: [...group.entries].sort((a, b) => a.description.localeCompare(b.description)).map(e => ({ description: e.description, montant: e.montant, compte: e.compte })),
                           total: group.totalEntrees,
                           count: group.countEntrees
                         });
@@ -6140,7 +6288,7 @@ useEffect(() => {
                           type: 'sortie',
                           dayLabel: group.monthLabel,
                           daysAway: group.monthIndex,
-                          transactions: group.sorties.slice(0, 20).map(s => ({ description: s.description, montant: s.montant, compte: s.compte })),
+                          transactions: [...group.sorties].sort((a, b) => a.description.localeCompare(b.description)).map(s => ({ description: s.description, montant: s.montant, compte: s.compte })),
                           total: group.totalSorties,
                           count: group.countSorties
                         });
@@ -6302,7 +6450,8 @@ useEffect(() => {
                   dateStr: day.dateStr,
                   entries: dayEntries,
                   sorties: daySorties,
-                  totalEntrees: dayEntries.reduce((sum, e) => sum + e.montant, 0),
+                  // 🔗 Filtrer les entrées liées (transferts internes) pour le vrai total
+                  totalEntrees: dayEntries.filter(e => !linkedEntreeDescriptions.has(e.description)).reduce((sum, e) => sum + e.montant, 0),
                   totalSorties: daySorties.reduce((sum, s) => sum + s.montant, 0),
                   countEntrees: dayEntries.length,
                   countSorties: daySorties.length
@@ -6317,32 +6466,52 @@ useEffect(() => {
               ? getExcludedBudgets(daysToShow[0]?.dateStr || '')
               : { entrees: [], sorties: [] };
             
-            const x1Left = perspectiveView === 'year' ? 0 : 10;
-            const x2Left = perspectiveView === 'year' ? 38 : 43;
-            const x1Right = perspectiveView === 'year' ? 100 : 90;
-            const x2Right = perspectiveView === 'year' ? 62 : 57;
+            const x1Left = isMobile ? 16 : (perspectiveView === 'year' ? 0 : 10);
+            const x2Left = isMobile ? 44 : (perspectiveView === 'year' ? 38 : 43);
+            const x1Right = isMobile ? 84 : (perspectiveView === 'year' ? 100 : 90);
+            const x2Right = isMobile ? 56 : (perspectiveView === 'year' ? 62 : 57);
             
             const bubbles = [];
             
             reversedGroups.forEach((group, index) => {
+              // Sur mobile, cacher la première bulle (celle sur le calendrier)
+              if (isMobile && index === 0) return;
+              
               // Espacement amélioré: valeurs prédéfinies pour éviter le chevauchement
               const progressValues = [0.05, 0.27, 0.49, 0.85];
               const progress = progressValues[index] || (0.05 + (index * 0.22));
               const yPos = 25 + (62 * progress);
               // Taille réduite pour les bulles proches (max ~175px au lieu de 231px)
-              const baseSize = 60 + (progress * 135);
+              const baseSize = isMobile ? (45 + (progress * 90)) : (60 + (progress * 135));
               
               // BULLE ENTRÉES (gauche) - avec éclatement radial au hover
               if (group.countEntrees > 0) {
                 const xPosLeft = x2Left + (x1Left - x2Left) * progress;
                 const entryBubbleId = `nav-entry-${group.dateStr}`;
-                const isEntryHovered = hoveredRouteBubble === entryBubbleId;
+                // Sur mobile, auto-éclater si c'est la date courante
+                const isEntryHovered = hoveredRouteBubble === entryBubbleId || 
+                  (isMobile && currentDay?.dateStr === group.dateStr);
                 
                 bubbles.push(
                   <div
                     key={`container-entree-${group.dateStr}`}
                     onMouseEnter={() => setHoveredRouteBubble(entryBubbleId)}
                     onMouseLeave={() => setHoveredRouteBubble(null)}
+                    onClick={(e) => {
+                      // Sur mobile, clic direct ouvre le modal
+                      if (isMobile) {
+                        e.stopPropagation();
+                        setSelectedBubble({
+                          id: `day-entries-${group.dateStr}`,
+                          type: 'entree',
+                          dayLabel: group.dayLabel,
+                          daysAway: group.dayIndex,
+                          transactions: group.entries.map(entry => ({ description: entry.description, montant: entry.montant, compte: entry.compte })),
+                          total: group.totalEntrees,
+                          count: group.countEntrees
+                        });
+                      }
+                    }}
                     style={{
                       position: 'absolute',
                       left: `${xPosLeft}%`,
@@ -6427,11 +6596,11 @@ useEffect(() => {
                     {isEntryHovered && group.entries.map((entry, entryIdx) => {
                       const totalItems = group.entries.length;
                       const angle = (entryIdx / totalItems) * 2 * Math.PI - Math.PI / 2;
-                      const expandedSize = Math.min(baseSize * 2, 280);
-                      const radius = expandedSize * 0.35;
+                      const expandedSize = Math.min(baseSize * 2, isMobile ? 200 : 280);
+                      const radius = expandedSize * (isMobile ? 0.28 : 0.35);
                       const offsetX = Math.cos(angle) * radius;
                       const offsetY = Math.sin(angle) * radius;
-                      const itemSize = Math.min(expandedSize * 0.28, 65);
+                      const itemSize = Math.min(expandedSize * (isMobile ? 0.25 : 0.28), isMobile ? 55 : 65);
                       
                       return (
                         <div
@@ -6503,13 +6672,30 @@ useEffect(() => {
               if (group.countSorties > 0) {
                 const xPosRight = x2Right + (x1Right - x2Right) * progress;
                 const sortieBubbleId = `nav-sortie-${group.dateStr}`;
-                const isSortieHovered = hoveredRouteBubble === sortieBubbleId;
+                // Sur mobile, auto-éclater si c'est la date courante
+                const isSortieHovered = hoveredRouteBubble === sortieBubbleId ||
+                  (isMobile && currentDay?.dateStr === group.dateStr);
                 
                 bubbles.push(
                   <div
                     key={`container-sortie-${group.dateStr}`}
                     onMouseEnter={() => setHoveredRouteBubble(sortieBubbleId)}
                     onMouseLeave={() => setHoveredRouteBubble(null)}
+                    onClick={(e) => {
+                      // Sur mobile, clic direct ouvre le modal
+                      if (isMobile) {
+                        e.stopPropagation();
+                        setSelectedBubble({
+                          id: `day-sorties-${group.dateStr}`,
+                          type: 'sortie',
+                          dayLabel: group.dayLabel,
+                          daysAway: group.dayIndex,
+                          transactions: group.sorties.map(s => ({ description: s.description, montant: s.montant, compte: s.compte })),
+                          total: group.totalSorties,
+                          count: group.countSorties
+                        });
+                      }
+                    }}
                     style={{
                       position: 'absolute',
                       left: `${xPosRight}%`,
@@ -6594,11 +6780,11 @@ useEffect(() => {
                     {isSortieHovered && group.sorties.map((sortie, sortieIdx) => {
                       const totalItems = group.sorties.length;
                       const angle = (sortieIdx / totalItems) * 2 * Math.PI - Math.PI / 2;
-                      const expandedSize = Math.min(baseSize * 2, 280);
-                      const radius = expandedSize * 0.35;
+                      const expandedSize = Math.min(baseSize * 2, isMobile ? 200 : 280);
+                      const radius = expandedSize * (isMobile ? 0.28 : 0.35);
                       const offsetX = Math.cos(angle) * radius;
                       const offsetY = Math.sin(angle) * radius;
-                      const itemSize = Math.min(expandedSize * 0.28, 65);
+                      const itemSize = Math.min(expandedSize * (isMobile ? 0.25 : 0.28), isMobile ? 55 : 65);
                       
                       return (
                         <div
@@ -7954,23 +8140,132 @@ useEffect(() => {
           padding: '10px 20px 15px',
           zIndex: 5
         }}>
-          {/* Ligne 1: Contrôles - vide maintenant */}
+          {/* Ligne 1: Contrôles - Boutons de mode sur mobile */}
           <div style={{
             display: 'flex',
-            justifyContent: 'space-between',
+            justifyContent: 'center',
             alignItems: 'center',
             marginBottom: '12px',
-            height: '35px'
+            height: isMobile ? 'auto' : '35px',
+            gap: '10px'
           }}>
+            {/* Boutons de mode UNIQUEMENT sur mobile */}
+            {isMobile && (
+              <>
+                {/* Titre du mode actuel */}
+                <div style={{
+                  padding: '6px 12px',
+                  borderRadius: '16px',
+                  background: whatIfMode === 'foundations' 
+                    ? 'linear-gradient(135deg, #2ecc71 0%, #27ae60 100%)'
+                    : whatIfMode === 'smartRoute'
+                      ? 'linear-gradient(135deg, #00bcd4 0%, #0097a7 100%)'
+                      : 'linear-gradient(135deg, #040449 0%, #100261 100%)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontSize: '0.8em',
+                  fontWeight: 'bold',
+                  boxShadow: whatIfMode === 'foundations'
+                    ? '0 4px 15px rgba(46, 204, 113, 0.4)'
+                    : whatIfMode === 'smartRoute'
+                      ? '0 4px 15px rgba(0, 188, 212, 0.4)'
+                      : '0 4px 15px rgba(4, 4, 73, 0.4)',
+                  border: '2px solid rgba(255,255,255,0.3)'
+                }}>
+                  {whatIfMode === 'foundations' ? '⚓' : whatIfMode === 'smartRoute' ? '⭐' : '🧭'}
+                  {whatIfMode === 'foundations' 
+                    ? t('gps.foundations.title', 'Les Fondations') 
+                    : whatIfMode === 'smartRoute'
+                      ? t('gps.smartRoute.title', 'Smart Route')
+                      : t('gps.pilotAuto.title', 'Pilote Auto')}
+                </div>
+                
+                {/* Boutons de navigation entre modes */}
+                {!whatIfMode ? (
+                  // Mode Pilote Auto: boutons vers Fondations et Smart Route
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/gps/fondations?fullscreen=true');
+                      }}
+                      style={{
+                        width: '34px',
+                        height: '34px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, rgba(46, 204, 113, 0.6) 0%, rgba(39, 174, 96, 0.6) 100%)',
+                        border: '2px solid rgba(255,255,255,0.3)',
+                        color: 'white',
+                        fontSize: '1em',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      ⚓
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate('/gps/smart-route?fullscreen=true');
+                      }}
+                      style={{
+                        width: '34px',
+                        height: '34px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, rgba(0, 188, 212, 0.6) 0%, rgba(0, 151, 167, 0.6) 100%)',
+                        border: '2px solid rgba(255,255,255,0.3)',
+                        color: 'white',
+                        fontSize: '1em',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center'
+                      }}
+                    >
+                      ⭐
+                    </button>
+                  </>
+                ) : (
+                  // Modes Fondations/Smart Route: bouton retour Pilote Auto
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate('/gps?fullscreen=true');
+                    }}
+                    style={{
+                      width: '34px',
+                      height: '34px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, rgba(4, 4, 73, 0.6) 0%, rgba(16, 2, 97, 0.6) 100%)',
+                      border: '2px solid rgba(255,255,255,0.3)',
+                      color: 'white',
+                      fontSize: '1em',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                  >
+                    🧭
+                  </button>
+                )}
+              </>
+            )}
           </div>
           
           {/* Ligne 2: Comptes - Plus grands et proches de la ligne */}
           <div style={{
-            display: 'flex',
+            display: isMobile ? 'grid' : 'flex',
+            gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'none',
             justifyContent: 'center',
-            gap: '12px',
+            gap: isMobile ? '10px' : '12px',
             flexWrap: 'wrap',
-            marginTop: '-20px'
+            marginTop: isMobile ? '0' : '-20px',
+            padding: isMobile ? '0 10px' : '0'
           }}>
             {accounts.map((account) => {
               // Utiliser les données de l'année, du mois ou du jour selon la vue
@@ -8042,25 +8337,25 @@ useEffect(() => {
                       : whatIfMode === 'smartRoute'
                         ? 'linear-gradient(135deg, rgba(0,26,31,0.95) 0%, rgba(0,40,48,0.95) 100%)'
                         : (isDark ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.95)'),
-                    borderRadius: '16px',
-                    padding: '18px 30px',
-                    minWidth: '180px',
+                    borderRadius: isMobile ? '12px' : '16px',
+                    padding: isMobile ? '12px 15px' : '18px 30px',
+                    minWidth: isMobile ? 'auto' : '180px',
                     textAlign: 'center',
                     backdropFilter: 'blur(15px)',
                     border: isAfterCreditLimitDate
                       ? '2px solid #9c27b0'
                       : isExcludedInWhatIf
-                        ? (isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)')
+                        ? (isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(255,255,255,0.1)')
                         : hasActivity 
                           ? `2px solid ${hasEntrees ? '#3498db' : '#ff9800'}` 
-                          : (isDark ? '1px solid rgba(255,255,255,0.15)' : '2px solid rgba(102, 126, 234, 0.3)'),
+                          : (whatIfMode ? '1px solid rgba(255,255,255,0.15)' : (isDark ? '1px solid rgba(255,255,255,0.15)' : '2px solid rgba(102, 126, 234, 0.3)')),
                     boxShadow: isAfterCreditLimitDate
                       ? '0 0 20px rgba(156, 39, 176, 0.6), 0 0 40px rgba(156, 39, 176, 0.3)'
                       : isExcludedInWhatIf
                         ? '0 4px 15px rgba(0,0,0,0.2)'
                         : hasActivity 
                           ? `0 0 20px ${hasEntrees ? 'rgba(52,152,219,0.4)' : 'rgba(255,152,0,0.4)'}` 
-                          : (isDark ? '0 4px 15px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.1)'),
+                          : (whatIfMode ? '0 4px 15px rgba(0,0,0,0.3)' : (isDark ? '0 4px 15px rgba(0,0,0,0.3)' : '0 4px 20px rgba(0,0,0,0.1)')),
                     filter: isAfterCreditLimitDate ? 'brightness(0.7)' : isExcludedInWhatIf ? 'blur(1px) brightness(0.6)' : 'none',
                     opacity: isAfterCreditLimitDate ? 0.85 : isExcludedInWhatIf ? 0.5 : 1,
                     transition: 'all 0.4s ease',
@@ -8083,7 +8378,7 @@ useEffect(() => {
                     }} />
                   )}
                   
-                  <div style={{ fontSize: '1.5em', marginBottom: '6px' }}>{getAccountIcon(account.type)}</div>
+                  <div style={{ fontSize: isMobile ? '1.2em' : '1.5em', marginBottom: isMobile ? '4px' : '6px' }}>{getAccountIcon(account.type)}</div>
                   {(() => {
                     const isAnimating = navAnimatingAccounts[account.nom] !== undefined;
                     const displayValue = isAnimating ? navAnimatingAccounts[account.nom] : solde;
@@ -8092,12 +8387,16 @@ useEffect(() => {
                       <div 
                         className={isAnimating ? 'montant-counting' : ''}
                         style={{
-                          color: isCredit ? '#ff9800' : '#3498db',
-                          fontSize: '1.9em',
+                          color: whatIfMode 
+                            ? (isCredit ? '#ff9800' : '#3498db')
+                            : (isDark 
+                              ? (isCredit ? '#ff9800' : '#3498db')
+                              : (isCredit ? '#ff9800' : '#1e5f8a')),
+                          fontSize: isMobile ? '1.3em' : '1.9em',
                           fontWeight: 'bold',
-                          textShadow: isDark ? '0 2px 6px rgba(0,0,0,0.5)' : 'none',
+                          textShadow: (whatIfMode || isDark) ? '0 2px 6px rgba(0,0,0,0.5)' : 'none',
                           fontFamily: 'monospace',
-                          letterSpacing: '1px',
+                          letterSpacing: isMobile ? '0' : '1px',
                           lineHeight: '1.2'
                         }}
                       >
@@ -8106,11 +8405,16 @@ useEffect(() => {
                     );
                   })()}
                   <div style={{ 
-                    color: isDark ? 'rgba(255,255,255,0.9)' : '#1e293b', 
-                    fontSize: '0.85em', 
+                    color: whatIfMode 
+                      ? 'rgba(255,255,255,0.9)'
+                      : (isDark ? 'rgba(255,255,255,0.9)' : '#1e293b'), 
+                    fontSize: isMobile ? '0.75em' : '0.85em', 
                     fontWeight: 'bold',
-                    textShadow: isDark ? '0 1px 2px rgba(0,0,0,0.3)' : 'none',
-                    marginTop: '4px'
+                    textShadow: (whatIfMode || isDark) ? '0 1px 2px rgba(0,0,0,0.3)' : 'none',
+                    marginTop: isMobile ? '2px' : '4px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
                   }}>
                     {account.nom}
                   </div>
@@ -8841,6 +9145,13 @@ useEffect(() => {
   const isOnGpsPage = location.pathname.startsWith('/gps');
   const shouldApplyFullScreen = isFullScreen && isOnGpsPage;
   
+  // 📱 Afficher overlay "Tournez votre écran" sur mobile en portrait pour la page Itinéraire
+  const showRotateOverlay = isMobile && isPortrait && !navigationMode;
+  
+  // 📱 Mode optimisé pour la page Itinéraire sur MOBILE uniquement
+  // S'applique quand: mobile ET page Itinéraire (pas Navigation)
+  const isMobileLandscape = isMobile && !navigationMode;
+  
   return (
     <div 
       style={{ 
@@ -8860,7 +9171,158 @@ useEffect(() => {
         background: 'linear-gradient(180deg, #040449 0%, #100261 100%)'
       } : {})
     }}>
+      
+      {/* 📱 OVERLAY: Tournez votre écran en mode paysage */}
+      {showRotateOverlay && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'linear-gradient(180deg, #040449 0%, #100261 100%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          {/* Icône de rotation animée */}
+          <div style={{
+            fontSize: '80px',
+            marginBottom: '30px',
+            animation: 'rotatePhone 2s ease-in-out infinite'
+          }}>
+            📱
+          </div>
+          
+          {/* Flèche de rotation */}
+          <div style={{
+            fontSize: '40px',
+            marginBottom: '30px',
+            color: '#ffd700',
+            animation: 'rotateArrow 1.5s ease-in-out infinite'
+          }}>
+            ↻
+          </div>
+          
+          {/* Message principal */}
+          <h2 style={{
+            color: '#ffd700',
+            fontSize: '1.5em',
+            fontWeight: 'bold',
+            marginBottom: '15px',
+            textShadow: '0 2px 10px rgba(255, 215, 0, 0.3)'
+          }}>
+            {t('gps.rotateScreen.title', 'Tournez votre écran')}
+          </h2>
+          
+          {/* Message secondaire */}
+          <p style={{
+            color: 'rgba(255, 255, 255, 0.8)',
+            fontSize: '1em',
+            maxWidth: '280px',
+            lineHeight: '1.5'
+          }}>
+            {t('gps.rotateScreen.message', 'Pour une meilleure expérience de la Trajectoire Financière, veuillez tourner votre appareil en mode paysage.')}
+          </p>
+          
+          {/* Bouton retour */}
+          <button
+            onClick={() => navigate('/gps')}
+            style={{
+              marginTop: '40px',
+              padding: '12px 30px',
+              background: 'linear-gradient(135deg, #3498db, #2980b9)',
+              border: 'none',
+              borderRadius: '25px',
+              color: 'white',
+              fontSize: '1em',
+              fontWeight: '600',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(52, 152, 219, 0.4)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+          >
+            ← {t('gps.rotateScreen.backButton', 'Retour à Navigation')}
+          </button>
+          
+          {/* Animation CSS */}
+          <style>{`
+            @keyframes rotatePhone {
+              0%, 100% { transform: rotate(0deg); }
+              25% { transform: rotate(-15deg); }
+              75% { transform: rotate(90deg); }
+            }
+            @keyframes rotateArrow {
+              0%, 100% { opacity: 1; transform: scale(1); }
+              50% { opacity: 0.5; transform: scale(1.2); }
+            }
+          `}</style>
+        </div>
+      )}
+      
       {/* OVERLAY NAVIGATION CALENDRIER */}
+      
+      {/* 📱 POPUP: Pivotez votre écran avant de quitter Itinéraire */}
+      {showRotateToPortraitPopup && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px',
+          textAlign: 'center'
+        }}>
+          {/* Icône de rotation */}
+          <div style={{
+            fontSize: '4em',
+            marginBottom: '20px',
+            animation: 'rotateToPortrait 1.5s ease-in-out infinite'
+          }}>
+            📱
+          </div>
+          
+          {/* Flèche de rotation inverse */}
+          <div style={{
+            fontSize: '2em',
+            marginBottom: '20px',
+            color: '#667eea'
+          }}>
+            ↺
+          </div>
+          
+          {/* Titre */}
+          <h2 style={{
+            color: 'white',
+            fontSize: '1.3em',
+            fontWeight: 'bold',
+            textShadow: '0 2px 10px rgba(0,0,0,0.3)'
+          }}>
+            {t('gps.rotateToPortrait.title', 'Pivotez votre écran')}
+          </h2>
+          
+          {/* Animation CSS */}
+          <style>{`
+            @keyframes rotateToPortrait {
+              0%, 100% { transform: rotate(90deg); }
+              50% { transform: rotate(0deg); }
+            }
+          `}</style>
+        </div>
+      )}
+
       {isNavigatingToGoal && (
         <div style={{
           position: 'fixed',
@@ -9774,11 +10236,21 @@ useEffect(() => {
           border-radius: 20px;
           box-shadow: 0 20px 60px rgba(0,0,0,0.3);
           padding: 0;
-          min-width: 350px;
+          min-width: 320px;
           max-width: 450px;
-          max-height: 80vh;
+          max-height: 85vh;
           overflow: hidden;
           animation: modal-appear 0.25s ease-out;
+          display: flex;
+          flex-direction: column;
+        }
+        
+        @media (max-width: 768px) {
+          .bubble-modal {
+            min-width: 90vw;
+            max-width: 95vw;
+            max-height: 80vh;
+          }
         }
         
         @keyframes modal-appear {
@@ -10293,15 +10765,21 @@ useEffect(() => {
           )}
           
           {/* Bouton Retour/Quitter */}
-          {(isFullScreen || isTrajectoireAvancee) && (
+          {(isFullScreen || isTrajectoireAvancee) && !budgetEditPopup && (
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 if (isTrajectoireAvancee) {
                   setIsTrajectoireAvancee(false);
+                } else if (isMobile && !isPortrait) {
+                  // 📱 Mobile en paysage: Afficher popup demandant de pivoter
+                  setShowRotateToPortraitPopup(true);
+                } else if (isMobile) {
+                  // 📱 Mobile en portrait: Ouvrir le sidebar
+                  window.dispatchEvent(new Event('openSidebar'));
                 } else {
-                  // Retourner à la page Navigation en mode plein écran avec la date et vue actuelles
+                  // Desktop: Retourner à la page Navigation en mode plein écran avec la date et vue actuelles
                   let currentDateStr = todayStr;
                   if (viewMode === 'year' && selectedYearKey) {
                     currentDateStr = `${selectedYearKey}-01-01`;
@@ -10588,7 +11066,8 @@ useEffect(() => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            animation: 'fadeIn 0.3s ease-out'
+            animation: 'fadeIn 0.3s ease-out',
+            padding: isMobile ? '5px' : '0'
           }}
           onClick={() => setIsTrajectoireAvancee(false)}
         >
@@ -10597,9 +11076,9 @@ useEffect(() => {
             style={{
               width: '95%',
               maxWidth: '1200px',
-              height: '85vh',
+              height: isMobile ? '95vh' : '85vh',
               background: 'linear-gradient(135deg, #040449 0%, #100261 100%)',
-              borderRadius: '25px',
+              borderRadius: isMobile ? '15px' : '25px',
               overflow: 'hidden',
               boxShadow: '0 25px 80px rgba(0,0,0,0.5)',
               display: 'flex',
@@ -10608,7 +11087,7 @@ useEffect(() => {
           >
             {/* Header du modal avec Widget Arrivée à droite */}
             <div style={{
-              padding: '15px 25px',
+              padding: isMobile ? '10px 12px' : '15px 25px',
               borderBottom: '1px solid rgba(255,255,255,0.1)',
               display: 'flex',
               justifyContent: 'space-between',
@@ -10616,23 +11095,23 @@ useEffect(() => {
               flexShrink: 0
             }}>
               {/* Titre à gauche */}
-              <h2 style={{ margin: 0, color: 'white', fontSize: '1.2em', display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <h2 style={{ margin: 0, color: 'white', fontSize: isMobile ? '0.9em' : '1.2em', display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '10px' }}>
                 🛤️ {t('gps.trajectory.title')}
               </h2>
               
               {/* Widget Arrivée + Bouton X à droite */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '15px' }}>
                 {/* Widget Arrivée */}
                 <div style={{
                   background: 'rgba(255,255,255,0.08)',
-                  borderRadius: '12px',
-                  padding: '10px 18px',
+                  borderRadius: isMobile ? '8px' : '12px',
+                  padding: isMobile ? '6px 10px' : '10px 18px',
                   border: '1px solid rgba(255,255,255,0.15)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '12px'
+                  gap: isMobile ? '6px' : '12px'
                 }}>
-                  <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75em' }}>🏁 {t('gps.trajectory.arrival')}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: isMobile ? '0.65em' : '0.75em' }}>🏁 {t('gps.trajectory.arrival')}</div>
                   {(() => {
                     if (selectedTrajectoirePoint?.type === 'today') {
                       return (
@@ -10699,13 +11178,13 @@ useEffect(() => {
                 <button
                   onClick={() => setIsTrajectoireAvancee(false)}
                   style={{
-                    width: '36px',
-                    height: '36px',
+                    width: isMobile ? '28px' : '36px',
+                    height: isMobile ? '28px' : '36px',
                     borderRadius: '50%',
                     border: 'none',
                     background: 'rgba(255,255,255,0.1)',
                     color: 'white',
-                    fontSize: '1.1em',
+                    fontSize: isMobile ? '0.9em' : '1.1em',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -10721,15 +11200,15 @@ useEffect(() => {
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
               {/* Colonne gauche - Timeline */}
               <div style={{
-                width: '280px',
-                minWidth: '280px',
+                width: isMobile ? '200px' : '280px',
+                minWidth: isMobile ? '200px' : '280px',
                 borderRight: '1px solid rgba(255,255,255,0.1)',
                 overflow: 'auto',
-                padding: '15px'
+                padding: isMobile ? '10px' : '15px'
               }}>
                 {/* Titre + Mini-carte de position */}
-                <div style={{ marginBottom: '15px' }}>
-                  <h3 style={{ margin: '0 0 10px', color: 'white', fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ marginBottom: isMobile ? '8px' : '15px' }}>
+                  <h3 style={{ margin: isMobile ? '0 0 6px' : '0 0 10px', color: 'white', fontSize: isMobile ? '0.75em' : '0.9em', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     🛤️ {t('gps.trajectory.yourPath')}
                   </h3>
                   
@@ -10791,15 +11270,15 @@ useEffect(() => {
                   }}
                   style={{
                     display: 'flex',
-                    gap: '12px',
-                    marginBottom: '10px',
+                    gap: isMobile ? '8px' : '12px',
+                    marginBottom: isMobile ? '6px' : '10px',
                     cursor: 'pointer'
                   }}
                 >
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '40px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: isMobile ? '30px' : '40px' }}>
                     <div style={{
-                      width: '40px',
-                      height: '40px',
+                      width: isMobile ? '30px' : '40px',
+                      height: isMobile ? '30px' : '40px',
                       borderRadius: '50%',
                       border: selectedTrajectoirePoint?.type === 'today' ? '4px solid transparent' : '3px solid transparent',
                       background: selectedTrajectoirePoint?.type === 'today' 
@@ -10808,26 +11287,26 @@ useEffect(() => {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      fontSize: '1.1em',
+                      fontSize: isMobile ? '0.85em' : '1.1em',
                       boxShadow: selectedTrajectoirePoint?.type === 'today' ? '0 0 15px rgba(255, 165, 0, 0.6)' : 'none',
                       animation: selectedTrajectoirePoint?.type === 'today' ? 'gps-ring-spin 3s linear infinite' : 'none',
                       transition: 'all 0.3s'
                     }}>
                     </div>
-                    <div style={{ width: '2px', height: '20px', background: 'linear-gradient(180deg, #f39c12, rgba(255,255,255,0.2))' }} />
+                    <div style={{ width: '2px', height: isMobile ? '12px' : '20px', background: 'linear-gradient(180deg, #f39c12, rgba(255,255,255,0.2))' }} />
                   </div>
                   <div style={{
                     flex: 1,
                     background: selectedTrajectoirePoint?.type === 'today' ? 'rgba(243, 156, 18, 0.2)' : 'rgba(255,255,255,0.05)',
                     border: selectedTrajectoirePoint?.type === 'today' ? '2px solid #f39c12' : '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '10px',
-                    padding: '10px 12px',
+                    borderRadius: isMobile ? '8px' : '10px',
+                    padding: isMobile ? '6px 8px' : '10px 12px',
                     transition: 'all 0.3s'
                   }}>
-                    <div style={{ fontWeight: 'bold', color: selectedTrajectoirePoint?.type === 'today' ? '#f39c12' : 'white', fontSize: '0.85em' }}>
+                    <div style={{ fontWeight: 'bold', color: selectedTrajectoirePoint?.type === 'today' ? '#f39c12' : 'white', fontSize: isMobile ? '0.7em' : '0.85em' }}>
                       📍 {t('gps.today')}
                     </div>
-                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.7em' }}>
+                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: isMobile ? '0.6em' : '0.7em' }}>
                       {new Date().toLocaleDateString(i18n.language === 'fr' ? 'fr-CA' : 'en-CA', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </div>
                   </div>
@@ -10861,61 +11340,61 @@ useEffect(() => {
                         }}
                         style={{
                           display: 'flex',
-                          gap: '12px',
-                          marginBottom: isLast ? '0' : '10px',
+                          gap: isMobile ? '8px' : '12px',
+                          marginBottom: isLast ? '0' : (isMobile ? '6px' : '10px'),
                           cursor: 'pointer'
                         }}
                       >
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '40px' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: isMobile ? '30px' : '40px' }}>
                           <div style={{
-                            width: '40px',
-                            height: '40px',
+                            width: isMobile ? '30px' : '40px',
+                            height: isMobile ? '30px' : '40px',
                             borderRadius: '50%',
                             background: isSelected ? goalColor : goalColor + '44',
                             border: isSelected ? '3px solid ' + goalColor : '2px solid ' + goalColor + '88',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            fontSize: '1em',
+                            fontSize: isMobile ? '0.75em' : '1em',
                             boxShadow: isSelected ? '0 0 15px ' + goalColor + '66' : 'none',
                             transition: 'all 0.3s'
                           }}>
                             {goal.isAchieved ? '✓' : goal.isWrongDirection ? '⛔' : '🎯'}
                           </div>
                           {!isLast && (
-                            <div style={{ width: '2px', height: '20px', background: 'rgba(255,255,255,0.2)' }} />
+                            <div style={{ width: '2px', height: isMobile ? '12px' : '20px', background: 'rgba(255,255,255,0.2)' }} />
                           )}
                         </div>
                         <div style={{
                           flex: 1,
                           background: isSelected ? goalColor + '33' : 'rgba(255,255,255,0.05)',
                           border: isSelected ? '2px solid ' + goalColor : '1px solid rgba(255,255,255,0.1)',
-                          borderRadius: '10px',
-                          padding: '10px 12px',
+                          borderRadius: isMobile ? '8px' : '10px',
+                          padding: isMobile ? '6px 8px' : '10px 12px',
                           transition: 'all 0.3s'
                         }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <div style={{ fontWeight: 'bold', color: isSelected ? goalColor : 'white', fontSize: '0.8em' }}>
+                            <div style={{ fontWeight: 'bold', color: isSelected ? goalColor : 'white', fontSize: isMobile ? '0.65em' : '0.8em' }}>
                               {goal.nom}
                             </div>
                             <div style={{
                               background: goalColor,
-                              padding: '2px 8px',
+                              padding: isMobile ? '1px 5px' : '2px 8px',
                               borderRadius: '12px',
-                              fontSize: '0.65em',
+                              fontSize: isMobile ? '0.55em' : '0.65em',
                               fontWeight: 'bold',
                               color: 'white'
                             }}>
                               {(goal.progression || 0).toFixed(0)}%
                             </div>
                           </div>
-                          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.65em', marginTop: '2px' }}>
+                          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: isMobile ? '0.55em' : '0.65em', marginTop: '2px' }}>
                             {goalDateLabel}
                           </div>
                           {/* Mini barre de progression */}
                           <div style={{
-                            marginTop: '6px',
-                            height: '3px',
+                            marginTop: isMobile ? '4px' : '6px',
+                            height: isMobile ? '2px' : '3px',
                             background: 'rgba(255,255,255,0.2)',
                             borderRadius: '2px',
                             overflow: 'hidden'
@@ -10937,12 +11416,12 @@ useEffect(() => {
               <div style={{
                 flex: 1,
                 overflow: 'auto',
-                padding: '15px 20px',
+                padding: isMobile ? '10px' : '15px 20px',
                 background: 'rgba(255,255,255,0.02)'
               }}>
-                <h3 style={{ margin: '0 0 15px', color: 'white', fontSize: '0.9em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <h3 style={{ margin: isMobile ? '0 0 8px' : '0 0 15px', color: 'white', fontSize: isMobile ? '0.8em' : '0.9em', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                   🏦 {t('gps.balances')} - {selectedTrajectoirePoint?.label || t('gps.today')}
-                  <span style={{ fontSize: '0.75em', opacity: 0.6, fontWeight: 'normal', marginLeft: '8px' }}>
+                  <span style={{ fontSize: isMobile ? '0.65em' : '0.75em', opacity: 0.6, fontWeight: 'normal', marginLeft: isMobile ? '0' : '8px' }}>
                     {(() => {
                       const dateStr = selectedTrajectoirePoint?.dateStr || todayStr;
                       const d = new Date(dateStr + 'T12:00:00');
@@ -10955,8 +11434,8 @@ useEffect(() => {
                 <div style={{
                   display: 'grid',
                   gridTemplateColumns: 'repeat(2, 1fr)',
-                  gap: '12px',
-                  marginBottom: '15px'
+                  gap: isMobile ? '8px' : '12px',
+                  marginBottom: isMobile ? '10px' : '15px'
                 }}>
                   {accounts.map((acc, idx) => {
                     // Trouver le solde à la date sélectionnée dans allDayData
@@ -11012,8 +11491,8 @@ useEffect(() => {
                           background: isGoalAccount 
                             ? 'linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3))'
                             : 'white',
-                          borderRadius: '15px',
-                          padding: '15px',
+                          borderRadius: isMobile ? '10px' : '15px',
+                          padding: isMobile ? '10px' : '15px',
                           boxShadow: isGoalAccount 
                             ? '0 0 20px rgba(102, 126, 234, 0.3)'
                             : '0 2px 10px rgba(0,0,0,0.1)',
@@ -11029,7 +11508,7 @@ useEffect(() => {
                             position: 'absolute',
                             top: '-10px',
                             right: '-10px',
-                            fontSize: '1.8em',
+                            fontSize: isMobile ? '1.2em' : '1.8em',
                             filter: 'drop-shadow(0 0 8px rgba(241, 196, 15, 0.8))',
                             animation: 'star-float 2s ease-in-out infinite',
                             zIndex: 10
@@ -11041,16 +11520,16 @@ useEffect(() => {
                         <div style={{ 
                           display: 'flex', 
                           alignItems: 'center', 
-                          gap: '8px',
-                          marginBottom: '8px'
+                          gap: isMobile ? '5px' : '8px',
+                          marginBottom: isMobile ? '4px' : '8px'
                         }}>
-                          <span style={{ fontSize: '1.3em' }}>
+                          <span style={{ fontSize: isMobile ? '1em' : '1.3em' }}>
                             {acc.type === 'cheque' ? '💳' : acc.type === 'epargne' ? '🐷' : '🏦'}
                           </span>
                           <div style={{ 
                             fontWeight: 'bold', 
                             color: isGoalAccount ? 'white' : '#2c3e50',
-                            fontSize: '0.85em'
+                            fontSize: isMobile ? '0.7em' : '0.85em'
                           }}>
                             {acc.nom}
                           </div>
@@ -11058,7 +11537,7 @@ useEffect(() => {
                         
                         {/* Solde avec animation */}
                         <div style={{
-                          fontSize: '1.5em',
+                          fontSize: isMobile ? '1.1em' : '1.5em',
                           fontWeight: 'bold',
                           color: isGoalAccount ? 'white' : (isCredit ? '#ffa500' : '#5dade2'),
                           transition: 'all 0.3s ease-out'
@@ -11390,7 +11869,7 @@ useEffect(() => {
           )}
           
           <h2 style={{ 
-              fontSize: '1em', 
+              fontSize: isMobileLandscape ? '0.75em' : '1em', 
               margin: 0,
               display: 'flex',
               alignItems: 'center',
@@ -11402,11 +11881,13 @@ useEffect(() => {
             }}>
               {t('gps.navigation.title')}
             </h2>
-          <p style={{ fontSize: '0.8em', opacity: (isViewChanging || isNavigatingToGoal) ? 0 : 0.8, margin: '4px 0 0', transition: 'opacity 0.2s' }}>
+          <p style={{ fontSize: isMobileLandscape ? '0.6em' : '0.8em', opacity: (isViewChanging || isNavigatingToGoal) ? 0 : 0.8, margin: isMobileLandscape ? '0' : '4px 0 0', transition: 'opacity 0.2s', whiteSpace: isMobileLandscape ? 'nowrap' : 'normal' }}>
             {t('gps.navigation.subtitle')}
           </p>
         </div>
 
+        {/* Bouton de vue - caché en mode Itinéraire */}
+        {!isMobileLandscape && (
         <div style={{ padding: '15px' }}>
           {/* Bouton de vue dynamique - affiche le mode actuel */}
           <div>
@@ -11438,15 +11919,18 @@ useEffect(() => {
             </button>
           </div>
         </div>
+        )}
 
         {viewMode === 'day' && (
           <div style={{ 
             flex: 1, 
             overflowY: 'auto',
-            padding: '10px 15px 20px',
-            borderTop: '1px solid rgba(255,255,255,0.1)'
+            padding: isMobileLandscape ? '5px 8px 5px' : '10px 15px 20px',
+            borderTop: isMobileLandscape ? 'none' : '1px solid rgba(255,255,255,0.1)'
           }}>
-            <div style={{ position: 'relative', paddingLeft: '25px' }}>
+            <div style={{ position: 'relative', paddingLeft: isMobileLandscape ? '5px' : '25px' }}>
+              {/* Timeline jaune - cachée en mode Itinéraire */}
+              {!isMobileLandscape && (
               <div style={{
                 position: 'absolute',
                 left: '8px',
@@ -11456,6 +11940,7 @@ useEffect(() => {
                 background: 'linear-gradient(180deg, #ffa500, #ff6b00)',
                 borderRadius: '2px'
               }} />
+              )}
 
               {generateDayData
                 .map((item, originalIndex) => ({ ...item, originalIndex }))
@@ -11470,15 +11955,17 @@ useEffect(() => {
                   }}
                   style={{
                     position: 'relative',
-                    padding: '8px 0',
+                    padding: isMobileLandscape ? '5px 0' : '8px 0',
                     cursor: 'pointer',
                     borderBottom: '1px solid rgba(255,255,255,0.05)',
                     transition: 'background 0.2s, transform 0.2s',
                     background: selectedRowIndex === item.originalIndex ? 'rgba(102, 126, 234, 0.3)' : 'transparent',
                     borderRadius: '8px',
-                    marginBottom: '2px'
+                    marginBottom: isMobileLandscape ? '0px' : '2px'
                   }}
                 >
+                  {/* Point de la timeline - caché en mode Itinéraire */}
+                  {!isMobileLandscape && (
                   <div style={{
                     position: 'absolute',
                     left: '-21px',
@@ -11497,9 +11984,10 @@ useEffect(() => {
                     border: item.isToday ? '2px solid white' : 'none',
                     boxShadow: item.isToday ? '0 0 8px rgba(243, 156, 18, 0.6)' : 'none'
                   }} />
+                  )}
 
                   <span style={{
-                    fontSize: '0.8em',
+                    fontSize: isMobileLandscape ? '0.75em' : '0.8em',
                     fontWeight: item.isToday || selectedRowIndex === item.originalIndex || item.isModified ? 'bold' : 'normal',
                     opacity: item.isToday || selectedRowIndex === item.originalIndex || item.isModified ? 1 : 0.7,
                     color: item.isModified ? '#bb8fce' : 'inherit'
@@ -11730,10 +12218,10 @@ useEffect(() => {
         }}>
           {/* Panneau de direction GPS */}
           <div style={{
-            width: '80px',
-            minWidth: '80px',
+            width: isMobileLandscape ? '50px' : '80px',
+            minWidth: isMobileLandscape ? '50px' : '80px',
             textAlign: 'center',
-            padding: '12px 8px',
+            padding: isMobileLandscape ? '8px 4px' : '12px 8px',
             background: 'rgba(255, 255, 255, 0.1)',
             borderRadius: '12px',
             display: 'flex',
@@ -11804,19 +12292,19 @@ useEffect(() => {
                 style={{
                   flex: 1,
                   textAlign: 'center',
-                  padding: '12px 10px',
+                  padding: isMobileLandscape ? '8px 6px' : '12px 10px',
                   background: hasAlert 
                     ? 'linear-gradient(135deg, rgba(243, 156, 18, 0.3), rgba(230, 126, 34, 0.2))'
                     : 'linear-gradient(180deg, rgba(26, 35, 126, 0.6) 0%, rgba(13, 17, 63, 0.7) 100%)',
                   backdropFilter: 'blur(10px)',
-                  borderRadius: '15px',
+                  borderRadius: isMobileLandscape ? '10px' : '15px',
                   border: hasAlert 
                     ? '2px solid #f39c12'
-                    : '3px solid rgba(255, 255, 255, 0.4)',
+                    : isMobileLandscape ? '2px solid rgba(255, 255, 255, 0.3)' : '3px solid rgba(255, 255, 255, 0.4)',
                   boxShadow: hasAlert 
                     ? undefined 
                     : '0 0 20px rgba(255,255,255,0.15), inset 0 1px 0 rgba(255,255,255,0.3)',
-                  minWidth: '140px',
+                  minWidth: isMobileLandscape ? '90px' : '140px',
                   cursor: 'pointer',
                   transition: 'all 0.3s',
                   position: 'relative'
@@ -11884,11 +12372,11 @@ useEffect(() => {
                   </div>
                 )}
                 
-                <span style={{ fontSize: '1.3em' }}>{getAccountIcon(acc.type)}</span>
+                <span style={{ fontSize: isMobileLandscape ? '1em' : '1.3em' }}>{getAccountIcon(acc.type)}</span>
                 <p style={{ 
-                  margin: '5px 0 2px', 
+                  margin: isMobileLandscape ? '3px 0 1px' : '5px 0 2px', 
                   fontWeight: 'bold', 
-                  fontSize: '0.9em',
+                  fontSize: isMobileLandscape ? '0.7em' : '0.9em',
                   color: hasAlert ? '#ffa726' : 'white',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
@@ -11898,7 +12386,7 @@ useEffect(() => {
                 </p>
                 <p style={{
                   margin: 0,
-                  fontSize: '0.7em',
+                  fontSize: isMobileLandscape ? '0.55em' : '0.7em',
                   color: hasAlert ? '#ffb74d' : 'rgba(255, 255, 255, 0.7)'
                 }}>
                   {getTypeLabel(acc.type)}
@@ -12003,10 +12491,10 @@ useEffect(() => {
                 <div 
                   className="date-cell"
                   style={{
-                    width: '80px',
-                    minWidth: '80px',
-                    minHeight: '70px',
-                    borderRadius: '18px',
+                    width: isMobileLandscape ? '55px' : '80px',
+                    minWidth: isMobileLandscape ? '55px' : '80px',
+                    minHeight: isMobileLandscape ? '50px' : '70px',
+                    borderRadius: isMobileLandscape ? '12px' : '18px',
                     background: row.isToday 
                       ? 'linear-gradient(135deg, #f39c12 0%, #ffa500 100%)' 
                       : 'linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%)',
@@ -12019,7 +12507,7 @@ useEffect(() => {
                       ? '0 6px 20px rgba(243, 156, 18, 0.4)' 
                       : 'none',
                     border: row.isToday ? 'none' : '2px solid rgba(255, 255, 255, 0.2)',
-                    padding: '10px 5px',
+                    padding: isMobileLandscape ? '6px 3px' : '10px 5px',
                     animation: row.isToday ? 'pulse-today 2s infinite' : 'none'
                   }}
                 >
@@ -12033,11 +12521,11 @@ useEffect(() => {
                   >
                     ✏️
                   </button>
-                  <span style={{ fontSize: '0.85em', fontWeight: 'bold', textAlign: 'center' }}>
+                  <span style={{ fontSize: isMobileLandscape ? '0.65em' : '0.85em', fontWeight: 'bold', textAlign: 'center' }}>
                     {row.shortLabel}
                   </span>
                   {row.isToday && (
-                    <span style={{ fontSize: '0.6em', marginTop: '3px', opacity: 0.9 }}>
+                    <span style={{ fontSize: isMobileLandscape ? '0.5em' : '0.6em', marginTop: isMobileLandscape ? '2px' : '3px', opacity: 0.9 }}>
                       📍 {t('gps.today')}
                     </span>
                   )}
@@ -12098,15 +12586,15 @@ useEffect(() => {
                       }}
                       style={{
                         flex: 1,
-                        minWidth: '140px',
-                        minHeight: '70px',
-                        borderRadius: '18px',
+                        minWidth: isMobileLandscape ? '90px' : '140px',
+                        minHeight: isMobileLandscape ? '50px' : '70px',
+                        borderRadius: isMobileLandscape ? '12px' : '18px',
                         background: isLimitExceeded 
                           ? 'linear-gradient(135deg, rgba(243, 156, 18, 0.15), rgba(230, 126, 34, 0.1))'
                           : isGoalAchievedBubble
                             ? 'linear-gradient(135deg, rgba(46, 204, 113, 0.2), rgba(39, 174, 96, 0.1))'
                             : 'white',
-                        padding: '12px',
+                        padding: isMobileLandscape ? '6px' : '12px',
                         display: 'flex',
                         flexDirection: 'column',
                         boxShadow: isLimitExceeded
@@ -12175,11 +12663,11 @@ useEffect(() => {
                         </>
                       )}
 
-                      <div style={{ textAlign: 'center', marginBottom: hasActivity ? '8px' : '0' }}>
+                      <div style={{ textAlign: 'center', marginBottom: hasActivity ? (isMobileLandscape ? '4px' : '8px') : '0' }}>
                         <span 
                           className={isAnimating ? 'solde-animating' : ''}
                           style={{
-                            fontSize: '1.3em',
+                            fontSize: isMobileLandscape ? '0.95em' : '1.3em',
                             fontWeight: 'bold',
                             color: accountData.isCredit 
                               ? (accountData.solde > 0 ? '#ffa500' : '#3498db')
@@ -12198,103 +12686,130 @@ useEffect(() => {
                           gap: '10px',
                           marginTop: 'auto'
                         }}>
-                          <div style={{ flex: 1, textAlign: 'left' }}>
-                            {accountData.entrees.slice(0, 3).map((e, i) => (
-                              <div key={i} style={{ marginBottom: '4px' }}>
-                                <span 
-                                  className="activity-badge entry"
-                                  style={{
-                                    display: 'inline-flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    background: 'linear-gradient(135deg, #00E5FF 0%, #00E5FF 100%)',
-                                    color: 'white',
-                                    padding: '4px 10px',
-                                    borderRadius: '12px',
-                                    fontSize: '0.65em',
-                                    animationDelay: `${i * 0.15}s`,
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    boxShadow: '0 2px 6px rgba(0, 229, 255, 0.4)'
-                                  }}
-                                >
-                                  <span style={{ 
-                                    overflow: 'hidden', 
-                                    textOverflow: 'ellipsis', 
-                                    whiteSpace: 'nowrap',
-                                    maxWidth: '100px',
-                                    fontWeight: '500'
-                                  }}>
-                                    {e.description} {accountData.isCredit ? '↓' : '↑'}
+                          {/* ENTRÉES */}
+                          <div style={{ flex: 1, textAlign: 'left', display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                            {isMobileLandscape ? (
+                              // Mobile: petits cercles
+                              <>
+                                {accountData.entrees.slice(0, 5).map((e, i) => (
+                                  <span 
+                                    key={i}
+                                    className="activity-badge entry"
+                                    style={{
+                                      display: 'inline-block',
+                                      width: '10px',
+                                      height: '10px',
+                                      background: 'linear-gradient(135deg, #00E5FF 0%, #00BCD4 100%)',
+                                      borderRadius: '50%',
+                                      boxShadow: '0 2px 6px rgba(0, 229, 255, 0.5)',
+                                      animationDelay: `${i * 0.1}s`
+                                    }}
+                                    title={`${e.description}: ${formatMontant(e.montant)}`}
+                                  />
+                                ))}
+                                {accountData.entrees.length > 5 && (
+                                  <span style={{ fontSize: '0.5em', color: '#00E5FF', fontWeight: '600' }}>
+                                    +{accountData.entrees.length - 5}
                                   </span>
-                                  <span style={{ 
-                                    fontWeight: 'bold',
-                                    fontSize: '1.1em'
-                                  }}>
-                                    {formatMontant(e.montant)}
+                                )}
+                              </>
+                            ) : (
+                              // Desktop: badges complets avec description et montant
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                {accountData.entrees.slice(0, 3).map((e, i) => (
+                                  <span 
+                                    key={i}
+                                    className="activity-badge entry"
+                                    style={{
+                                      display: 'inline-flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      background: 'linear-gradient(135deg, #00E5FF 0%, #00E5FF 100%)',
+                                      color: 'white',
+                                      padding: '4px 10px',
+                                      borderRadius: '12px',
+                                      fontSize: '0.65em',
+                                      animationDelay: `${i * 0.15}s`,
+                                      boxShadow: '0 2px 6px rgba(0, 229, 255, 0.4)'
+                                    }}
+                                  >
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px', fontWeight: '500' }}>
+                                      {e.description} {accountData.isCredit ? '↓' : '↑'}
+                                    </span>
+                                    <span style={{ fontWeight: 'bold', fontSize: '1.1em' }}>
+                                      {formatMontant(e.montant)}
+                                    </span>
                                   </span>
-                                </span>
-                              </div>
-                            ))}
-                            {accountData.entrees.length > 3 && (
-                              <div style={{ 
-                                fontSize: '0.6em', 
-                                color: '#00E5FF',
-                                fontWeight: '600',
-                                marginTop: '2px'
-                              }}>
-                                +{accountData.entrees.length - 3} autre{accountData.entrees.length - 3 > 1 ? 's' : ''}
+                                ))}
+                                {accountData.entrees.length > 3 && (
+                                  <div style={{ fontSize: '0.6em', color: '#00E5FF', fontWeight: '600', marginTop: '2px' }}>
+                                    +{accountData.entrees.length - 3} autre{accountData.entrees.length - 3 > 1 ? 's' : ''}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
 
-                          <div style={{ flex: 1, textAlign: 'right' }}>
-                            {accountData.sorties.slice(0, 3).map((s, i) => (
-                              <div key={i} style={{ marginBottom: '4px', display: 'flex', justifyContent: 'flex-end' }}>
-                                <span 
-                                  className="activity-badge exit"
-                                  style={{
-                                    display: 'inline-flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    background: 'linear-gradient(135deg, #FF9100 0%, #FF9100 100%)',
-                                    color: 'white',
-                                    padding: '4px 10px',
-                                    borderRadius: '12px',
-                                    fontSize: '0.65em',
-                                    animationDelay: `${i * 0.15}s`,
-                                    position: 'relative',
-                                    overflow: 'hidden',
-                                    boxShadow: '0 2px 6px rgba(255, 145, 0, 0.4)'
-                                  }}
-                                >
-                                  <span style={{ 
-                                    overflow: 'hidden', 
-                                    textOverflow: 'ellipsis', 
-                                    whiteSpace: 'nowrap',
-                                    maxWidth: '100px',
-                                    fontWeight: '500'
-                                  }}>
-                                    {s.description} {accountData.isCredit ? '↑' : '↓'}
+                          {/* SORTIES */}
+                          <div style={{ flex: 1, textAlign: 'right', display: 'flex', flexWrap: 'wrap', gap: '4px', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            {isMobileLandscape ? (
+                              // Mobile: petits cercles
+                              <>
+                                {accountData.sorties.slice(0, 5).map((s, i) => (
+                                  <span 
+                                    key={i}
+                                    className="activity-badge exit"
+                                    style={{
+                                      display: 'inline-block',
+                                      width: '10px',
+                                      height: '10px',
+                                      background: 'linear-gradient(135deg, #FF9100 0%, #E65100 100%)',
+                                      borderRadius: '50%',
+                                      boxShadow: '0 2px 6px rgba(255, 145, 0, 0.5)',
+                                      animationDelay: `${i * 0.1}s`
+                                    }}
+                                    title={`${s.description}: ${formatMontant(s.montant)}`}
+                                  />
+                                ))}
+                                {accountData.sorties.length > 5 && (
+                                  <span style={{ fontSize: '0.5em', color: '#FF9100', fontWeight: '600' }}>
+                                    +{accountData.sorties.length - 5}
                                   </span>
-                                  <span style={{ 
-                                    fontWeight: 'bold',
-                                    fontSize: '1.1em'
-                                  }}>
-                                    {formatMontant(s.montant)}
+                                )}
+                              </>
+                            ) : (
+                              // Desktop: badges complets avec description et montant
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-end' }}>
+                                {accountData.sorties.slice(0, 3).map((s, i) => (
+                                  <span 
+                                    key={i}
+                                    className="activity-badge exit"
+                                    style={{
+                                      display: 'inline-flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      background: 'linear-gradient(135deg, #FF9100 0%, #FF9100 100%)',
+                                      color: 'white',
+                                      padding: '4px 10px',
+                                      borderRadius: '12px',
+                                      fontSize: '0.65em',
+                                      animationDelay: `${i * 0.15}s`,
+                                      boxShadow: '0 2px 6px rgba(255, 145, 0, 0.4)'
+                                    }}
+                                  >
+                                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100px', fontWeight: '500' }}>
+                                      {s.description} {accountData.isCredit ? '↑' : '↓'}
+                                    </span>
+                                    <span style={{ fontWeight: 'bold', fontSize: '1.1em' }}>
+                                      {formatMontant(s.montant)}
+                                    </span>
                                   </span>
-                                </span>
-                              </div>
-                            ))}
-                            {accountData.sorties.length > 3 && (
-                              <div style={{ 
-                                fontSize: '0.6em', 
-                                color: '#FF9100',
-                                fontWeight: '600',
-                                marginTop: '2px',
-                                textAlign: 'right'
-                              }}>
-                                +{accountData.sorties.length - 3} autre{accountData.sorties.length - 3 > 1 ? 's' : ''}
+                                ))}
+                                {accountData.sorties.length > 3 && (
+                                  <div style={{ fontSize: '0.6em', color: '#FF9100', fontWeight: '600', marginTop: '2px', textAlign: 'right' }}>
+                                    +{accountData.sorties.length - 3} autre{accountData.sorties.length - 3 > 1 ? 's' : ''}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -12519,83 +13034,110 @@ useEffect(() => {
                       {hasRealActivity && (
                         <div style={{
                           display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'flex-start',
-                          gap: '4px',
+                          justifyContent: isMobile ? 'center' : 'space-between',
+                          alignItems: isMobile ? 'center' : 'flex-start',
+                          gap: isMobile ? '8px' : '4px',
                           borderTop: '1px solid #eee',
-                          paddingTop: '6px'
+                          paddingTop: isMobile ? '4px' : '6px'
                         }}>
-                          <div style={{ flex: 1, textAlign: 'left', position: 'relative' }}>
-                            {isActivityActive && accountData.totalEntrees > 0 && (
-                              <div style={{
-                                position: 'absolute',
-                                left: '50%',
-                                top: '-15px',
-                                transform: 'translateX(-50%)',
-                                animation: 'money-enter 0.8s ease-out forwards',
-                                fontSize: '0.9em',
-                                zIndex: 5
-                              }}>
-                                💸
+                          {isMobile ? (
+                            /* Mobile: Dots colorés */
+                            <>
+                              {accountData.totalEntrees > 0 && (
+                                <div style={{
+                                  width: '10px',
+                                  height: '10px',
+                                  borderRadius: '50%',
+                                  background: '#00E5FF',
+                                  boxShadow: '0 0 6px rgba(0, 229, 255, 0.6)'
+                                }} />
+                              )}
+                              {accountData.totalSorties > 0 && (
+                                <div style={{
+                                  width: '10px',
+                                  height: '10px',
+                                  borderRadius: '50%',
+                                  background: '#FF9100',
+                                  boxShadow: '0 0 6px rgba(255, 145, 0, 0.6)'
+                                }} />
+                              )}
+                            </>
+                          ) : (
+                            /* Desktop: Badges complets */
+                            <>
+                              <div style={{ flex: 1, textAlign: 'left', position: 'relative' }}>
+                                {isActivityActive && accountData.totalEntrees > 0 && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    left: '50%',
+                                    top: '-15px',
+                                    transform: 'translateX(-50%)',
+                                    animation: 'money-enter 0.8s ease-out forwards',
+                                    fontSize: '0.9em',
+                                    zIndex: 5
+                                  }}>
+                                    💸
+                                  </div>
+                                )}
+                                <div 
+                                  className={`activity-badge entry ${isActivityActive ? 'animate' : ''}`}
+                                  style={{
+                                    display: 'inline-block',
+                                    background: 'linear-gradient(135deg, #00E5FF 0%, #00E5FF 100%)',
+                                    color: 'white',
+                                    padding: '3px 8px',
+                                    borderRadius: '10px',
+                                    fontSize: '0.7em',
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 2px 6px rgba(0, 229, 255, 0.4)',
+                                    position: 'relative',
+                                    overflow: 'hidden'
+                                  }}
+                                >
+                                  ↓ {formatMontant(accountData.totalEntrees)}
+                                </div>
+                                <div style={{ fontSize: '0.55em', color: '#7f8c8d', marginTop: '2px' }}>
+                                  {accountData.entrees.length} trans.
+                                </div>
                               </div>
-                            )}
-                            <div 
-                              className={`activity-badge entry ${isActivityActive ? 'animate' : ''}`}
-                              style={{
-                                display: 'inline-block',
-                                background: 'linear-gradient(135deg, #00E5FF 0%, #00E5FF 100%)',
-                                color: 'white',
-                                padding: '3px 8px',
-                                borderRadius: '10px',
-                                fontSize: '0.7em',
-                                fontWeight: 'bold',
-                                boxShadow: '0 2px 6px rgba(0, 229, 255, 0.4)',
-                                position: 'relative',
-                                overflow: 'hidden'
-                              }}
-                            >
-                              ↓ {formatMontant(accountData.totalEntrees)}
-                            </div>
-                            <div style={{ fontSize: '0.55em', color: '#7f8c8d', marginTop: '2px' }}>
-                              {accountData.entrees.length} trans.
-                            </div>
-                          </div>
-                          
-                          <div style={{ flex: 1, textAlign: 'right', position: 'relative' }}>
-                            {isActivityActive && accountData.totalSorties > 0 && (
-                              <div style={{
-                                position: 'absolute',
-                                right: '50%',
-                                top: '-15px',
-                                transform: 'translateX(50%)',
-                                animation: 'money-exit 0.8s ease-out forwards',
-                                fontSize: '0.9em',
-                                zIndex: 5
-                              }}>
-                                💸
+                              
+                              <div style={{ flex: 1, textAlign: 'right', position: 'relative' }}>
+                                {isActivityActive && accountData.totalSorties > 0 && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    right: '50%',
+                                    top: '-15px',
+                                    transform: 'translateX(50%)',
+                                    animation: 'money-exit 0.8s ease-out forwards',
+                                    fontSize: '0.9em',
+                                    zIndex: 5
+                                  }}>
+                                    💸
+                                  </div>
+                                )}
+                                <div 
+                                  className={`activity-badge exit ${isActivityActive ? 'animate' : ''}`}
+                                  style={{
+                                    display: 'inline-block',
+                                    background: 'linear-gradient(135deg, #FF9100 0%, #FF9100 100%)',
+                                    color: 'white',
+                                    padding: '3px 8px',
+                                    borderRadius: '10px',
+                                    fontSize: '0.7em',
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 2px 6px rgba(255, 145, 0, 0.4)',
+                                    position: 'relative',
+                                    overflow: 'hidden'
+                                  }}
+                                >
+                                  ↑ {formatMontant(accountData.totalSorties)}
+                                </div>
+                                <div style={{ fontSize: '0.55em', color: '#7f8c8d', marginTop: '2px' }}>
+                                  {accountData.sorties.length} trans.
+                                </div>
                               </div>
-                            )}
-                            <div 
-                              className={`activity-badge exit ${isActivityActive ? 'animate' : ''}`}
-                              style={{
-                                display: 'inline-block',
-                                background: 'linear-gradient(135deg, #FF9100 0%, #FF9100 100%)',
-                                color: 'white',
-                                padding: '3px 8px',
-                                borderRadius: '10px',
-                                fontSize: '0.7em',
-                                fontWeight: 'bold',
-                                boxShadow: '0 2px 6px rgba(255, 145, 0, 0.4)',
-                                position: 'relative',
-                                overflow: 'hidden'
-                              }}
-                            >
-                              ↑ {formatMontant(accountData.totalSorties)}
-                            </div>
-                            <div style={{ fontSize: '0.55em', color: '#7f8c8d', marginTop: '2px' }}>
-                              {accountData.sorties.length} trans.
-                            </div>
-                          </div>
+                            </>
+                          )}
                         </div>
                       )}
                       
@@ -12785,83 +13327,110 @@ useEffect(() => {
                       {hasRealActivity && (
                         <div style={{
                           display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'flex-start',
-                          gap: '6px',
+                          justifyContent: isMobile ? 'center' : 'space-between',
+                          alignItems: isMobile ? 'center' : 'flex-start',
+                          gap: isMobile ? '8px' : '6px',
                           borderTop: '1px solid #eee',
-                          paddingTop: '8px'
+                          paddingTop: isMobile ? '4px' : '8px'
                         }}>
-                          <div style={{ flex: 1, textAlign: 'left', position: 'relative' }}>
-                            {isActivityActive && accountData.totalEntrees > 0 && (
-                              <div style={{
-                                position: 'absolute',
-                                left: '50%',
-                                top: '-15px',
-                                transform: 'translateX(-50%)',
-                                animation: 'money-enter 0.8s ease-out forwards',
-                                fontSize: '1em',
-                                zIndex: 5
-                              }}>
-                                💸
+                          {isMobile ? (
+                            /* Mobile: Dots colorés */
+                            <>
+                              {accountData.totalEntrees > 0 && (
+                                <div style={{
+                                  width: '10px',
+                                  height: '10px',
+                                  borderRadius: '50%',
+                                  background: '#00E5FF',
+                                  boxShadow: '0 0 6px rgba(0, 229, 255, 0.6)'
+                                }} />
+                              )}
+                              {accountData.totalSorties > 0 && (
+                                <div style={{
+                                  width: '10px',
+                                  height: '10px',
+                                  borderRadius: '50%',
+                                  background: '#FF9100',
+                                  boxShadow: '0 0 6px rgba(255, 145, 0, 0.6)'
+                                }} />
+                              )}
+                            </>
+                          ) : (
+                            /* Desktop: Badges complets */
+                            <>
+                              <div style={{ flex: 1, textAlign: 'left', position: 'relative' }}>
+                                {isActivityActive && accountData.totalEntrees > 0 && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    left: '50%',
+                                    top: '-15px',
+                                    transform: 'translateX(-50%)',
+                                    animation: 'money-enter 0.8s ease-out forwards',
+                                    fontSize: '1em',
+                                    zIndex: 5
+                                  }}>
+                                    💸
+                                  </div>
+                                )}
+                                <div 
+                                  className={`activity-badge entry ${isActivityActive ? 'animate' : ''}`}
+                                  style={{
+                                    display: 'inline-block',
+                                    background: 'linear-gradient(135deg, #00E5FF 0%, #00E5FF 100%)',
+                                    color: 'white',
+                                    padding: '4px 10px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75em',
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 2px 8px rgba(0, 229, 255, 0.4)',
+                                    position: 'relative',
+                                    overflow: 'hidden'
+                                  }}
+                                >
+                                  ↓ {formatMontant(accountData.totalEntrees)}
+                                </div>
+                                <div style={{ fontSize: '0.55em', color: '#7f8c8d', marginTop: '3px' }}>
+                                  {accountData.entrees.length} trans.
+                                </div>
                               </div>
-                            )}
-                            <div 
-                              className={`activity-badge entry ${isActivityActive ? 'animate' : ''}`}
-                              style={{
-                                display: 'inline-block',
-                                background: 'linear-gradient(135deg, #00E5FF 0%, #00E5FF 100%)',
-                                color: 'white',
-                                padding: '4px 10px',
-                                borderRadius: '12px',
-                                fontSize: '0.75em',
-                                fontWeight: 'bold',
-                                boxShadow: '0 2px 8px rgba(0, 229, 255, 0.4)',
-                                position: 'relative',
-                                overflow: 'hidden'
-                              }}
-                            >
-                              ↓ {formatMontant(accountData.totalEntrees)}
-                            </div>
-                            <div style={{ fontSize: '0.55em', color: '#7f8c8d', marginTop: '3px' }}>
-                              {accountData.entrees.length} trans.
-                            </div>
-                          </div>
-                          
-                          <div style={{ flex: 1, textAlign: 'right', position: 'relative' }}>
-                            {isActivityActive && accountData.totalSorties > 0 && (
-                              <div style={{
-                                position: 'absolute',
-                                right: '50%',
-                                top: '-15px',
-                                transform: 'translateX(50%)',
-                                animation: 'money-exit 0.8s ease-out forwards',
-                                fontSize: '1em',
-                                zIndex: 5
-                              }}>
-                                💸
+                              
+                              <div style={{ flex: 1, textAlign: 'right', position: 'relative' }}>
+                                {isActivityActive && accountData.totalSorties > 0 && (
+                                  <div style={{
+                                    position: 'absolute',
+                                    right: '50%',
+                                    top: '-15px',
+                                    transform: 'translateX(50%)',
+                                    animation: 'money-exit 0.8s ease-out forwards',
+                                    fontSize: '1em',
+                                    zIndex: 5
+                                  }}>
+                                    💸
+                                  </div>
+                                )}
+                                <div 
+                                  className={`activity-badge exit ${isActivityActive ? 'animate' : ''}`}
+                                  style={{
+                                    display: 'inline-block',
+                                    background: 'linear-gradient(135deg, #FF9100 0%, #FF9100 100%)',
+                                    color: 'white',
+                                    padding: '4px 10px',
+                                    borderRadius: '12px',
+                                    fontSize: '0.75em',
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 2px 8px rgba(255, 145, 0, 0.4)',
+                                    position: 'relative',
+                                    overflow: 'hidden'
+                                  }}
+                                >
+                                  ↑ {formatMontant(accountData.totalSorties)}
+                                </div>
+                                <div style={{ fontSize: '0.55em', color: '#7f8c8d', marginTop: '3px' }}>
+                                  {accountData.sorties.length} trans.
+                                </div>
                               </div>
-                            )}
-                            <div 
-                              className={`activity-badge exit ${isActivityActive ? 'animate' : ''}`}
-                              style={{
-                                display: 'inline-block',
-                                background: 'linear-gradient(135deg, #FF9100 0%, #FF9100 100%)',
-                                color: 'white',
-                                padding: '4px 10px',
-                                borderRadius: '12px',
-                                fontSize: '0.75em',
-                                fontWeight: 'bold',
-                                boxShadow: '0 2px 8px rgba(255, 145, 0, 0.4)',
-                                position: 'relative',
-                                overflow: 'hidden'
-                              }}
-                            >
-                              ↑ {formatMontant(accountData.totalSorties)}
-                            </div>
-                            <div style={{ fontSize: '0.55em', color: '#7f8c8d', marginTop: '3px' }}>
-                              {accountData.sorties.length} trans.
-                            </div>
-                          </div>
+                            </>
+                          )}
                         </div>
                       )}
                       
@@ -12900,7 +13469,7 @@ useEffect(() => {
               </div>
             </div>
 
-            <div style={{ padding: '20px 25px', maxHeight: '60vh', overflowY: 'auto' }}>
+            <div style={{ padding: '20px 25px', maxHeight: '50vh', overflowY: 'auto', flex: 1 }}>
               <div style={{ textAlign: 'center', padding: '20px', background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)', borderRadius: '12px', marginBottom: '20px' }}>
                 <div style={{ fontSize: '0.85em', color: '#7f8c8d', marginBottom: '5px' }}>
                   {selectedBubble.isYearView ? t('gps.bubbleDetails.yearEndBalance') : selectedBubble.isMonthView ? t('gps.bubbleDetails.monthEndBalance') : t('gps.bubbleDetails.dayBalance')}
@@ -12965,12 +13534,12 @@ useEffect(() => {
               )}
             </div>
 
-            <div style={{ padding: '15px 25px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end' }}>
+            <div style={{ padding: '15px 25px', borderTop: '1px solid #eee', display: 'flex', justifyContent: 'flex-end', flexShrink: 0, background: 'white' }}>
               <button
                 onClick={() => setSelectedBubble(null)}
-                style={{ padding: '10px 25px', borderRadius: '8px', border: 'none', background: 'linear-gradient(135deg, #040449 0%, #100261 100%)', color: 'white', fontSize: '0.95em', fontWeight: '600', cursor: 'pointer' }}
+                style={{ padding: '12px 30px', borderRadius: '10px', border: 'none', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white', fontSize: '1em', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)' }}
               >
-                {t('common.close')}
+                ✕ {t('common.close', 'Fermer')}
               </button>
             </div>
           </div>
@@ -13146,15 +13715,25 @@ useEffect(() => {
         
         const calculateMonthly = (items) => {
           let total = 0;
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
           items.forEach(item => {
             const m = parseFloat(item.montant) || 0;
+            
+            // Vérifier si l'item a une date de fin passée (exclure du calcul)
+            if (item.dateFinRecurrence) {
+              const finDate = new Date(item.dateFinRecurrence);
+              if (finDate < today) return; // Skip cet item
+            }
+            
             switch (item.frequence) {
               case 'quinzaine': case 'bimensuel': total += m * 2; break;
               case 'hebdomadaire': total += m * 4; break;
               case 'trimestriel': total += m / 3; break;
               case 'semestriel': total += m / 6; break;
               case 'annuel': total += m / 12; break;
-              case 'uneFois': break;
+              case 'uneFois': case '1-fois': break; // Fréquence "1 fois" = 0 pour le calcul mensuel
               default: total += m;
             }
           });
@@ -13163,7 +13742,6 @@ useEffect(() => {
         
         const totalEntreesModal = calculateMonthly(segmentEntrees);
         const totalSortiesModal = calculateMonthly(segmentSorties);
-        const balanceModal = totalEntreesModal - totalSortiesModal;
         
         const allEntreesMontants = segmentEntrees.map(e => parseFloat(e.montant) || 0);
         const allSortiesMontants = segmentSorties.map(s => parseFloat(s.montant) || 0);
@@ -13210,6 +13788,39 @@ useEffect(() => {
         const linkedEntreeIndexes = new Set(findLinkedItemsModal.map(l => l.entreeIndex));
         const linkedSortieIndexes = new Set(findLinkedItemsModal.map(l => l.sortieIndex));
         
+        // Calculer le montant des transferts liés (pour les déduire des entrées)
+        const linkedTransfersAmount = (() => {
+          const todayDate = new Date();
+          todayDate.setHours(0, 0, 0, 0);
+          
+          return findLinkedItemsModal.reduce((sum, link) => {
+            // Vérifier date de fin
+            if (link.entree.dateFinRecurrence) {
+              const finDate = new Date(link.entree.dateFinRecurrence);
+              if (finDate < todayDate) return sum;
+            }
+            
+            const montant = parseFloat(link.entree.montant) || 0;
+            let mensuel = montant;
+            switch (link.entree.frequence) {
+              case 'quinzaine': case 'bimensuel': mensuel = montant * 2; break;
+              case 'hebdomadaire': mensuel = montant * 4; break;
+              case 'trimestriel': mensuel = montant / 3; break;
+              case 'semestriel': mensuel = montant / 6; break;
+              case 'annuel': mensuel = montant / 12; break;
+              case 'uneFois': case '1-fois': mensuel = 0; break;
+              default: mensuel = montant;
+            }
+            return sum + mensuel;
+          }, 0);
+        })();
+        
+        // Entrées: Exclure les transferts entrants (ce n'est pas un vrai revenu)
+        const realTotalEntrees = totalEntreesModal - linkedTransfersAmount;
+        // Sorties: INCLURE les transferts sortants (c'est une vraie sortie de fonds)
+        const realTotalSorties = totalSortiesModal;
+        const balanceModal = realTotalEntrees - realTotalSorties;
+        
         // Items non liés (affichés dans les zones gauche/droite)
         const unlinkedEntrees = segmentEntrees.filter((_, i) => !linkedEntreeIndexes.has(i));
         const unlinkedSorties = segmentSorties.filter((_, i) => !linkedSortieIndexes.has(i));
@@ -13244,36 +13855,36 @@ useEffect(() => {
             position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
             background: 'rgba(0,0,0,0.8)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 1000, padding: '20px'
+            zIndex: 1000, padding: isMobile ? '10px' : '20px'
           }}>
             <div onClick={(e) => e.stopPropagation()} style={{
-              background: 'white', borderRadius: '20px',
-              width: '95%', maxWidth: '900px', height: '85vh',
+              background: 'white', borderRadius: isMobile ? '15px' : '20px',
+              width: '95%', maxWidth: '900px', height: isMobile ? '75vh' : '85vh',
               display: 'flex', flexDirection: 'column',
               overflow: 'hidden', boxShadow: '0 25px 80px rgba(0,0,0,0.4)'
             }}>
               {/* Header bleu foncé */}
               <div style={{
-                padding: '16px 25px',
+                padding: isMobile ? '6px 12px' : '16px 25px',
                 background: 'linear-gradient(135deg, #040449 0%, #100261 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 flexShrink: 0
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <span style={{ fontSize: '1.5em', color: 'white' }}>📅</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '12px' }}>
+                  <span style={{ fontSize: isMobile ? '1em' : '1.5em', color: 'white' }}>📅</span>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.1em', color: 'white' }}>
+                    <h3 style={{ margin: 0, fontSize: isMobile ? '0.8em' : '1.1em', color: 'white' }}>
                       {t('gps.budgetModal.title')} {budgetEditPopup.dateLabel}
                     </h3>
-                    <p style={{ margin: '4px 0 0', fontSize: '0.8em', color: 'rgba(255,255,255,0.7)' }}>
+                    <p style={{ margin: '2px 0 0', fontSize: '0.8em', color: 'rgba(255,255,255,0.7)', display: isMobile ? 'none' : 'block' }}>
                       {t('gps.budgetModal.subtitle')}
                     </p>
                   </div>
                 </div>
                 <button onClick={() => { setBudgetEditPopup(null); setExpandedModalSection(null); }} style={{
                   background: 'rgba(255,255,255,0.2)', border: 'none', color: 'white',
-                  width: '36px', height: '36px', borderRadius: '50%',
-                  cursor: 'pointer', fontSize: '1.4em',
+                  width: isMobile ? '26px' : '36px', height: isMobile ? '26px' : '36px', borderRadius: '50%',
+                  cursor: 'pointer', fontSize: isMobile ? '0.9em' : '1.4em',
                   display: 'flex', alignItems: 'center', justifyContent: 'center'
                 }}>x</button>
               </div>
@@ -13284,19 +13895,21 @@ useEffect(() => {
                 background: 'white',
                 overflow: 'hidden'
               }}>
-                {/* Cercle exterieur */}
-                <div style={{
-                  position: 'absolute', left: '50%', top: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '420px', height: '420px', borderRadius: '50%',
-                  border: '2px solid rgba(4, 4, 73, 0.15)', pointerEvents: 'none'
-                }} />
+                {/* Cercle exterieur - caché sur mobile */}
+                {!isMobile && (
+                  <div style={{
+                    position: 'absolute', left: '50%', top: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '420px', height: '420px', borderRadius: '50%',
+                    border: '2px solid rgba(4, 4, 73, 0.15)', pointerEvents: 'none'
+                  }} />
+                )}
                 {/* Cercle interieur */}
                 <div style={{
                   position: 'absolute', left: '50%', top: '50%',
                   transform: 'translate(-50%, -50%)',
-                  width: '350px', height: '350px', borderRadius: '50%',
-                  border: '3px solid rgba(4, 4, 73, 0.25)', pointerEvents: 'none'
+                  width: isMobile ? '200px' : '350px', height: isMobile ? '200px' : '350px', borderRadius: '50%',
+                  border: isMobile ? '2px solid rgba(4, 4, 73, 0.2)' : '3px solid rgba(4, 4, 73, 0.25)', pointerEvents: 'none'
                 }} />
                 
                 {/* Centre - Balance */}
@@ -13305,26 +13918,26 @@ useEffect(() => {
                   transform: 'translate(-50%, -50%)',
                   textAlign: 'center', zIndex: 20
                 }}>
-                  <p style={{ color: '#7f8c8d', fontSize: '0.85em', margin: '0 0 5px', fontWeight: '600' }}>
+                  <p style={{ color: '#7f8c8d', fontSize: isMobile ? '0.7em' : '0.85em', margin: '0 0 3px', fontWeight: '600' }}>
                     {t('gps.budgetModal.monthlyBalance')}
                   </p>
                   <p style={{
-                    fontSize: '2em', fontWeight: 'bold', margin: '0 0 10px',
+                    fontSize: isMobile ? '1.4em' : '2em', fontWeight: 'bold', margin: isMobile ? '0 0 5px' : '0 0 10px',
                     color: balanceModal >= 0 ? '#00E5FF' : '#FF9100',
                     textShadow: '0 2px 10px rgba(0,0,0,0.1)'
                   }}>
                     {balanceModal >= 0 ? '+' : ''}{formatMontantModal(balanceModal)}
                   </p>
-                  <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', fontSize: '0.8em' }}>
-                    <span style={{ color: '#00E5FF' }}>+ {formatMontantModal(totalEntreesModal)}</span>
-                    <span style={{ color: '#FF9100' }}>- {formatMontantModal(totalSortiesModal)}</span>
+                  <div style={{ display: 'flex', gap: isMobile ? '10px' : '20px', justifyContent: 'center', fontSize: isMobile ? '0.65em' : '0.8em' }}>
+                    <span style={{ color: '#00E5FF' }}>+ {formatMontantModal(realTotalEntrees)}</span>
+                    <span style={{ color: '#FF9100' }}>- {formatMontantModal(realTotalSorties)}</span>
                   </div>
                 </div>
 
                 {/* ============================================ */}
-                {/* TRANSFERTS LIÉS - EN HAUT */}
+                {/* TRANSFERTS LIÉS - CACHÉ */}
                 {/* ============================================ */}
-                {findLinkedItemsModal.length > 0 && (
+                {false && findLinkedItemsModal.length > 0 && (
                   <div
                     onMouseEnter={() => setExpandedModalSection('linked')}
                     onMouseLeave={() => setExpandedModalSection(null)}
@@ -13461,10 +14074,12 @@ useEffect(() => {
                   }}
                 >
                   {/* Titre avec bouton + */}
-                  <div style={{ textAlign: 'center', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                    <span style={{ color: '#3498db', fontWeight: 'bold', fontSize: '0.9em' }}>
-                      {t('gps.budgetModal.entries')} ({unlinkedEntrees.length})
-                    </span>
+                  <div style={{ textAlign: 'center', marginBottom: isMobile ? '0px' : '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                    {!isMobile && (
+                      <span style={{ color: '#3498db', fontWeight: 'bold', fontSize: '0.9em' }}>
+                        {t('gps.budgetModal.entries')} ({unlinkedEntrees.length})
+                      </span>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -13509,7 +14124,7 @@ useEffect(() => {
                   </div>
                   
                   {/* Zone des bulles */}
-                  <div style={{ position: 'relative', height: 'calc(100% - 30px)' }}>
+                  <div style={{ position: 'relative', height: isMobile ? '100%' : 'calc(100% - 30px)' }}>
                     {/* Vue compacte - Bulle résumée */}
                     {expandedModalSection !== 'entrees' && unlinkedEntrees.length > 0 && (
                       <div
@@ -13518,11 +14133,11 @@ useEffect(() => {
                           left: '50%',
                           top: '50%',
                           transform: 'translate(-50%, -50%)',
-                          width: '100px',
-                          height: '100px',
+                          width: isMobile ? '45px' : '100px',
+                          height: isMobile ? '45px' : '100px',
                           borderRadius: '50%',
                           background: 'linear-gradient(135deg, #3498db 0%, #5dade2 100%)',
-                          border: '4px solid white',
+                          border: isMobile ? '3px solid white' : '4px solid white',
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
@@ -13531,10 +14146,10 @@ useEffect(() => {
                           cursor: 'pointer'
                         }}
                       >
-                        <span style={{ fontSize: '1.4em', fontWeight: 'bold', color: 'white' }}>
+                        <span style={{ fontSize: isMobile ? '0.85em' : '1.4em', fontWeight: 'bold', color: 'white' }}>
                           {unlinkedEntrees.length}
                         </span>
-                        <span style={{ fontSize: '0.7em', color: 'rgba(255,255,255,0.9)' }}>
+                        <span style={{ fontSize: isMobile ? '0.45em' : '0.7em', color: 'rgba(255,255,255,0.9)' }}>
                           {formatMontantShort(unlinkedEntrees.reduce((sum, e) => sum + (parseFloat(e.montant) || 0), 0))}
                         </span>
                       </div>
@@ -13627,10 +14242,12 @@ useEffect(() => {
                   }}
                 >
                   {/* Titre avec bouton - */}
-                  <div style={{ textAlign: 'center', marginBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-                    <span style={{ color: '#e74c3c', fontWeight: 'bold', fontSize: '0.9em' }}>
-                      {t('gps.budgetModal.expenses')} ({unlinkedSorties.length})
-                    </span>
+                  <div style={{ textAlign: 'center', marginBottom: isMobile ? '0px' : '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+                    {!isMobile && (
+                      <span style={{ color: '#FF9100', fontWeight: 'bold', fontSize: '0.9em' }}>
+                        {t('gps.budgetModal.expenses')} ({unlinkedSorties.length})
+                      </span>
+                    )}
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -13648,9 +14265,9 @@ useEffect(() => {
                         width: '28px',
                         height: '28px',
                         borderRadius: '50%',
-                        border: '2px solid #e74c3c',
+                        border: '2px solid #FF9100',
                         background: 'white',
-                        color: '#e74c3c',
+                        color: '#FF9100',
                         fontSize: '1.2em',
                         fontWeight: 'bold',
                         cursor: 'pointer',
@@ -13658,15 +14275,15 @@ useEffect(() => {
                         alignItems: 'center',
                         justifyContent: 'center',
                         transition: 'all 0.2s',
-                        boxShadow: '0 2px 8px rgba(231, 76, 60, 0.3)'
+                        boxShadow: '0 2px 8px rgba(255, 145, 0, 0.3)'
                       }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = '#e74c3c';
+                        e.currentTarget.style.background = '#FF9100';
                         e.currentTarget.style.color = 'white';
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.background = 'white';
-                        e.currentTarget.style.color = '#e74c3c';
+                        e.currentTarget.style.color = '#FF9100';
                       }}
                       title={t('gps.budgetModal.addExpense')}
                     >
@@ -13675,7 +14292,7 @@ useEffect(() => {
                   </div>
                   
                   {/* Zone des bulles */}
-                  <div style={{ position: 'relative', height: 'calc(100% - 30px)' }}>
+                  <div style={{ position: 'relative', height: isMobile ? '100%' : 'calc(100% - 30px)' }}>
                     {/* Vue compacte - Bulle résumée */}
                     {expandedModalSection !== 'sorties' && unlinkedSorties.length > 0 && (
                       <div
@@ -13684,23 +14301,23 @@ useEffect(() => {
                           left: '50%',
                           top: '50%',
                           transform: 'translate(-50%, -50%)',
-                          width: '100px',
-                          height: '100px',
+                          width: isMobile ? '45px' : '100px',
+                          height: isMobile ? '45px' : '100px',
                           borderRadius: '50%',
-                          background: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)',
-                          border: '4px solid white',
+                          background: 'linear-gradient(135deg, #FF9100 0%, #E65100 100%)',
+                          border: isMobile ? '3px solid white' : '4px solid white',
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          boxShadow: '0 8px 30px rgba(231, 76, 60, 0.4)',
+                          boxShadow: '0 8px 30px rgba(255, 145, 0, 0.4)',
                           cursor: 'pointer'
                         }}
                       >
-                        <span style={{ fontSize: '1.4em', fontWeight: 'bold', color: 'white' }}>
+                        <span style={{ fontSize: isMobile ? '0.85em' : '1.4em', fontWeight: 'bold', color: 'white' }}>
                           {unlinkedSorties.length}
                         </span>
-                        <span style={{ fontSize: '0.7em', color: 'rgba(255,255,255,0.9)' }}>
+                        <span style={{ fontSize: isMobile ? '0.45em' : '0.7em', color: 'rgba(255,255,255,0.9)' }}>
                           {formatMontantShort(unlinkedSorties.reduce((sum, s) => sum + (parseFloat(s.montant) || 0), 0))}
                         </span>
                       </div>
@@ -13736,24 +14353,24 @@ useEffect(() => {
                             height: size + 'px',
                             borderRadius: '50%',
                             background: 'white',
-                            border: '3px solid #e74c3c',
+                            border: '3px solid #FF9100',
                             display: 'flex',
                             flexDirection: 'column',
                             alignItems: 'center',
                             justifyContent: 'center',
                             cursor: 'pointer',
-                            boxShadow: '0 4px 15px rgba(231, 76, 60, 0.2)',
+                            boxShadow: '0 4px 15px rgba(255, 145, 0, 0.2)',
                             padding: '5px',
                             boxSizing: 'border-box',
                             transition: 'transform 0.2s, box-shadow 0.2s'
                           }}
                           onMouseEnter={(e) => {
                             e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.1)';
-                            e.currentTarget.style.boxShadow = '0 8px 25px rgba(231, 76, 60, 0.4)';
+                            e.currentTarget.style.boxShadow = '0 8px 25px rgba(255, 145, 0, 0.4)';
                           }}
                           onMouseLeave={(e) => {
                             e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)';
-                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(231, 76, 60, 0.2)';
+                            e.currentTarget.style.boxShadow = '0 4px 15px rgba(255, 145, 0, 0.2)';
                           }}
                         >
                           <span style={{
@@ -13767,7 +14384,7 @@ useEffect(() => {
                             textOverflow: 'ellipsis',
                             whiteSpace: 'nowrap'
                           }}>{item.description}</span>
-                          <span style={{ fontSize: '0.75em', fontWeight: 'bold', color: '#e74c3c', marginTop: '2px' }}>
+                          <span style={{ fontSize: '0.75em', fontWeight: 'bold', color: '#FF9100', marginTop: '2px' }}>
                             -{formatMontantShort(item.montant)}
                           </span>
                         </div>
@@ -13779,18 +14396,19 @@ useEffect(() => {
               
               {/* Footer */}
               <div style={{
-                padding: '15px 25px', borderTop: '1px solid #eee',
+                padding: isMobile ? '8px 15px' : '15px 25px', borderTop: '1px solid #eee',
                 display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                 flexShrink: 0, background: 'white'
               }}>
-                <p style={{ margin: 0, fontSize: '0.85em', color: '#7f8c8d' }}>
+                <p style={{ margin: 0, fontSize: isMobile ? '0.7em' : '0.85em', color: '#7f8c8d', display: isMobile ? 'none' : 'block' }}>
                   {t('gps.budgetModal.clickToEdit')}
                 </p>
-                <div style={{ display: 'flex', gap: '10px' }}>
+                <div style={{ display: 'flex', gap: '10px', width: isMobile ? '100%' : 'auto' }}>
                   <button onClick={() => { setBudgetEditPopup(null); setExpandedModalSection(null); }} style={{
-                    padding: '10px 20px', borderRadius: '8px',
+                    padding: isMobile ? '8px 16px' : '10px 20px', borderRadius: '8px',
                     border: '2px solid #040449', background: 'transparent',
-                    color: '#040449', fontSize: '0.95em', fontWeight: '600', cursor: 'pointer'
+                    color: '#040449', fontSize: isMobile ? '0.85em' : '0.95em', fontWeight: '600', cursor: 'pointer',
+                    flex: isMobile ? 1 : 'none'
                   }}>{t('common.close')}</button>
                   <button onClick={() => {
                     // Fermer le modal
@@ -13802,9 +14420,10 @@ useEffect(() => {
                       console.log('Recalcul GPS terminé');
                     });
                   }} style={{
-                    padding: '10px 20px', borderRadius: '8px', border: 'none',
+                    padding: isMobile ? '8px 16px' : '10px 20px', borderRadius: '8px', border: 'none',
                     background: 'linear-gradient(135deg, #040449 0%, #100261 100%)',
-                    color: 'white', fontSize: '0.95em', fontWeight: '600', cursor: 'pointer'
+                    color: 'white', fontSize: isMobile ? '0.85em' : '0.95em', fontWeight: '600', cursor: 'pointer',
+                    flex: isMobile ? 1 : 'none'
                   }}>{t('common.save')}</button>
                 </div>
               </div>
@@ -13824,26 +14443,30 @@ useEffect(() => {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            zIndex: 1100
+            zIndex: 1100,
+            padding: isMobile ? '10px' : '20px'
           }}
         >
           <div 
             onClick={(e) => e.stopPropagation()}
             style={{
               background: 'white',
-              borderRadius: '20px',
+              borderRadius: isMobile ? '15px' : '20px',
               boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-              padding: '25px',
-              width: '90%',
-              maxWidth: '500px'
+              padding: isMobile ? '15px' : '25px',
+              width: '95%',
+              maxWidth: '500px',
+              maxHeight: isMobile ? '85vh' : '90vh',
+              overflow: 'auto'
             }}
           >
             <h3 style={{ 
-              margin: '0 0 20px', 
-              color: editingBudgetItem.type === 'entree' ? '#3498db' : '#e74c3c',
+              margin: isMobile ? '0 0 12px' : '0 0 20px', 
+              color: editingBudgetItem.type === 'entree' ? '#3498db' : '#FF9100',
               display: 'flex',
               alignItems: 'center',
-              gap: '10px'
+              gap: '10px',
+              fontSize: isMobile ? '1em' : '1.2em'
             }}>
               <span>{editingBudgetItem.type === 'entree' ? '🔧' : '🔧'}</span>
               {editingBudgetItem.isNew 
@@ -13853,8 +14476,8 @@ useEffect(() => {
             </h3>
             
             {/* Description */}
-            <div style={{ marginBottom: '15px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+            <div style={{ marginBottom: isMobile ? '10px' : '15px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: isMobile ? '0.85em' : '1em' }}>
                 {t('gps.budgetForm.description')} <span style={{ color: '#e74c3c' }}>*</span>
               </label>
               <input
@@ -13864,19 +14487,19 @@ useEffect(() => {
                 autoComplete="off"
                 style={{
                   width: '100%',
-                  padding: '12px',
+                  padding: isMobile ? '10px' : '12px',
                   borderRadius: '10px',
                   border: '2px solid #e0e0e0',
-                  fontSize: '1em',
+                  fontSize: isMobile ? '0.9em' : '1em',
                   boxSizing: 'border-box'
                 }}
               />
             </div>
             
             {/* Montant et Frequence sur la meme ligne */}
-            <div style={{ display: 'flex', gap: '15px', marginBottom: '15px' }}>
+            <div style={{ display: 'flex', gap: isMobile ? '10px' : '15px', marginBottom: isMobile ? '10px' : '15px', flexDirection: isMobile ? 'column' : 'row' }}>
               <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: isMobile ? '0.85em' : '1em' }}>
                   {t('gps.budgetForm.amount')} <span style={{ color: '#e74c3c' }}>*</span>
                 </label>
                 <input
@@ -13886,16 +14509,16 @@ useEffect(() => {
                   autoComplete="off"
                   style={{
                     width: '100%',
-                    padding: '12px',
+                    padding: isMobile ? '10px' : '12px',
                     borderRadius: '10px',
                     border: '2px solid #e0e0e0',
-                    fontSize: '1em',
+                    fontSize: isMobile ? '0.9em' : '1em',
                     boxSizing: 'border-box'
                   }}
                 />
               </div>
               <div style={{ flex: 1 }}>
-                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>{t('gps.budgetForm.frequency')}</label>
+                <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: isMobile ? '0.85em' : '1em' }}>{t('gps.budgetForm.frequency')}</label>
                 <select
                   value={editFrequence}
                   onChange={(e) => {
@@ -13907,10 +14530,10 @@ useEffect(() => {
                   }}
                   style={{
                     width: '100%',
-                    padding: '12px',
+                    padding: isMobile ? '10px' : '12px',
                     borderRadius: '10px',
                     border: '2px solid #e0e0e0',
-                    fontSize: '1em',
+                    fontSize: isMobile ? '0.9em' : '1em',
                     boxSizing: 'border-box',
                     background: 'white'
                   }}
@@ -14163,8 +14786,8 @@ useEffect(() => {
             )}
             
             {/* Compte associe */}
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600' }}>
+            <div style={{ marginBottom: isMobile ? '15px' : '20px' }}>
+              <label style={{ display: 'block', marginBottom: '5px', fontWeight: '600', fontSize: isMobile ? '0.85em' : '1em' }}>
                 {t('gps.budgetForm.linkedAccount')}
               </label>
               <select
@@ -14172,10 +14795,10 @@ useEffect(() => {
                 onChange={(e) => setEditCompte(e.target.value)}
                 style={{
                   width: '100%',
-                  padding: '12px',
+                  padding: isMobile ? '10px' : '12px',
                   borderRadius: '10px',
                   border: '2px solid #e0e0e0',
-                  fontSize: '1em',
+                  fontSize: isMobile ? '0.9em' : '1em',
                   boxSizing: 'border-box',
                   background: 'white'
                 }}
@@ -14188,19 +14811,20 @@ useEffect(() => {
             </div>
             
             {/* Boutons */}
-            <div style={{ display: 'flex', gap: '10px' }}>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
               <button
                 type="button"
                 onClick={() => setEditingBudgetItem(null)}
                 style={{
-                  flex: 1,
-                  padding: '12px',
+                  flex: isMobile ? '1 1 45%' : 1,
+                  padding: isMobile ? '10px' : '12px',
                   borderRadius: '10px',
                   border: '2px solid #e0e0e0',
                   background: 'white',
                   color: '#7f8c8d',
                   fontWeight: '600',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '0.9em' : '1em'
                 }}
               >
                 {t('gps.budgetForm.cancel')}

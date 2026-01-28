@@ -3,7 +3,7 @@
 // ✅ Utilise useGuideProgress pour la logique centralisée
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '../../context/UserDataContext';
 import useGuideProgress from '../../hooks/useGuideProgress';
@@ -17,12 +17,22 @@ const GestionComptes = () => {
   const { userData, isLoading, saveUserData } = useUserData();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   
   // ✅ Hook centralisé pour la progression du guide
   const { shouldShowGuide, markGuideCompleted, isLoading: isGuideLoading } = useGuideProgress();
   
   // 🎨 Theme support
   const { isDark } = useTheme();
+  
+  // 📱 Détection mobile
+  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   
   // État pour le guide utilisateur
   const [showGuide, setShowGuide] = useState(false);
@@ -77,6 +87,16 @@ const GestionComptes = () => {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [selectedTrajectoirePoint, setSelectedTrajectoirePoint] = useState({ type: 'today', index: 0 });
   const [userRequestId, setUserRequestId] = useState(null);
+  
+  // 📱 Lire le paramètre fullscreen de l'URL (pour navigation depuis Sidebar mobile)
+  useEffect(() => {
+    const fullscreenParam = searchParams.get('fullscreen');
+    if (fullscreenParam === 'true' && isMobile) {
+      setIsFullScreen(true);
+      // Nettoyer l'URL après avoir lu le paramètre
+      navigate('/gestion-comptes', { replace: true });
+    }
+  }, [searchParams, isMobile, navigate]);
   
   // Synchroniser requestStatus avec le backend ET userData.optimizationRequest
   useEffect(() => {
@@ -652,8 +672,9 @@ const GestionComptes = () => {
   // Rendu du contenu principal
   const renderContent = () => (
     <div style={{
-      display: 'grid',
-      gridTemplateColumns: '1fr auto 1fr',
+      display: isMobile ? 'flex' : 'grid',
+      flexDirection: isMobile ? 'column' : undefined,
+      gridTemplateColumns: isMobile ? undefined : '1fr auto 1fr',
       gap: '20px',
       alignItems: 'start'
     }}>
@@ -817,9 +838,11 @@ const GestionComptes = () => {
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
+        justifyContent: 'flex-start',
         gap: '20px',
-        padding: '20px 15px',
-        minWidth: '220px'
+        padding: isMobile ? '20px 10px' : '20px 15px',
+        minWidth: isMobile ? 'auto' : '220px',
+        order: isMobile ? 1 : 0
       }}>
         {/* Bouton Améliorer - bloqué pendant l'onboarding */}
         {requestStatus === 'none' && (
@@ -879,7 +902,8 @@ const GestionComptes = () => {
           </div>
         )}
 
-        {/* Flèche de progression */}
+        {/* Flèche de progression - cachée sur mobile */}
+        {!isMobile && (
         <div style={{
           display: 'flex',
           flexDirection: 'column',
@@ -906,6 +930,7 @@ const GestionComptes = () => {
             borderRadius: '2px'
           }} />
         </div>
+        )}
 
         {/* Bouton Accepter */}
         {requestStatus === 'ready' && (
@@ -956,7 +981,8 @@ const GestionComptes = () => {
             : isDark ? '0 4px 20px rgba(0,0,0,0.15)' : '0 4px 20px rgba(0,0,0,0.08)',
           border: requestStatus === 'ready' ? '2px solid #27ae60' : isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(102, 126, 234, 0.2)',
           transition: 'all 0.3s',
-          cursor: requestStatus === 'ready' ? 'pointer' : 'default'
+          cursor: requestStatus === 'ready' ? 'pointer' : 'default',
+          order: isMobile ? 2 : 0
         }}
         onMouseEnter={(e) => {
           if (requestStatus === 'ready') {
@@ -1315,20 +1341,70 @@ const GestionComptes = () => {
         }}>
           <div style={{
             background: 'transparent',
-            padding: '15px 30px',
+            padding: isMobile ? '10px 15px' : '15px 30px',
             display: 'flex',
             justifyContent: 'space-between',
-            alignItems: 'center'
+            alignItems: 'center',
+            flexShrink: 0
           }}>
-            <div>
-              <h1 style={{ margin: 0, fontSize: '1.5em', fontWeight: 'bold', color: isDark ? 'white' : '#1e293b' }}>
-                📊 {t('management.title')}
-              </h1>
-              <p style={{ margin: '5px 0 0', fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
-                {t('management.subtitle')}
-              </p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            {/* Titre - à gauche */}
+            <h1 style={{ 
+              margin: 0, 
+              fontSize: isMobile ? '1.1em' : '1.5em', 
+              fontWeight: 'bold', 
+              color: isDark ? 'white' : '#1e293b',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px'
+            }}>
+              📊 {t('management.title')}
+            </h1>
+            
+            {/* Boutons à droite */}
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              alignItems: 'center', 
+              gap: isMobile ? '8px' : '10px' 
+            }}>
+              {/* Bouton Fermer (X) */}
+              <button
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (isMobile) {
+                    window.dispatchEvent(new CustomEvent('openSidebar'));
+                  } else {
+                    setIsFullScreen(false);
+                  }
+                }}
+                style={{
+                  background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                  border: isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)',
+                  borderRadius: '50%',
+                  width: isMobile ? '32px' : '40px',
+                  height: isMobile ? '32px' : '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '1em' : '1.2em',
+                  color: isDark ? 'white' : '#64748b',
+                  transition: 'all 0.3s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#e74c3c';
+                  e.currentTarget.style.color = 'white';
+                  e.currentTarget.style.borderColor = '#e74c3c';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+                  e.currentTarget.style.color = isDark ? 'white' : '#64748b';
+                  e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)';
+                }}
+              >
+                ✕
+              </button>
+              
               {/* Bouton Œil pour masquer/afficher les soldes */}
               <button
                 onClick={toggleBalances}
@@ -1337,40 +1413,33 @@ const GestionComptes = () => {
                   background: balancesHidden ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
                   border: balancesHidden ? 'none' : isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)',
                   borderRadius: '50%',
-                  width: '40px',
-                  height: '40px',
+                  width: isMobile ? '32px' : '40px',
+                  height: isMobile ? '32px' : '40px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: 'pointer',
-                  fontSize: '1.2em',
+                  fontSize: isMobile ? '1em' : '1.2em',
                   transition: 'all 0.3s',
                   boxShadow: balancesHidden ? '0 4px 15px rgba(102, 126, 234, 0.4)' : 'none'
                 }}
               >
                 {balancesHidden ? '👁️‍🗨️' : '👁️'}
               </button>
-              
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsFullScreen(false); }}
-                style={{
-                  background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
-                  border: isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)',
-                  borderRadius: '50%',
-                  width: '45px',
-                  height: '45px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: '1.5em',
-                  color: isDark ? 'white' : '#475569'
-                }}
-              >
-                ✕
-              </button>
             </div>
           </div>
+          
+          {/* Sous-titre sur mobile */}
+          {isMobile && (
+            <p style={{ 
+              margin: '0 15px 10px', 
+              fontSize: '0.85em', 
+              color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b',
+              textAlign: 'center'
+            }}>
+              {t('management.subtitle')}
+            </p>
+          )}
           <div style={{ flex: 1, overflow: 'auto', padding: '30px', background: 'transparent' }}>
             {renderContent()}
           </div>

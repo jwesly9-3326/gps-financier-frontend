@@ -27,7 +27,10 @@
     "select": "Sélectionner...",
     "noDescription": "Sans description",
     "understood": "Compris!",
-    "onContinue": "On continue!"
+    "onContinue": "On continue!",
+    "rotateToPortrait": "Tournez votre écran",
+    "portraitModeRequired": "Cette page est optimisée pour le mode portrait. Veuillez tourner votre appareil.",
+    "goToItineraire": "Aller à Itinéraire"
   },
   "trial": {
     "freeTrialActive": "Essai gratuit",
@@ -52,7 +55,7 @@
       "daysLeft": "{{days}} jours restants",
       "subtitle": "Prêt à sécuriser ton accès?",
       "ignore": "Plus tard",
-      "remind": "Rappeler dans 7 jours",
+      "remind": "Rappeler dans 5 jours",
       "choosePlan": "Voir les plans"
     },
     "reminder2days": {
@@ -263,7 +266,7 @@
     "title": "Vois enfin où tu vas.",
     "discover": "Vois enfin où tu vas.",
     "subtitle": "Le premier GPS pour tes finances personnelles.",
-    "tagline": "Finis l'incertitude. Commence à naviguer. 🧭",
+    "tagline": "Finis l'incertitude. Commence à naviguer.",
     "cta": "🧭 Commencer mon voyage",
     "ctaBadge": "14 jours d'essai gratuit",
     "login": "Connexion",
@@ -299,6 +302,7 @@
     "title": "Mon Portefeuille",
     "noData": "Aucune donnée de compte disponible. Veuillez compléter l'onboarding.",
     "addAccount": "Ajouter un compte",
+    "addNewAccount": "Ajouter un nouveau compte",
     "editAccount": "Modifier le solde",
     "accountType": "Type de compte",
     "deleteAccount": "Supprimer ce compte ?",
@@ -320,6 +324,26 @@
     "tipAddMore": "Ajoute tes autres comptes pour une vue complète!",
     "advancePortfolio": "Faire avancer mon portefeuille",
     "advancePortfolioHint": "Visualise l'évolution de tes soldes jour par jour",
+    "confirmDelete": "Supprimer ce compte?",
+    "viewTrajectory": "Voir ma trajectoire financière",
+    "form": {
+      "name": "Nom du compte",
+      "namePlaceholder": "Ex: Compte principal, Visa...",
+      "type": "Type de compte",
+      "institution": "Institution financière",
+      "institutionPlaceholder": "Ex: Desjardins, TD, RBC",
+      "balance": "Solde actuel",
+      "initialBalance": "Solde initial",
+      "currentBalance": "Solde actuel (dette)",
+      "limit": "Limite de crédit",
+      "creditLimit": "Limite de crédit",
+      "tapToEnter": "Appuyer pour entrer",
+      "enterBalance": "Entrer le solde",
+      "enterLimit": "Entrer la limite",
+      "enterInitialBalance": "Entrer le solde initial",
+      "enterCurrentBalance": "Entrer le solde actuel",
+      "enterCreditLimit": "Entrer la limite de crédit"
+    },
     "goMode": {
       "day": "Jour",
       "navigate": "Navigue dans le temps",
@@ -345,6 +369,7 @@
       "cheque": "Compte chèque",
       "epargne": "Compte épargne",
       "credit": "Carte de crédit",
+      "hypotheque": "Hypothèque",
       "investissement": "Investissement"
     },
     "transactions": {
@@ -399,6 +424,11 @@
       "hebdomadaire": "Hebdomadaire",
       "quinzaine": "Aux 2 semaines",
       "trimestriel": "Trimestriel",
+      "semestriel": "Semestriel",
+      "ponctuel": "1 fois",
+      "quarterly": "Trimestriel",
+      "semiannual": "Semestriel",
+      "oneTime": "1 fois",
       "annuel": "Annuel"
     },
     "balance": {
@@ -430,6 +460,11 @@
       "selectAccount": "Veuillez d'abord sélectionner un compte associé"
     },
     "dayOfWeek": "Jour de la semaine",
+    "startDate": "Date de début",
+    "endDate": "Date de fin",
+    "endDateHint": "Laissez vide pour une récurrence sans fin",
+    "transactionDate": "Date de la transaction",
+    "oneTimeHint": "Cette transaction ne se produira qu'une seule fois",
     "lastDate": "Dernière date",
     "month": "Mois",
     "frequencyInfo": {
@@ -510,6 +545,8 @@
       "inDays_plural": "dans {{count}} jours",
       "inDaysLabel": "dans {{count}} jour",
       "inDaysLabel_plural": "dans {{count}} jours",
+      "inMonths": "dans {{months}} mois",
+      "inMonthsAndDays": "dans {{months}} mois et {{days}} jours",
       "trajectoryButton": "Trajectoire",
       "tomorrowLabel": "Demain",
       "todayLabel": "Aujourd'hui",
@@ -725,6 +762,15 @@
       "yearEndBalance": "Solde fin d'année",
       "monthEndBalance": "Solde fin de mois",
       "dayBalance": "Solde du jour"
+    },
+    "rotateScreen": {
+      "title": "Tournez votre écran",
+      "message": "Pour une meilleure expérience de la Trajectoire Financière, veuillez tourner votre appareil en mode paysage.",
+      "backButton": "Retour à Navigation"
+    },
+    "rotateToPortrait": {
+      "title": "Pivotez votre écran",
+      "message": "Pour continuer, veuillez d'abord pivoter votre appareil en mode portrait."
     }
   },
   "goals": {
@@ -742,6 +788,25 @@
     },
     "noData": "Aucune destination définie. Veuillez compléter l'onboarding.",
     "emptyState": "Aucune destination définie pour l'instant",
+    "suggestions": {
+      "emergencyFund": "Fonds d'urgence",
+      "vacation": "Vacances",
+      "downPayment": "Mise de fonds",
+      "retirement": "Retraite",
+      "debtPayoff": "Remboursement de dette",
+      "wedding": "Mariage",
+      "education": "\u00c9tudes",
+      "car": "Voiture",
+      "renovation": "R\u00e9novations",
+      "other": "Autre",
+      "payOffDebt": "Rembourser une dette",
+      "newCar": "Nouvelle voiture",
+      "babyFund": "Fonds b\u00e9b\u00e9",
+      "electronics": "\u00c9lectronique",
+      "hobby": "Loisir / Hobby",
+      "medical": "Frais m\u00e9dicaux",
+      "specialEvent": "\u00c9v\u00e9nement sp\u00e9cial"
+    },
     "addDestination": "Ajouter une destination",
     "debt": "Dette",
     "of": "sur",
@@ -877,7 +942,7 @@
   },
   "settings": {
     "title": "Paramètres",
-    "subtitle": "Configurez votre expérience",
+    "subtitle": "Configure ton expérience",
     "guide": {
       "title": "Félicitations, tu as fait le tour! 🎉",
       "message": "Personnalise ton outil.",
@@ -931,7 +996,9 @@
       "subtitle": "Choisissez le plan qui correspond à vos besoins financiers",
       "currentPlan": "PLAN ACTUEL",
       "perMonth": "/mois",
-      "orYearly": "Ou {{price}}/an (2 mois gratuits)",
+      "orYearly": "Ou {{price}}/an",
+      "orYearlyEssential": "Ou {{price}}/an (1 mois gratuit)",
+      "orYearlyPro": "Ou {{price}}/an (2 mois gratuits)",
       "currentButton": "Plan actuel",
       "upgradeButton": "Passer à Essentiel",
       "soonButton": "Bientôt disponible",
@@ -954,7 +1021,7 @@
         "name": "Essentiel",
         "tagline": "Naviguez vers votre nouvelle économie",
         "price": "14,99$",
-        "yearlyPrice": "149$"
+        "yearlyPrice": "159$"
       },
       "pro": {
         "name": "Pro + IA",
@@ -1097,7 +1164,7 @@
           "regenerateInfo": "Entrez un code de votre app pour générer de nouveaux codes de secours.",
           "regenerate": "Régénérer"
         },
-        "disable": {
+        "disableModal": {
           "title": "Désactiver 2FA",
           "subtitle": "Votre compte sera moins sécurisé",
           "enterPassword": "Entrez votre mot de passe pour confirmer:",
@@ -1110,7 +1177,8 @@
         "current": "Session actuelle",
         "ago": "Il y a {{time}}",
         "disconnect": "Déconnecter",
-        "disconnectAll": "🚪 Déconnecter toutes les sessions"
+        "disconnectAll": "🚪 Déconnecter toutes les sessions",
+        "disconnectAllSuccess": "Toutes les autres sessions ont été déconnectées avec succès!"
       },
       "sensitiveData": {
         "title": "Données sensibles",
@@ -1129,7 +1197,8 @@
             "accounts": "Tous vos comptes bancaires",
             "budget": "Votre planification budgétaire",
             "goals": "Vos objectifs financiers",
-            "settings": "Vos paramètres et préférences"
+            "settings": "Vos paramètres et préférences",
+            "trial": "Votre essai gratuit (si dans la période de 14 jours)"
           },
           "confirmLabel": "Tapez SUPPRIMER pour confirmer:",
           "confirmButton": "Supprimer définitivement",
@@ -1157,8 +1226,8 @@
         "linkedin": "LinkedIn"
       },
       "feedback": {
-        "beta": "💬 Envoyer feedback beta",
-        "bug": "🐛 Signaler un bug"
+        "beta": "Envoyer feedback",
+        "bug": "Signaler un bug"
       },
       "modals": {
         "guide": {
@@ -1397,7 +1466,9 @@
         "cheque": "Compte chèque",
         "savings": "Épargne",
         "credit": "Carte crédit",
-        "creditHint": "Solde dû (ce que tu dois)"
+        "creditHint": "Solde dû (ce que tu dois)",
+        "mortgage": "Hypothèque",
+        "mortgageHint": "Solde dû sur ta maison"
       },
       "creditLimit": "Limite de crédit",
       "currentBalance": "Solde actuel",
@@ -1454,7 +1525,7 @@
       "associatedAccount": "Compte associé",
       "addMoreLater": "💡 Tu pourras ajouter d'autres objectifs ou changer l'objectif de compte plus tard depuis la page <strong>Objectifs</strong>",
       "creating": "Création de ton GPS...",
-      "accessTool": "Voir mon tableau de bord",
+      "accessTool": "Accéder à mon outil",
       "skip": "Passer cette étape"
     },
     "loading": {
@@ -1474,7 +1545,7 @@
     }
   },
   "dashboard": {
-    "title": "Tableau de bord",
+    "title": "Mon tableau de bord",
     "completeGuide": "Complétez votre guide!",
     "welcome": {
       "title": "Bienvenue sur PL4TO!",
@@ -1491,7 +1562,7 @@
       "empty": "Aucune nouvelle notification pour le moment."
     },
     "calendarO": {
-      "title": "Calendrier",
+      "title": "Mon Calendrier",
       "subtitle": "Anticipez vos dépenses futures",
       "inDays": "Dans {{count}} jours",
       "inWeeks": "Dans {{count}} semaine",
@@ -1803,23 +1874,6 @@
       "title": "Fonctionnalité Premium",
       "description": "Cette fonctionnalité est réservée aux abonnés.",
       "benefit": "Débloquez toutes les fonctionnalités!"
-    }
-  },
-  "trial": {
-    "freeTrialActive": "Essai gratuit",
-    "daysRemaining": "jours restants",
-    "dayRemaining": "jour restant",
-    "welcome": {
-      "title": "Bienvenue dans votre GPS Financier!",
-      "message": "Vous avez 14 jours d'accès gratuit au plan Essentiel avec toutes les fonctionnalités.",
-      "betaTitle": "Offre Premiers Utilisateurs",
-      "limited": "Accès limité",
-      "price": "Plan Essentiel: 9,99$/mois",
-      "priceNote": "Prix exclusif pour les premiers utilisateurs",
-      "expirationNote": "À la fin de votre essai, vous pourrez choisir un plan pour continuer.",
-      "ignore": "Ignorer",
-      "remind": "Me rappeler dans 7 jours",
-      "choosePlan": "Choisir un plan"
     }
   }
 }

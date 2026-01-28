@@ -162,7 +162,7 @@ const FirstGoal = () => {
               height: '60px',
               borderRadius: '50%',
               border: '4px solid transparent',
-              background: 'linear-gradient(#040449, #040449) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
+              background: 'linear-gradient(#040449, #040449) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box',
               animation: 'gps-ring-spin 3s linear infinite',
               boxShadow: '0 0 25px rgba(255, 165, 0, 0.5)'
             }} />
@@ -370,27 +370,47 @@ const FirstGoal = () => {
                 <span style={{ fontSize: '0.8em' }}>🔢</span>
               </button>
               
-              {/* Preview dynamique du temps estimé */}
+              {/* Preview dynamique du temps estimé - Optimisé mobile */}
               {goal.montantCible && parseFloat(goal.montantCible) > 0 && (
                 <div style={{
                   background: 'rgba(76, 175, 80, 0.15)',
-                  padding: '8px 12px',
+                  padding: '10px 12px',
                   borderRadius: '8px',
                   marginTop: '8px',
                   border: '1px solid rgba(76, 175, 80, 0.5)'
                 }}>
-                  <p style={{
-                    fontSize: '0.8em',
-                    color: '#81c784',
-                    margin: 0,
+                  <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '8px'
-                  }} dangerouslySetInnerHTML={{ __html: t('onboarding.firstGoal.estimate', {
-                    amount: parseFloat(goal.montantCible).toLocaleString('fr-CA'),
-                    months: Math.ceil(parseFloat(goal.montantCible) / 200),
-                    years: (parseFloat(goal.montantCible) / 200 / 12).toFixed(1)
-                  }) }} />
+                    justifyContent: 'center',
+                    flexWrap: 'wrap',
+                    gap: '6px',
+                    fontSize: '0.85em',
+                    color: '#81c784',
+                    textAlign: 'center'
+                  }}>
+                    <span>💡</span>
+                    <span style={{ fontWeight: '600' }}>500$/mois</span>
+                    <span style={{ opacity: 0.8 }}>→</span>
+                    <span style={{ fontWeight: '700', color: '#4caf50' }}>
+                      {parseFloat(goal.montantCible).toLocaleString('fr-CA')} $
+                    </span>
+                    <span style={{ opacity: 0.8 }}>en</span>
+                    <span style={{ 
+                      background: 'rgba(76, 175, 80, 0.3)',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontWeight: '600'
+                    }}>
+                      {Math.ceil(parseFloat(goal.montantCible) / 500)} mois
+                    </span>
+                    <span style={{ 
+                      opacity: 0.7,
+                      fontSize: '0.9em'
+                    }}>
+                      (~{(parseFloat(goal.montantCible) / 500 / 12).toFixed(1)} ans)
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

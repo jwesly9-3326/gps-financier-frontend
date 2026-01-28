@@ -42,7 +42,7 @@ const FirstAccount = () => {
   const getTypeColor = (type) => {
     const colors = {
       'cheque': '#3498db',    // Bleu
-      'epargne': '#3498db',   // Bleu
+      'epargne': '#2ecc71',   // Vert
       'credit': '#ffa500',    // Orange
       'hypotheque': '#9b59b6' // Violet
     };
@@ -63,7 +63,7 @@ const FirstAccount = () => {
       return;
     }
 
-    if (account.type === 'credit' && !account.limite) {
+    if ((account.type === 'credit' || account.type === 'hypotheque') && !account.limite) {
       alert(t('onboarding.firstAccount.validation.creditLimit'));
       return;
     }
@@ -172,7 +172,7 @@ const FirstAccount = () => {
               height: '70px',
               borderRadius: '50%',
               border: '4px solid transparent',
-              background: 'linear-gradient(#040449, #040449) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
+              background: 'linear-gradient(#040449, #040449) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box',
               animation: 'gps-ring-spin 3s linear infinite',
               boxShadow: '0 0 25px rgba(255, 165, 0, 0.5)'
             }} />
@@ -247,7 +247,7 @@ const FirstAccount = () => {
               />
             </div>
 
-            {/* Type de compte - Boutons Orange GPS */}
+            {/* Type de compte - Boutons avec couleurs dynamiques */}
             <div style={{ marginBottom: '20px' }}>
               <label style={{
                 display: 'block',
@@ -259,21 +259,22 @@ const FirstAccount = () => {
                 {t('onboarding.firstAccount.accountType')} <span style={{ color: '#ff6b6b' }}>*</span>
               </label>
               
-              {/* Boutons de sélection - Style GPS avec couleurs dynamiques */}
+              {/* Boutons de sélection - Grille 2x2 */}
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '12px'
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: '10px'
               }}>
                 {[
                   { value: 'cheque', label: t('onboarding.firstAccount.types.cheque'), icon: '💳', color: '#3498db' },
-                  { value: 'epargne', label: t('onboarding.firstAccount.types.savings'), icon: '🏦', color: '#3498db' },
-                  { value: 'credit', label: t('onboarding.firstAccount.types.credit'), icon: '💳', hint: t('onboarding.firstAccount.types.creditHint'), color: '#ffa500' }
+                  { value: 'epargne', label: t('onboarding.firstAccount.types.savings'), icon: '🏦', color: '#2ecc71' },
+                  { value: 'credit', label: t('onboarding.firstAccount.types.credit'), icon: '💳', hint: t('onboarding.firstAccount.types.creditHint'), color: '#ffa500' },
+                  { value: 'hypotheque', label: t('onboarding.firstAccount.types.mortgage'), icon: '🏠', hint: t('onboarding.firstAccount.types.mortgageHint'), color: '#9b59b6' }
                 ].map((option) => (
                   <button
                     key={option.value}
                     type="button"
-                    onClick={() => setAccount({...account, type: option.value})}
+                    onClick={() => setAccount({...account, type: option.value, limite: ''})}
                     style={{
                       padding: '12px 10px',
                       fontSize: '0.85em',
@@ -313,10 +314,11 @@ const FirstAccount = () => {
                     </div>
                     {option.hint && (
                       <span style={{ 
-                        fontSize: '0.75em', 
+                        fontSize: '0.7em', 
                         fontWeight: '400',
                         opacity: 0.7,
-                        marginTop: '2px'
+                        marginTop: '2px',
+                        textAlign: 'center'
                       }}>
                         {option.hint}
                       </span>
@@ -326,9 +328,9 @@ const FirstAccount = () => {
               </div>
             </div>
 
-            {/* Limite de crédit (conditionnel) */}
-            {account.type === 'credit' && (
-              <div style={{ marginBottom: '25px' }}>
+            {/* Limite de crédit / Montant hypothèque (conditionnel) */}
+            {(account.type === 'credit' || account.type === 'hypotheque') && (
+              <div style={{ marginBottom: '20px' }}>
                 <label style={{
                   display: 'block',
                   fontWeight: '600',
@@ -336,7 +338,10 @@ const FirstAccount = () => {
                   marginBottom: '8px',
                   fontSize: '0.95em'
                 }}>
-                  {t('onboarding.firstAccount.creditLimit')} <span style={{ color: '#ff6b6b' }}>*</span>
+                  {account.type === 'hypotheque' 
+                    ? '🏠 Montant original du prêt' 
+                    : t('onboarding.firstAccount.creditLimit')
+                  } <span style={{ color: '#ff6b6b' }}>*</span>
                 </label>
                 <button
                   type="button"
@@ -346,11 +351,11 @@ const FirstAccount = () => {
                     padding: '15px 18px',
                     fontSize: '1.2em',
                     fontWeight: 'bold',
-                    border: '3px solid #ffa500',
+                    border: `3px solid ${typeColor}`,
                     borderRadius: '12px',
                     cursor: 'pointer',
-                    background: 'rgba(255, 165, 0, 0.1)',
-                    color: account.limite ? '#ffa500' : 'rgba(255,255,255,0.5)',
+                    background: `${typeColor}15`,
+                    color: account.limite ? typeColor : 'rgba(255,255,255,0.5)',
                     textAlign: 'left',
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -488,10 +493,10 @@ const FirstAccount = () => {
         initialValue={numpadTarget === 'solde' ? solde : account.limite}
         title={numpadTarget === 'solde' 
           ? t('onboarding.firstAccount.currentBalance')
-          : t('onboarding.firstAccount.creditLimit')
+          : account.type === 'hypotheque' ? 'Montant original du prêt' : t('onboarding.firstAccount.creditLimit')
         }
-        allowNegative={numpadTarget === 'solde' && account.type !== 'credit'}
-        accentColor={numpadTarget === 'solde' ? typeColor : '#ffa500'}
+        allowNegative={numpadTarget === 'solde' && account.type !== 'credit' && account.type !== 'hypotheque'}
+        accentColor={typeColor}
       />
 
       {/* CSS Animation */}

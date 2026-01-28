@@ -23,7 +23,7 @@ const AnimatedO = ({ size = 80, bgColor = '#1e1b4b' }) => (
       height: `${size}px`,
       borderRadius: '50%',
       border: '6px solid transparent',
-      background: `linear-gradient(${bgColor}, ${bgColor}) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box`,
+      background: `linear-gradient(${bgColor}, ${bgColor}) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box`,
       animation: 'gps-ring-spin 3s linear infinite',
       boxShadow: '0 0 20px rgba(255, 165, 0, 0.6)'
     }} />

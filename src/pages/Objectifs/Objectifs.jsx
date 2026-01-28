@@ -100,7 +100,21 @@ const Objectifs = () => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(null); // Pour le popup détails
   const [showAddForm, setShowAddForm] = useState(false);
-  const [isFullScreen, setIsFullScreen] = useState(false);
+  // 📱 Détection mobile
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // 📱 Mobile: démarrer directement en plein écran | Desktop: mode aperçu
+  const [isFullScreen, setIsFullScreen] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      setIsFullScreen(mobile);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
   const [deletingGoal, setDeletingGoal] = useState(null); // Pour le modal de suppression
   const [upgradeModal, setUpgradeModal] = useState({ isOpen: false, type: null }); // Pour les restrictions abonnement
   
@@ -128,7 +142,17 @@ const Objectifs = () => {
   // Toggle local pour afficher/masquer les soldes
   const toggleBalances = (e) => {
     e.stopPropagation();
-    setBalancesHidden(!balancesHidden);
+    const newValue = !balancesHidden;
+    setBalancesHidden(newValue);
+    
+    // Sauvegarder dans localStorage
+    const saved = localStorage.getItem('pl4to_security_settings');
+    const settings = saved ? JSON.parse(saved) : {};
+    settings.hideBalances = newValue;
+    localStorage.setItem('pl4to_security_settings', JSON.stringify(settings));
+    
+    // Émettre un événement pour synchroniser les autres pages
+    window.dispatchEvent(new CustomEvent('securitySettingsChanged', { detail: { hideBalances: newValue } }));
   };
   
   const [formData, setFormData] = useState({
@@ -387,7 +411,7 @@ const Objectifs = () => {
           background: isDark ? 'rgba(255,255,255,0.1)' : '#ffffff',
           backdropFilter: 'blur(10px)',
           borderRadius: '12px',
-          padding: '18px 22px',
+          padding: isMobile ? '14px 16px' : '18px 22px',
           boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.1)' : '0 4px 15px rgba(0,0,0,0.08)',
           border: isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.08)',
           transition: 'all 0.2s',
@@ -434,30 +458,34 @@ const Objectifs = () => {
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: '15px',
+          gap: isMobile ? '10px' : '15px',
           marginBottom: '10px'
         }}>
-          {/* Icône - SEULEMENT LE GROS */}
-          <span style={{ fontSize: '2.2em' }}>{icon}</span>
+          {/* Icône */}
+          <span style={{ fontSize: isMobile ? '1.8em' : '2.2em' }}>{icon}</span>
           
           {/* Nom et compte */}
           <div style={{ flex: 1, minWidth: 0 }}>
             <h3 style={{
-              fontSize: '1.1em',
+              fontSize: isMobile ? '0.95em' : '1.1em',
               fontWeight: 'bold',
               color: isDark ? 'white' : '#1e293b',
               margin: 0,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis'
+              whiteSpace: isMobile ? 'normal' : 'nowrap',
+              overflow: isMobile ? 'visible' : 'hidden',
+              textOverflow: isMobile ? 'clip' : 'ellipsis',
+              lineHeight: isMobile ? '1.2' : 'normal'
             }}>
               {obj.nom}
             </h3>
             {obj.compteAssocie && (
               <p style={{
-                fontSize: '0.8em',
+                fontSize: isMobile ? '0.75em' : '0.8em',
                 color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b',
-                margin: '3px 0 0 0'
+                margin: '3px 0 0 0',
+                whiteSpace: isMobile ? 'normal' : 'nowrap',
+                overflow: isMobile ? 'visible' : 'hidden',
+                textOverflow: isMobile ? 'clip' : 'ellipsis'
               }}>
                 {obj.compteAssocie}
               </p>
@@ -465,11 +493,11 @@ const Objectifs = () => {
           </div>
 
           {/* Montants */}
-          <div style={{ textAlign: 'right', minWidth: '140px' }}>
+          <div style={{ textAlign: 'right', minWidth: isMobile ? '90px' : '140px' }}>
             {isCredit ? (
               <>
                 <p style={{
-                  fontSize: '1.1em',
+                  fontSize: isMobile ? '0.9em' : '1.1em',
                   fontWeight: 'bold',
                   color: '#3498db',
                   margin: 0
@@ -477,7 +505,7 @@ const Objectifs = () => {
                   {formatMontant(targetAmount)}
                 </p>
                 <p style={{
-                  fontSize: '0.8em',
+                  fontSize: isMobile ? '0.7em' : '0.8em',
                   color: '#ffa500',
                   margin: '2px 0 0 0'
                 }}>
@@ -487,7 +515,7 @@ const Objectifs = () => {
             ) : (
               <>
                 <p style={{
-                  fontSize: '1.1em',
+                  fontSize: isMobile ? '0.9em' : '1.1em',
                   fontWeight: 'bold',
                   color: isDark ? 'white' : '#1e293b',
                   margin: 0
@@ -495,7 +523,7 @@ const Objectifs = () => {
                   {formatMontant(currentAmount)}
                 </p>
                 <p style={{
-                  fontSize: '0.8em',
+                  fontSize: isMobile ? '0.7em' : '0.8em',
                   color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b',
                   margin: '2px 0 0 0'
                 }}>
@@ -507,12 +535,12 @@ const Objectifs = () => {
 
           {/* Badge priorité */}
           <div style={{
-            padding: '4px 10px',
+            padding: isMobile ? '3px 8px' : '4px 10px',
             borderRadius: '8px',
             background: priorityColor.bg,
             border: `1px solid ${priorityColor.border}`,
             color: priorityColor.text,
-            fontSize: '0.7em',
+            fontSize: isMobile ? '0.6em' : '0.7em',
             fontWeight: '600',
             whiteSpace: 'nowrap'
           }}>
@@ -521,7 +549,7 @@ const Objectifs = () => {
         </div>
 
         {/* Barre de progression */}
-        <div style={{ marginBottom: '10px' }}>
+        <div style={{ marginBottom: isMobile ? '8px' : '10px' }}>
           <div style={{
             display: 'flex',
             justifyContent: 'space-between',
@@ -529,14 +557,14 @@ const Objectifs = () => {
             marginBottom: '5px'
           }}>
             <span style={{ 
-              fontSize: '0.85em', 
+              fontSize: isMobile ? '0.75em' : '0.85em', 
               fontWeight: '600',
               color: isCredit ? '#ffa500' : (isDark ? 'rgba(255,255,255,0.7)' : '#64748b')
             }}>
               {isCredit ? t('goals.repayment') : t('goals.distanceTraveled')}
             </span>
             <span style={{
-              fontSize: '0.85em',
+              fontSize: isMobile ? '0.75em' : '0.85em',
               fontWeight: '600',
               color: progress >= 100 ? '#10b981' : isCredit ? '#ffa500' : (isDark ? 'white' : '#1e293b')
             }}>
@@ -567,19 +595,19 @@ const Objectifs = () => {
         {/* Boutons d'action compacts */}
         <div style={{
           display: 'flex',
-          gap: '8px',
+          gap: isMobile ? '6px' : '8px',
           justifyContent: 'flex-end'
         }}>
           <button 
             onClick={() => openDetailsModal(obj, index)}
             style={{
-              padding: '6px 14px',
+              padding: isMobile ? '5px 10px' : '6px 14px',
               background: 'rgba(59, 130, 246, 0.1)',
               border: '1px solid rgba(59, 130, 246, 0.5)',
               borderRadius: '6px',
               color: '#60a5fa',
               fontWeight: '500',
-              fontSize: '1em',
+              fontSize: isMobile ? '0.85em' : '1em',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
@@ -597,13 +625,13 @@ const Objectifs = () => {
           <button 
             onClick={() => handleEdit(obj, index)}
             style={{
-              padding: '6px 14px',
+              padding: isMobile ? '5px 10px' : '6px 14px',
               background: 'rgba(245, 158, 11, 0.1)',
               border: '1px solid rgba(245, 158, 11, 0.5)',
               borderRadius: '6px',
               color: '#fbbf24',
               fontWeight: '500',
-              fontSize: '1em',
+              fontSize: isMobile ? '0.85em' : '1em',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
@@ -621,13 +649,13 @@ const Objectifs = () => {
           <button 
             onClick={() => handleDeleteClick(obj, index)}
             style={{
-              padding: '6px 10px',
+              padding: isMobile ? '5px 8px' : '6px 10px',
               background: 'rgba(231, 76, 60, 0.1)',
               border: '1px solid rgba(231, 76, 60, 0.5)',
               borderRadius: '6px',
               color: '#f87171',
               fontWeight: '500',
-              fontSize: '1em',
+              fontSize: isMobile ? '0.85em' : '1em',
               cursor: 'pointer',
               transition: 'all 0.2s'
             }}
@@ -849,7 +877,7 @@ const Objectifs = () => {
         >
           {/* Header plein écran */}
           <div style={{ 
-            padding: '15px 30px',
+            padding: isMobile ? '10px 15px' : '15px 30px',
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
@@ -857,51 +885,37 @@ const Objectifs = () => {
             flexShrink: 0
           }}>
             <h1 style={{ 
-              fontSize: '1.8em', 
+              fontSize: isMobile ? '1.1em' : '1.8em', 
               fontWeight: 'bold', 
               color: isDark ? 'white' : '#1e293b', 
               display: 'flex', 
               alignItems: 'center', 
               gap: '10px', 
-              margin: 0 
+              margin: 0
             }}>
               🧭 {t('goals.titleFullscreen')}
             </h1>
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-              {/* Bouton Œil pour masquer/afficher les soldes */}
+            {/* Boutons à droite: X en haut, Œil en dessous */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '8px' : '10px' }}>
+              {/* Bouton Fermer (X) */}
               <button
-                onClick={toggleBalances}
-                title={balancesHidden ? t('goals.showBalances') : t('goals.hideBalances')}
-                style={{
-                  background: balancesHidden ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'rgba(255,255,255,0.9)',
-                  border: balancesHidden ? 'none' : '2px solid #e0e0e0',
-                  borderRadius: '50%',
-                  width: '40px',
-                  height: '40px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  fontSize: '1.2em',
-                  transition: 'all 0.3s',
-                  boxShadow: balancesHidden ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 2px 8px rgba(0,0,0,0.1)'
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (isMobile) {
+                    window.dispatchEvent(new CustomEvent('openSidebar'));
+                  } else {
+                    setIsFullScreen(false);
+                  }
                 }}
-              >
-                {balancesHidden ? '👁️‍🗨️' : '👁️'}
-              </button>
-              
-              {/* Bouton Fermer */}
-              <button
-                onClick={(e) => { e.stopPropagation(); setIsFullScreen(false); }}
                 style={{
-                  width: '40px',
-                  height: '40px',
+                  width: isMobile ? '32px' : '40px',
+                  height: isMobile ? '32px' : '40px',
                   borderRadius: '50%',
                   border: isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)',
                   background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
                   color: isDark ? 'white' : '#64748b',
-                  fontSize: '1.2em',
+                  fontSize: isMobile ? '1em' : '1.2em',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -921,11 +935,38 @@ const Objectifs = () => {
               >
                 ✕
               </button>
+              
+              {/* Bouton Œil pour masquer/afficher les soldes */}
+              <button
+                onClick={toggleBalances}
+                title={balancesHidden ? t('goals.showBalances') : t('goals.hideBalances')}
+                style={{
+                  borderRadius: '50%',
+                  width: isMobile ? '32px' : '40px',
+                  height: isMobile ? '32px' : '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '0.9em' : '1.2em',
+                  transition: 'all 0.3s',
+                  border: balancesHidden 
+                    ? 'none' 
+                    : (isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)'),
+                  background: balancesHidden 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                    : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'),
+                  color: balancesHidden ? 'white' : (isDark ? 'white' : '#64748b'),
+                  boxShadow: balancesHidden ? '0 4px 15px rgba(102, 126, 234, 0.4)' : 'none'
+                }}
+              >
+                {balancesHidden ? '👁️‍🗨️' : '👁️'}
+              </button>
             </div>
           </div>
 
           {/* Contenu plein écran */}
-          <div style={{ flex: 1, overflow: 'auto', padding: '20px 30px' }}>
+          <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? '10px 15px' : '20px 30px' }}>
             {renderContent()}
           </div>
         </div>
