@@ -28,6 +28,13 @@ const GestionComptes = () => {
   // 📱 Détection mobile
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
+  // 📱 Détecter si on est en mode PWA (standalone)
+  const [isPWA, setIsPWA] = useState(false);
+  
+  useEffect(() => {
+    setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
+  }, []);
+  
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
@@ -1339,6 +1346,15 @@ const GestionComptes = () => {
           flexDirection: 'column',
           overflow: 'hidden'
         }}>
+          {/* 📱 PWA Safe Area - Zone pour l'encoche/heure système */}
+          {isMobile && isPWA && (
+            <div style={{
+              height: 'env(safe-area-inset-top, 0px)',
+              background: isDark ? '#040449' : '#ffffff',
+              width: '100%',
+              flexShrink: 0
+            }} />
+          )}
           <div style={{
             background: 'transparent',
             padding: isMobile ? '10px 15px' : '15px 30px',
@@ -1478,28 +1494,40 @@ const GestionComptes = () => {
             {/* Header */}
             <div style={{
               display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row',
               justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '25px'
+              alignItems: isMobile ? 'flex-start' : 'center',
+              marginBottom: isMobile ? '15px' : '25px',
+              gap: isMobile ? '10px' : '0'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '1.8em' }}>🛤️</span>
-                <h2 style={{ margin: 0, color: 'white', fontSize: '1.4em' }}>
+                <span style={{ fontSize: isMobile ? '1.4em' : '1.8em' }}>🛤️</span>
+                <h2 style={{ margin: 0, color: 'white', fontSize: isMobile ? '1.1em' : '1.4em' }}>
                   {t('management.trajectory.title')}
                 </h2>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: isMobile ? '10px' : '15px',
+                width: isMobile ? '100%' : 'auto',
+                justifyContent: isMobile ? 'space-between' : 'flex-end'
+              }}>
                 <span style={{
                   background: 'rgba(102, 126, 234, 0.3)',
                   color: '#a0c4ff',
-                  padding: '8px 15px',
+                  padding: isMobile ? '6px 10px' : '8px 15px',
                   borderRadius: '20px',
-                  fontSize: '0.85em'
+                  fontSize: isMobile ? '0.7em' : '0.85em',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: '5px'
                 }}>
-                  🏁 {t('management.trajectory.arrival')} <strong style={{ color: '#f39c12', marginLeft: '5px' }}>
+                  🏁 {t('management.trajectory.arrival')} <strong style={{ color: '#f39c12' }}>
                     {currentPoint.moisRestants || 0} {t('management.trajectory.months')}
                   </strong>
-                  <span style={{ marginLeft: '8px', color: '#ffa500' }}>📍 {currentPoint.label}</span>
+                  <span style={{ color: '#ffa500' }}>📍 {isMobile ? '' : currentPoint.label}</span>
                 </span>
                 <button
                   onClick={() => setShowTrajectoireModal(false)}
@@ -1507,11 +1535,12 @@ const GestionComptes = () => {
                     background: 'rgba(255,255,255,0.1)',
                     border: 'none',
                     borderRadius: '50%',
-                    width: '40px',
-                    height: '40px',
+                    width: isMobile ? '32px' : '40px',
+                    height: isMobile ? '32px' : '40px',
                     color: 'white',
-                    fontSize: '1.2em',
-                    cursor: 'pointer'
+                    fontSize: isMobile ? '1em' : '1.2em',
+                    cursor: 'pointer',
+                    flexShrink: 0
                   }}
                 >
                   ✕
@@ -1519,7 +1548,12 @@ const GestionComptes = () => {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '25px' }}>
+            <div style={{ 
+              display: isMobile ? 'flex' : 'grid', 
+              flexDirection: isMobile ? 'column' : undefined,
+              gridTemplateColumns: isMobile ? undefined : '280px 1fr', 
+              gap: isMobile ? '20px' : '25px' 
+            }}>
               {/* Sidebar - Votre Parcours */}
               <div style={{
                 background: 'rgba(255,255,255,0.05)',
@@ -1656,7 +1690,11 @@ const GestionComptes = () => {
                   </span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', 
+                  gap: isMobile ? '12px' : '15px' 
+                }}>
                   {accounts.map((acc, idx) => {
                     const soldeData = currentSoldes[acc.nom];
                     const solde = soldeData?.solde || 0;

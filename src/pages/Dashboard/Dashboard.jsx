@@ -924,7 +924,8 @@ const Dashboard = () => {
         >
           {/* Header plein écran */}
           <div style={{ 
-            padding: isMobile ? '10px 15px' : '12px 30px',
+            padding: isMobile ? '15px 15px 10px 15px' : '12px 30px',
+            paddingTop: isMobile && window.matchMedia('(display-mode: standalone)').matches ? 'max(50px, env(safe-area-inset-top, 50px))' : (isMobile ? '15px' : '12px'),
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
@@ -954,18 +955,21 @@ const Dashboard = () => {
                 }
               }}
               style={{
-                width: isMobile ? '32px' : '36px',
-                height: isMobile ? '32px' : '36px',
+                width: isMobile ? '44px' : '36px',
+                height: isMobile ? '44px' : '36px',
+                minWidth: isMobile ? '44px' : '36px',
+                minHeight: isMobile ? '44px' : '36px',
                 borderRadius: '50%',
                 border: isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)',
-                background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                background: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)',
                 color: isDark ? 'white' : '#475569',
-                fontSize: isMobile ? '1em' : '1.1em',
+                fontSize: isMobile ? '1.2em' : '1.1em',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'all 0.3s'
+                transition: 'all 0.3s',
+                touchAction: 'manipulation'
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.background = '#e74c3c';

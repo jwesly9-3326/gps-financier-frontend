@@ -31,6 +31,13 @@ const Budget = () => {
   // 📱 Détection mobile
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
+  // 📱 Détecter si on est en mode PWA (standalone)
+  const [isPWA, setIsPWA] = useState(false);
+  
+  useEffect(() => {
+    setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
+  }, []);
+  
   // 📱 Mobile: démarrer directement en plein écran
   const [startFullScreenMobile] = useState(window.innerWidth < 768);
   
@@ -1252,7 +1259,7 @@ const Budget = () => {
         >
           {formData.compte ? (
             <>
-              <span>{accounts.find(a => a.nom === formData.compte)?.type === 'hypotheque' ? '🏠' : accounts.find(a => a.nom === formData.compte)?.type === 'credit' ? '🏦' : accounts.find(a => a.nom === formData.compte)?.type === 'epargne' ? '💰' : '💳'}</span>
+              <span>{accounts.find(a => a.nom === formData.compte)?.type === 'hypotheque' ? '🏠' : accounts.find(a => a.nom === formData.compte)?.type === 'credit' ? '🏦' : accounts.find(a => a.nom === formData.compte)?.type === 'epargne' ? '🌱' : '💳'}</span>
               <span>{formData.compte}</span>
             </>
           ) : (
@@ -2328,6 +2335,15 @@ const Budget = () => {
             transition: 'background 0.3s ease'
           }}
         >
+          {/* 📱 PWA Safe Area - Zone pour l'encoche/heure système */}
+          {isMobile && isPWA && (
+            <div style={{
+              height: 'env(safe-area-inset-top, 0px)',
+              background: isDark ? '#040449' : '#ffffff',
+              width: '100%',
+              flexShrink: 0
+            }} />
+          )}
           <div style={{ 
             padding: isMobile ? '10px 15px' : '15px 30px',
             display: 'flex', 
@@ -2342,12 +2358,12 @@ const Budget = () => {
               display: 'flex', 
               alignItems: 'center', 
               gap: '10px', 
-              margin: isMobile ? '15px 0 0 0' : '25px 0 0 0'
+              margin: isMobile && isPWA ? '5px 0 0 0' : (isMobile ? '15px 0 0 0' : '25px 0 0 0')
             }}>
               📋 {t('budget.title')}
             </h1>
             
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: isMobile ? '10px' : '15px', marginTop: isMobile ? '15px' : '25px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: isMobile ? '10px' : '15px', marginTop: isMobile && isPWA ? '5px' : (isMobile ? '15px' : '25px') }}>
               {budgetSummary.budgetJournalier !== 0 && (
                 <div 
                   title={`${formatMontant(budgetSummary.balance)} ÷ ${budgetSummary.joursRestants} ${t('budget.daysRemaining')} = ${formatMontant(budgetSummary.budgetJournalier)}/${t('common.day')}`}
@@ -2684,7 +2700,7 @@ const Budget = () => {
                 <button type="button" key={i} onClick={() => handleCreateLinkedEntry(acc.nom)} style={{ padding: '14px', background: 'rgba(52,152,219,0.2)', border: '2px solid #3498db', borderRadius: '12px', color: 'white', fontWeight: '600', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '12px' }}
                   onMouseEnter={(e) => { e.currentTarget.style.background = '#3498db'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(52,152,219,0.2)'; }}>
-                  <span>{acc.type === 'hypotheque' ? '🏠' : acc.type === 'credit' ? '🏦' : acc.type === 'epargne' ? '💰' : '💳'}</span>
+                  <span>{acc.type === 'hypotheque' ? '🏠' : acc.type === 'credit' ? '🏦' : acc.type === 'epargne' ? '🌱' : '💳'}</span>
                   <span style={{ flex: 1 }}>{acc.nom}</span>
                 </button>
               ))}

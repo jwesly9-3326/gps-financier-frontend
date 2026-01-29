@@ -1,37 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background -->
-  <rect width="512" height="512" fill="#040449" rx="76"/>
-  
-  <!-- Outer glow -->
-  <circle cx="256" cy="256" r="180" fill="none" stroke="#ff8c00" stroke-width="20" stroke-opacity="0.3"/>
-  
-  <!-- Main ring (golden gradient effect) -->
   <defs>
+    <!-- Gradient doré uniforme (sans rouge) -->
     <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" style="stop-color:#ffd700"/>
-      <stop offset="25%" style="stop-color:#ff8c00"/>
-      <stop offset="50%" style="stop-color:#ff4500"/>
-      <stop offset="75%" style="stop-color:#ff8c00"/>
-      <stop offset="100%" style="stop-color:#ffd700"/>
+      <stop offset="50%" style="stop-color:#ffb800"/>
+      <stop offset="100%" style="stop-color:#ffa500"/>
     </linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="8" result="coloredBlur"/>
-      <feMerge>
-        <feMergeNode in="coloredBlur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
   </defs>
   
-  <circle cx="256" cy="256" r="150" fill="none" stroke="url(#goldGradient)" stroke-width="24" filter="url(#glow)"/>
-  
-  <!-- Inner highlight -->
-  <circle cx="256" cy="256" r="120" fill="none" stroke="#ffd700" stroke-width="8" stroke-opacity="0.4"/>
-  
-  <!-- Center compass point -->
-  <circle cx="256" cy="256" r="25" fill="#ffd700" opacity="0.9"/>
-  
-  <!-- Small compass details -->
-  <circle cx="256" cy="256" r="8" fill="#040449"/>
+  <rect width="512" height="512" fill="white" rx="76.8"/>
+  <circle cx="256" cy="256" r="220.16" fill="url(#goldGradient)"/>
+  <circle cx="256" cy="256" r="168.96" fill="white"/>
+  <circle cx="256" cy="256" r="115.2" fill="none" stroke="url(#goldGradient)" stroke-width="22.26086956521739"/>
+  <circle cx="256" cy="256" r="32.256" fill="url(#goldGradient)"/>
+  <path d="M256 122.9913043478261 L269.3565217391304 167.51304347826087 L256 154.15652173913045 L242.64347826086956 167.51304347826087 Z" fill="url(#goldGradient)"/>
 </svg>

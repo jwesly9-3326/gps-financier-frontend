@@ -50,6 +50,33 @@ html, body, #root {
   overflow: hidden;
 }
 
+/* PWA Safe Area - Background derrière l'encoche */
+html {
+  background: #ffffff;
+}
+
+body.theme-dark,
+body.theme-dark html {
+  background: #040449 !important;
+}
+
+html:has(body.theme-dark) {
+  background: #040449;
+}
+
+/* Mobile: forcer le fond sur tout */
+@media (max-width: 768px) {
+  html, body, #root {
+    background: #ffffff;
+  }
+  
+  body.theme-dark,
+  body.theme-dark #root {
+    /* Utilise la couleur du BAS du gradient sidebar pour correspondre */
+    background: #100261 !important;
+  }
+}
+
 /* Container Principal */
 .gps-app-container {
   display: flex;
@@ -94,6 +121,27 @@ html, body, #root {
   display: flex;
   flex: 1;
   overflow: hidden;
+}
+
+/* Mobile: fond adapté au thème pour éliminer la zone grise */
+@media (max-width: 768px) {
+  .gps-app-body {
+    background: #ffffff;
+  }
+  
+  body.theme-dark .gps-app-body {
+    /* Utilise la couleur du BAS du gradient sidebar pour correspondre */
+    background: #100261;
+  }
+  
+  /* Le container principal aussi */
+  .gps-app-container {
+    background: #ffffff;
+  }
+  
+  body.theme-dark .gps-app-container {
+    background: #100261;
+  }
 }
 
 /* ============================================ */

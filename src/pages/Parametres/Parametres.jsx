@@ -80,6 +80,13 @@ const Parametres = () => {
   // 📱 Détection mobile
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
   
+  // 📱 Détecter si on est en mode PWA (standalone)
+  const [isPWA, setIsPWA] = useState(false);
+  
+  useEffect(() => {
+    setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
+  }, []);
+  
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth <= 768);
     window.addEventListener('resize', handleResize);
@@ -2147,7 +2154,7 @@ const Parametres = () => {
         </div>
       </div>
       
-      {/* Réseaux sociaux */}
+      {/* Réseaux sociaux - CACHÉ POUR LE LANCEMENT
       <div style={{
         padding: isMobile ? '16px' : '24px',
         background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)',
@@ -2194,6 +2201,7 @@ const Parametres = () => {
           ))}
         </div>
       </div>
+      */}
       
       {/* Feedback */}
       <div style={{ 
@@ -2432,7 +2440,7 @@ const Parametres = () => {
                         height: '24px',
                         borderRadius: '50%',
                         border: '3px solid transparent',
-                        background: `linear-gradient(${isDark ? '#040449' : '#1e3a8a'}, ${isDark ? '#040449' : '#1e3a8a'}) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box`,
+                        background: `linear-gradient(${isDark ? '#040449' : '#ffffff'}, ${isDark ? '#040449' : '#ffffff'}) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box`,
                         animation: 'logoSpin 3s linear infinite',
                         boxShadow: '0 0 10px rgba(255, 165, 0, 0.5)'
                       }} />
@@ -3048,6 +3056,15 @@ const Parametres = () => {
           flexDirection: 'column',
           overflow: 'hidden'
         }}>
+          {/* 📱 PWA Safe Area - Zone pour l'encoche/heure système */}
+          {isMobile && isPWA && (
+            <div style={{
+              height: 'env(safe-area-inset-top, 0px)',
+              background: isDark ? '#040449' : '#ffffff',
+              width: '100%',
+              flexShrink: 0
+            }} />
+          )}
           {/* Header plein écran */}
           <div style={{
             background: 'transparent',

@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "Pl4to",
-    "tagline": "Navigate to your new economy",
+    "tagline": "The GPS for your wallet",
     "loading": "Loading...",
     "save": "Save",
     "saved": "✓ Saved",
@@ -267,7 +267,7 @@
     "discover": "Finally see where you're going.",
     "subtitle": "The first GPS for your personal finances.",
     "tagline": "End the uncertainty. Start navigating.",
-    "cta": "🧭 Start my journey",
+    "cta": "🧭 Activate my GPS",
     "ctaBadge": "14-day free trial",
     "login": "Login",
     "privacy": "🔒 Your data stays private",
@@ -731,10 +731,16 @@
       "dismiss": "Later",
       "viewDetails": "View details"
     },
+    "creditLimitAlert": {
+      "title": "Credit limit alert",
+      "message": "Projected balance: {{amount}} (limit: {{limit}}) on {{date}}",
+      "suggestion": "Consider adjusting your spending or making a payment.",
+      "updatePortfolio": "Update my portfolio"
+    },
     "goalReachedAlert": {
       "title": "Goal reached!",
       "message": "You will reach {{amount}} on {{date}}",
-      "suggestion": "Congratulations! Keep up the great work!"
+      "suggestion": "Congratulations in advance! ⭐"
     },
     "popup": {
       "wrongDirection": "Configure budget",
@@ -887,7 +893,7 @@
     "reset": "Reset",
     "quickTests": {
       "title": "Quick test",
-      "impulse": "Impulse buy",
+      "impulse": "Unplanned purchase",
       "emergency": "Emergency",
       "bonus": "Bonus",
       "debt": "Pay debt",
@@ -1208,7 +1214,7 @@
     },
     "about": {
       "title": "About PL4TO",
-      "tagline": "Navigate towards your new economy",
+      "tagline": "The GPS for your wallet",
       "links": {
         "title": "Useful links",
         "guide": "User guide",

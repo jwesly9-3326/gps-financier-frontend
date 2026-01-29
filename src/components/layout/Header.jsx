@@ -3,6 +3,7 @@
 // 🌍 i18n enabled
 // 🎨 Theme support
 
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -15,6 +16,13 @@ const Header = ({ isMobile = false, toggleSidebar = () => {}, sidebarOpen = true
   const { getTrialDaysRemaining, trialInfo } = useSubscription();
   const { isGuideComplete } = useGuideProgress();
   const { theme, isDark } = useTheme();
+  
+  // 📱 Détecter si on est en mode PWA (standalone)
+  const [isPWA, setIsPWA] = useState(false);
+  
+  useEffect(() => {
+    setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
+  }, []);
 
   // Obtenir le nom d'affichage (prénom > nom > email)
   const getDisplayName = () => {
@@ -70,9 +78,18 @@ const Header = ({ isMobile = false, toggleSidebar = () => {}, sidebarOpen = true
   );
 
   return (
-    <div className="gps-app-header" style={{
-      padding: isMobile ? '10px 15px' : undefined
-    }}>
+    <>
+      {/* Zone safe-area pour PWA seulement */}
+      {isMobile && isPWA && (
+        <div style={{
+          height: 'env(safe-area-inset-top, 0px)',
+          background: isDark ? '#040449' : '#ffffff',
+          width: '100%'
+        }} />
+      )}
+      <div className="gps-app-header" style={{
+        padding: isMobile ? '10px 15px' : undefined
+      }}>
       {/* Bouton Hamburger + Logo PL4TO */}
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '10px' }}>
         {/* 📱 Bouton Hamburger - Mobile seulement */}
@@ -202,6 +219,7 @@ const Header = ({ isMobile = false, toggleSidebar = () => {}, sidebarOpen = true
         }
       `}</style>
     </div>
+    </>
   );
 };
 

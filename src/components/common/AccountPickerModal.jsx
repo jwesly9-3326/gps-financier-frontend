@@ -25,7 +25,7 @@ const AccountPickerModal = ({
   const getAccountIcon = (type) => {
     switch (type) {
       case 'cheque': return '💳';
-      case 'epargne': return '💰';
+      case 'epargne': return '🌱';
       case 'credit': return '🏦';
       case 'hypotheque': return '🏠';
       default: return '💳';

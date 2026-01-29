@@ -1670,7 +1670,7 @@ const Comptes = () => {
           </div>
         )}
 
-        {/* Indicateur de scroll */}
+        {/* Indicateur de scroll - flèche seulement */}
         {accounts.length > 0 && (
           <div style={{
             position: 'absolute',
@@ -1684,10 +1684,7 @@ const Comptes = () => {
             transition: 'opacity 0.3s',
             pointerEvents: 'none'
           }}>
-            <span style={{ fontSize: '0.75em', color: isDark ? 'white' : '#64748b', marginBottom: '4px' }}>
-              Swipe
-            </span>
-            <span style={{ fontSize: '1.2em' }}>↓</span>
+            <span style={{ fontSize: '1.2em', color: isDark ? 'white' : '#64748b' }}>↓</span>
           </div>
         )}
       </div>
@@ -2331,7 +2328,8 @@ const Comptes = () => {
         >
           {/* Header plein écran */}
           <div style={{ 
-            padding: isMobile ? '10px 15px' : '15px 30px',
+            padding: isMobile ? '15px 15px 10px 15px' : '15px 30px',
+            paddingTop: isMobile && window.matchMedia('(display-mode: standalone)').matches ? 'max(50px, env(safe-area-inset-top, 50px))' : '15px',
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',

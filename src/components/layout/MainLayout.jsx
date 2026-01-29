@@ -5,7 +5,7 @@
 // 📱 RESPONSIVE: Sidebar fermé par défaut sur mobile
 // 📱 ROTATION: Bloquée sur toutes les pages sauf Itinéraire
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -22,7 +22,31 @@ const MainLayout = () => {
   // 📱 Détection mobile et orientation
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768 || window.innerHeight < 500);
   const [isLandscape, setIsLandscape] = useState(window.innerWidth > window.innerHeight);
-  const [sidebarOpen, setSidebarOpen] = useState(window.innerWidth >= 768);
+  
+  // 📱 Vérifier si on doit ouvrir le sidebar (paramètre URL après login mobile)
+  const searchParams = new URLSearchParams(location.search);
+  const shouldOpenSidebar = searchParams.get('openSidebar') === 'true';
+  const [sidebarOpen, setSidebarOpen] = useState(
+    shouldOpenSidebar || window.innerWidth >= 768
+  );
+  
+  // 📱 Flag pour ignorer la fermeture automatique lors du premier rendu avec openSidebar
+  const initialOpenRef = useRef(shouldOpenSidebar);
+  
+  // Nettoyer le paramètre openSidebar de l'URL après lecture
+  useEffect(() => {
+    if (shouldOpenSidebar) {
+      // Forcer l'ouverture du sidebar
+      setSidebarOpen(true);
+      // Nettoyer l'URL
+      const newUrl = location.pathname;
+      navigate(newUrl, { replace: true });
+      // Reset le flag après un court délai
+      setTimeout(() => {
+        initialOpenRef.current = false;
+      }, 500);
+    }
+  }, [shouldOpenSidebar, location.pathname, navigate]);
   
   useEffect(() => {
     const handleResize = () => {
@@ -53,6 +77,89 @@ const MainLayout = () => {
     window.addEventListener('openSidebar', handleOpenSidebar);
     return () => window.removeEventListener('openSidebar', handleOpenSidebar);
   }, []);
+  
+  // 📱 Bloquer le scroll du body quand sidebar ouvert sur mobile
+  useEffect(() => {
+    if (isMobile && sidebarOpen) {
+      // Sauvegarder la position de scroll actuelle
+      const scrollY = window.scrollY;
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      
+      return () => {
+        // Restaurer le scroll
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        document.body.style.top = '';
+        document.body.style.width = '';
+        window.scrollTo(0, scrollY);
+      };
+    }
+  }, [isMobile, sidebarOpen]);
+  
+  // 📱 SWIPE GESTURE: Gauche→Droite = Ouvrir Sidebar (mobile uniquement)
+  // Exclu sur les pages GPS qui utilisent leur propre système de swipe
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const swipeHandled = useRef(false);
+  
+  // Pages où le swipe sidebar est désactivé (GPS utilise swipe pour navigation temporelle)
+  const isGPSPage = location.pathname.startsWith('/gps');
+  
+  useEffect(() => {
+    // Désactiver sur desktop et sur les pages GPS
+    if (!isMobile || isGPSPage) return;
+    
+    const handleTouchStart = (e) => {
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+      swipeHandled.current = false;
+    };
+    
+    const handleTouchMove = (e) => {
+      if (touchStartX.current === null || swipeHandled.current) return;
+      
+      const touchCurrentX = e.touches[0].clientX;
+      const touchCurrentY = e.touches[0].clientY;
+      const deltaX = touchCurrentX - touchStartX.current;
+      const deltaY = touchCurrentY - touchStartY.current;
+      
+      // Vérifier si c'est un swipe horizontal significatif
+      if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 2) {
+        // Swipe gauche → droite: Ouvrir sidebar
+        if (deltaX > 0 && !sidebarOpen) {
+          e.preventDefault();
+          swipeHandled.current = true;
+          setSidebarOpen(true);
+        }
+        // Swipe droite → gauche: Fermer sidebar
+        else if (deltaX < 0 && sidebarOpen) {
+          e.preventDefault();
+          swipeHandled.current = true;
+          setSidebarOpen(false);
+        }
+      }
+    };
+    
+    const handleTouchEnd = () => {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      swipeHandled.current = false;
+    };
+    
+    // passive: false est ESSENTIEL pour pouvoir appeler preventDefault()
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isMobile, sidebarOpen, isGPSPage]);
   
   // 🔔 Hook pour gérer les rappels trial
   const { 

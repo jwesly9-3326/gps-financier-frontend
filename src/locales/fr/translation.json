@@ -1,7 +1,7 @@
 {
   "common": {
     "appName": "Pl4to",
-    "tagline": "Navigue vers ta nouvelle économie",
+    "tagline": "Le GPS pour ton portefeuille",
     "loading": "Chargement...",
     "save": "Sauvegarder",
     "saved": "✓ Sauvegardé",
@@ -267,7 +267,7 @@
     "discover": "Vois enfin où tu vas.",
     "subtitle": "Le premier GPS pour tes finances personnelles.",
     "tagline": "Finis l'incertitude. Commence à naviguer.",
-    "cta": "🧭 Commencer mon voyage",
+    "cta": "🧭 Activer mon GPS",
     "ctaBadge": "14 jours d'essai gratuit",
     "login": "Connexion",
     "privacy": "🔒 Tes données restent privées",
@@ -731,10 +731,16 @@
       "dismiss": "Plus tard",
       "viewDetails": "Voir les détails"
     },
+    "creditLimitAlert": {
+      "title": "Alerte limite de crédit",
+      "message": "Solde prévu: {{amount}} (limite: {{limit}}) le {{date}}",
+      "suggestion": "Considérez d'ajuster vos dépenses ou de faire un paiement.",
+      "updatePortfolio": "Mettre à jour mon portefeuille"
+    },
     "goalReachedAlert": {
       "title": "Objectif atteint!",
       "message": "Tu atteindras {{amount}} le {{date}}",
-      "suggestion": "Félicitations! Continue sur cette lancée!"
+      "suggestion": "Félicitations d'avance! ⭐"
     },
     "popup": {
       "wrongDirection": "Budget à configurer",
@@ -887,7 +893,7 @@
     "reset": "Réinitialiser",
     "quickTests": {
       "title": "Test rapide",
-      "impulse": "Achat impulsif",
+      "impulse": "Achat imprévu",
       "emergency": "Urgence",
       "bonus": "Bonus",
       "debt": "Rembourser dette",
@@ -1019,7 +1025,7 @@
       },
       "essential": {
         "name": "Essentiel",
-        "tagline": "Naviguez vers votre nouvelle économie",
+        "tagline": "Le GPS pour ton portefeuille",
         "price": "14,99$",
         "yearlyPrice": "159$"
       },
@@ -1208,7 +1214,7 @@
     },
     "about": {
       "title": "À propos de PL4TO",
-      "tagline": "Naviguez vers votre nouvelle économie",
+      "tagline": "Le GPS pour ton portefeuille",
       "links": {
         "title": "Liens utiles",
         "guide": "Guide utilisateur",
@@ -1533,7 +1539,7 @@
       "subtitle": "Dans quelques secondes, tu vas découvrir ce que c'est un GPS Financier.",
       "steps": {
         "accounts": "Configuration de ton profil",
-        "budget": "Analyse de ta situation",
+        "budget": "Analyse",
         "trajectory": "Calcul de ta trajectoire...",
         "complete": "Préparation de ton outil"
       }

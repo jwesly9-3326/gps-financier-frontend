@@ -64,8 +64,8 @@ const Accounts = () => {
   const getTypeIcon = (type) => {
     const icons = {
       'cheque': '💳',
-      'epargne': '🏦',
-      'credit': '💰',
+      'epargne': '🌱',
+      'credit': '🏦',
       'investissement': '📈'
     };
     return icons[type] || '💼';
@@ -374,8 +374,8 @@ const Accounts = () => {
             >
               <option value="">Sélectionnez...</option>
               <option value="cheque">💳 Compte chèque (compte courant)</option>
-              <option value="epargne">🏦 Compte épargne</option>
-              <option value="credit">💰 Carte de crédit</option>
+              <option value="epargne">🌱 Compte épargne</option>
+              <option value="credit">🏦 Carte de crédit</option>
             </select>
           </div>
 

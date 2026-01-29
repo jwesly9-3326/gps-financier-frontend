@@ -49,6 +49,7 @@ const StepIndicator = () => {
     <div style={{
       background: 'transparent',
       padding: '15px 30px 5px',
+      paddingTop: window.matchMedia('(display-mode: standalone)').matches ? 'max(50px, env(safe-area-inset-top, 50px))' : '15px',
       position: 'sticky',
       top: 0,
       zIndex: 100

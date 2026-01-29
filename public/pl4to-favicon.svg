@@ -1,29 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
-    <!-- Gradient Plateforme -->
-    <linearGradient id="platformGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#667eea"/>
-      <stop offset="100%" style="stop-color:#764ba2"/>
-    </linearGradient>
-    <!-- Gradient GPS Orange -->
-    <linearGradient id="gpsGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#ff9800"/>
-      <stop offset="100%" style="stop-color:#f57c00"/>
+    <!-- Gradient doré uniforme (sans rouge) -->
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd700"/>
+      <stop offset="50%" style="stop-color:#ffb800"/>
+      <stop offset="100%" style="stop-color:#ffa500"/>
     </linearGradient>
   </defs>
   
-  <!-- Fond circulaire avec gradient plateforme -->
-  <circle cx="256" cy="256" r="240" fill="url(#platformGradient)"/>
+  <!-- Fond blanc avec coins arrondis -->
+  <rect width="512" height="512" fill="white" rx="76"/>
+  
+  <!-- Cercle extérieur doré -->
+  <circle cx="256" cy="256" r="220" fill="url(#goldGradient)"/>
   
   <!-- Cercle intérieur blanc -->
-  <circle cx="256" cy="256" r="180" fill="white" opacity="0.95"/>
+  <circle cx="256" cy="256" r="170" fill="white"/>
   
-  <!-- "O" GPS - Cercle orange -->
-  <circle cx="256" cy="256" r="120" fill="none" stroke="url(#gpsGradient)" stroke-width="24"/>
+  <!-- Anneau GPS doré -->
+  <circle cx="256" cy="256" r="115" fill="none" stroke="url(#goldGradient)" stroke-width="22"/>
   
-  <!-- Point central GPS -->
-  <circle cx="256" cy="256" r="35" fill="url(#gpsGradient)"/>
+  <!-- Point central doré -->
+  <circle cx="256" cy="256" r="32" fill="url(#goldGradient)"/>
   
-  <!-- Indicateur Nord (flèche) -->
-  <path d="M256 140 L270 180 L256 170 L242 180 Z" fill="url(#gpsGradient)"/>
+  <!-- Indicateur Nord (flèche) doré -->
+  <path d="M256 145 L268 182 L256 173 L244 182 Z" fill="url(#goldGradient)"/>
 </svg>

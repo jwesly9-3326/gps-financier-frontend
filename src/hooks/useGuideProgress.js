@@ -83,43 +83,20 @@ const useGuideProgress = () => {
         return;
       }
       
-      // 2. ✅ MIGRATION: Si userData existe avec des comptes mais pas guideProgress,
-      //    c'est un utilisateur existant qui a terminé l'onboarding avant la mise à jour
-      if (userData && userData.accounts && userData.accounts.length > 0 && !userData.guideProgress) {
-        console.log('[GuideProgress] 🔄 Migration: utilisateur existant détecté, marquage guide comme terminé');
+      // 2. 🔧 FIX: Vérifier si guideProgress existe explicitement dans userData
+      //    Si userData.guideProgress est vide/false, c'est un NOUVEAU utilisateur qui doit passer par le guide
+      //    On ne fait plus de migration automatique
+      if (userData && !userData.guideProgress) {
+        console.log('[GuideProgress] 🆕 Nouvel utilisateur détecté - guide NON complété');
         
-        const guideProgressComplete = {
-          dashboard: true,
-          comptes: true,
-          budget: true,
-          objectifs: true,
-          gps: true,
-          calculatrice: true,
-          gestion: true,
-          parametres: true
-        };
-        
-        setGuidesCompleted(guideProgressComplete);
-        
-        // Sauvegarder en localStorage
+        // Nettoyer localStorage au cas où
         Object.entries(GUIDE_KEYS).forEach(([key, storageKey]) => {
-          localStorage.setItem(storageKey, 'completed');
+          localStorage.removeItem(storageKey);
         });
         
-        // Sauvegarder dans le backend
-        try {
-          await saveUserData({
-            ...userData,
-            guideProgress: guideProgressComplete,
-            onboardingCompleted: true
-          });
-          console.log('[GuideProgress] ✅ Migration sauvegardée dans le backend');
-        } catch (error) {
-          console.error('[GuideProgress] ⚠️ Erreur migration backend:', error);
-        }
-        
+        setGuidesCompleted(DEFAULT_GUIDE_STATE);
         isInitialized.current = true;
-        setIsLoading(false);  // ✅
+        setIsLoading(false);
         return;
       }
       

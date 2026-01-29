@@ -115,6 +115,13 @@ const GPSFinancier = ({ navigationMode = false, whatIfMode = false }) => {
   const [isMobile, setIsMobile] = useState(window.innerWidth <= 768 || window.innerHeight <= 500);
   const [isPortrait, setIsPortrait] = useState(window.innerHeight > window.innerWidth);
   
+  // 📱 Détecter si on est en mode PWA (standalone)
+  const [isPWA, setIsPWA] = useState(false);
+  
+  useEffect(() => {
+    setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
+  }, []);
+  
   useEffect(() => {
     const handleResize = () => {
       // Mobile si largeur <= 768 OU hauteur <= 500 (paysage mobile)
@@ -303,6 +310,7 @@ const GPSFinancier = ({ navigationMode = false, whatIfMode = false }) => {
   const [isViewTransitioning, setIsViewTransitioning] = useState(false); // Animation de changement de vue
   const [viewTransitionDirection, setViewTransitionDirection] = useState('out'); // 'out' = recul, 'in' = avance
   const teleportIntervalRef = useRef(null); // Référence pour l'intervalle de téléportation
+  const touchStartYRef = useRef(0); // 📱 Position Y au début du touch pour scroll mobile
   // Refs pour tracker les index actuels (pour téléportation)
   const navIndexRef = useRef(0);
   const navMonthIndexRef = useRef(0);
@@ -4279,6 +4287,48 @@ useEffect(() => {
       }
     };
     
+    // 📱 Handler touch pour scroll mobile (swipe vertical)
+    const touchThreshold = 50; // Pixels minimum pour déclencher le scroll
+    
+    const handleTouchStart = (e) => {
+      touchStartYRef.current = e.touches[0].clientY;
+    };
+    
+    const handleTouchEnd = (e) => {
+      // Bloquer si un modal est ouvert ou pas en fullscreen
+      if (selectedBubble || !isFullScreen) return;
+      
+      const touchEndY = e.changedTouches[0].clientY;
+      const deltaY = touchStartYRef.current - touchEndY;
+      
+      // Swipe vers le BAS (deltaY < 0) = AVANCER dans le futur
+      // Swipe vers le HAUT (deltaY > 0) = RECULER vers le passé
+      if (Math.abs(deltaY) > touchThreshold) {
+        if (perspectiveView === 'year') {
+          if (deltaY < 0) {
+            // Swipe DOWN = avancer
+            setNavYearIndex(prev => Math.min(prev + 1, navigationYears.length - 1));
+          } else {
+            // Swipe UP = reculer
+            setNavYearIndex(prev => Math.max(prev - 1, 0));
+          }
+        } else if (perspectiveView === 'month') {
+          if (deltaY < 0) {
+            setNavMonthIndex(prev => Math.min(prev + 1, navigationMonths.length - 1));
+          } else {
+            setNavMonthIndex(prev => Math.max(prev - 1, 0));
+          }
+        } else {
+          // Vue Jour (par défaut)
+          if (deltaY < 0) {
+            setNavIndex(prev => Math.min(prev + 1, navigationDays.length - 1));
+          } else {
+            setNavIndex(prev => Math.max(prev - 1, 0));
+          }
+        }
+      }
+    };
+    
     // 🔒 Sécurité: Vérifier qu'on est bien sur la page GPS pour le fullscreen
     const isOnGpsPage = location.pathname.startsWith('/gps');
     const shouldApplyFullScreen = isFullScreen && isOnGpsPage;
@@ -4287,6 +4337,8 @@ useEffect(() => {
       <div 
         data-tooltip="gps-welcome"
         onWheel={handleWheel}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         style={{ 
           display: 'flex', 
           flexDirection: 'column',
@@ -4542,6 +4594,22 @@ useEffect(() => {
             }
           }
         `}</style>
+        
+        {/* 📱 PWA Safe Area - Zone pour l'encoche/heure système */}
+        {isMobile && isPWA && shouldApplyFullScreen && (
+          <div style={{
+            height: 'env(safe-area-inset-top, 0px)',
+            background: whatIfMode === 'foundations' 
+              ? '#0a1f0a'
+              : whatIfMode === 'smartRoute'
+                ? '#001a1f'
+                : (isDark ? '#040449' : '#ffffff'),
+            width: '100%',
+            flexShrink: 0,
+            position: 'relative',
+            zIndex: 10000
+          }} />
+        )}
         
         {/* OVERLAY ANIMATION CHANGEMENT DE VUE */}
         {isViewTransitioning && (
@@ -7781,7 +7849,7 @@ useEffect(() => {
                     color: '#64748b',
                     textAlign: 'center'
                   }}>
-                    {t('gps.goalReachedAlert.suggestion', 'Félicitations! Continue sur cette lancée!')}
+                    {t('gps.goalReachedAlert.suggestion', 'Félicitations d\'avance! ⭐')}
                   </p>
 
                   {/* Boutons */}
@@ -8766,7 +8834,7 @@ useEffect(() => {
                         borderBottom: '1px solid #eee'
                       }}>
                         <span style={{ fontSize: '1.1em' }}>
-                          {data.type === 'credit' ? '💳' : data.type === 'epargne' ? '💰' : '🏦'}
+                          {data.type === 'credit' ? '💳' : data.type === 'epargne' ? '🌱' : '🏦'}
                         </span>
                         <span style={{ fontWeight: '600', color: '#2c3e50' }}>{compte}</span>
                       </div>

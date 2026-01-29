@@ -63,9 +63,9 @@ const LandingPage = () => {
     { x: 370, y: 340, icon: '🎓', color: '#fbbf24' },
     { x: 540, y: 350, icon: '📚', color: '#f59e0b' },
     { x: 710, y: 330, icon: '🌱', color: '#f59e0b' },
-    { x: 900, y: 310, icon: '🏖️', color: '#f97316' },
-    { x: 1100, y: 200, icon: '🎯', color: '#22c55e' },
-    { x: 1300, y: 120, icon: '🧭', color: '#22c55e' }
+    { x: 900, y: 330, icon: '🏖️', color: '#f97316' },
+    { x: 1100, y: 350, icon: '🎯', color: '#22c55e' },
+    { x: 1300, y: 330, icon: '🧭', color: '#22c55e' }
   ];
 
   // 5 points simplifiés pour mobile

@@ -877,7 +877,8 @@ const Objectifs = () => {
         >
           {/* Header plein écran */}
           <div style={{ 
-            padding: isMobile ? '10px 15px' : '15px 30px',
+            padding: isMobile ? '15px 15px 10px 15px' : '15px 30px',
+            paddingTop: isMobile && window.matchMedia('(display-mode: standalone)').matches ? 'max(50px, env(safe-area-inset-top, 50px))' : '15px',
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center',
@@ -1483,7 +1484,7 @@ const Objectifs = () => {
                       cursor: 'pointer'
                     }}
                   >
-                    <option value="epargne" style={{ fontSize: '1.1em', padding: '10px' }}>💰 {t('goals.types.savings')}</option>
+                    <option value="epargne" style={{ fontSize: '1.1em', padding: '10px' }}>🌱 {t('goals.types.savings')}</option>
                     <option value="dette" style={{ fontSize: '1.1em', padding: '10px' }}>💳 {t('goals.types.debt')}</option>
                     <option value="investissement" style={{ fontSize: '1.1em', padding: '10px' }}>📈 {t('goals.types.investment')}</option>
                     <option value="urgence" style={{ fontSize: '1.1em', padding: '10px' }}>🛡️ {t('goals.types.emergency')}</option>

@@ -18,10 +18,18 @@ const useTrialReminders = () => {
   const [trialStatus, setTrialStatus] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasChecked, setHasChecked] = useState(false);
+  const [actionTaken, setActionTaken] = useState(false); // 🔧 FIX: Track si une action a été prise
 
   // Récupérer le statut trial depuis le backend
   const fetchTrialStatus = useCallback(async () => {
     if (!isAuthenticated) {
+      setIsLoading(false);
+      return;
+    }
+    
+    // 🔧 FIX: Ne pas refetch si une action a déjà été prise dans cette session
+    if (actionTaken) {
+      console.log('[useTrialReminders] Action déjà prise, pas de refetch');
       setIsLoading(false);
       return;
     }
@@ -51,7 +59,7 @@ const useTrialReminders = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated]);
+  }, [isAuthenticated, actionTaken]);
 
   // Vérifier le statut au montage et quand l'authentification change
   useEffect(() => {
@@ -64,6 +72,7 @@ const useTrialReminders = () => {
   const closeModal = useCallback((action) => {
     setShowModal(false);
     setPopupType(null);
+    setActionTaken(true); // 🔧 FIX: Marquer qu'une action a été prise pour éviter réaffichage
     console.log(`[useTrialReminders] Modal fermé avec action: ${action}`);
   }, []);
 

@@ -403,9 +403,39 @@ export const SubscriptionProvider = ({ children }) => {
   }, [trialInfo, loadSubscriptionFromBackend]);
 
   // Calculer les jours restants du trial (depuis les données backend)
+  // 🔧 FIX: Recalcul côté frontend si backend retourne une valeur incorrecte
   const getTrialDaysRemaining = useCallback(() => {
     if (!trialInfo.isActive || trialInfo.hasChosen) return null;
-    return trialInfo.daysRemaining;
+    
+    // Si le backend a retourné une valeur, vérifier qu'elle est cohérente
+    if (trialInfo.daysRemaining !== null && trialInfo.daysRemaining !== undefined) {
+      // Si on a endDate, recalculer pour être sûr
+      if (trialInfo.endDate) {
+        const now = new Date();
+        const endDate = new Date(trialInfo.endDate);
+        const diffTime = endDate - now;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const calculatedDays = Math.max(0, diffDays);
+        
+        // Si la différence est trop grande (>2 jours), utiliser notre calcul
+        if (Math.abs(calculatedDays - trialInfo.daysRemaining) > 2) {
+          console.warn(`[Subscription] Différence de calcul: backend=${trialInfo.daysRemaining}, calculé=${calculatedDays}`);
+          return calculatedDays;
+        }
+      }
+      return trialInfo.daysRemaining;
+    }
+    
+    // Fallback: calculer depuis endDate si disponible
+    if (trialInfo.endDate) {
+      const now = new Date();
+      const endDate = new Date(trialInfo.endDate);
+      const diffTime = endDate - now;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return Math.max(0, diffDays);
+    }
+    
+    return null;
   }, [trialInfo]);
 
   // Marquer qu'un plan a été choisi

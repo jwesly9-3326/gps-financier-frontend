@@ -221,16 +221,17 @@ export const OnboardingProvider = ({ children }) => {
       console.log('🚀 Finalisation onboarding:', dataToSave);
       console.log('🎯 Objectifs financiers:', dataToSave.financialGoals);
       
-      // ✅ Marquer TOUS les guides comme complétés (onboarding = guide terminé)
-      const guideProgressComplete = {
-        dashboard: true,
-        comptes: true,
-        budget: true,
-        objectifs: true,
-        gps: true,
-        calculatrice: true,
-        gestion: true,
-        parametres: true
+      // 🔧 FIX: NE PAS marquer les guides comme complétés
+      // Les nouveaux utilisateurs doivent passer par le guide de chaque page
+      const guideProgressEmpty = {
+        dashboard: false,
+        comptes: false,
+        budget: false,
+        objectifs: false,
+        gps: false,
+        calculatrice: false,
+        gestion: false,
+        parametres: false
       };
       
       const completeData = {
@@ -249,7 +250,7 @@ export const OnboardingProvider = ({ children }) => {
         },
         initialBalances: dataToSave.initialBalances,
         financialGoals: dataToSave.financialGoals,
-        guideProgress: guideProgressComplete,  // ✅ Guide terminé
+        guideProgress: guideProgressEmpty,  // 🔧 FIX: Guide NON terminé - nouveaux utilisateurs passent par le guide
         onboardingCompleted: true  // ✅ Flag onboarding terminé
       };
       
@@ -259,16 +260,18 @@ export const OnboardingProvider = ({ children }) => {
       if (success) {
         console.log('✅ Données onboarding sauvegardées via UserDataContext');
         
-        // ✅ Aussi sauvegarder en localStorage pour que useGuideProgress les trouve immédiatement
-        localStorage.setItem('pl4to-guide-dashboard', 'completed');
-        localStorage.setItem('pl4to-guide-comptes', 'completed');
-        localStorage.setItem('pl4to-guide-budget', 'completed');
-        localStorage.setItem('pl4to-guide-objectifs', 'completed');
-        localStorage.setItem('pl4to-guide-gps', 'completed');
-        localStorage.setItem('pl4to-guide-calculatrice', 'completed');
-        localStorage.setItem('pl4to-guide-gestion', 'completed');
-        localStorage.setItem('pl4to-guide-parametres', 'completed');
-        console.log('✅ Guide progress sauvegardé en localStorage');
+        // 🔧 FIX: NE PAS marquer les guides comme complétés en localStorage
+        // Les nouveaux utilisateurs doivent passer par le guide de chaque page
+        // On nettoie même les anciennes valeurs au cas où
+        localStorage.removeItem('pl4to-guide-dashboard');
+        localStorage.removeItem('pl4to-guide-comptes');
+        localStorage.removeItem('pl4to-guide-budget');
+        localStorage.removeItem('pl4to-guide-objectifs');
+        localStorage.removeItem('pl4to-guide-gps');
+        localStorage.removeItem('pl4to-guide-calculatrice');
+        localStorage.removeItem('pl4to-guide-gestion');
+        localStorage.removeItem('pl4to-guide-parametres');
+        console.log('🔧 Guide progress reset en localStorage (nouveaux utilisateurs)');
       } else {
         console.warn('⚠️ Problème lors de la sauvegarde, mais on continue...');
       }
@@ -278,8 +281,13 @@ export const OnboardingProvider = ({ children }) => {
       localStorage.removeItem('pl4to-onboarding-step');
       
       // 3. 🎁 Démarrer le trial de 14 jours (plan Essentiel gratuit)
-      startTrial();
-      console.log('🎁 Trial de 14 jours démarré - Plan Essentiel activé!');
+      try {
+        await startTrial();
+        console.log('🎁 Trial de 14 jours démarré - Plan Essentiel activé!');
+      } catch (trialError) {
+        // Si le trial échoue (déjà utilisé), on continue quand même
+        console.warn('⚠️ Trial non démarré (peut-être déjà utilisé):', trialError.message);
+      }
       
       // 🎬 Animation de loading - 16 secondes (4s par étape)
       await new Promise(resolve => setTimeout(resolve, 16000));

@@ -88,6 +88,13 @@ const Simulations = () => {
   // 📱 Détection mobile
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   
+  // 📱 Détecter si on est en mode PWA (standalone)
+  const [isPWA, setIsPWA] = useState(false);
+  
+  useEffect(() => {
+    setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
+  }, []);
+  
   // 📱 Mobile: démarrer directement en plein écran | Desktop: mode aperçu
   const [isFullScreen, setIsFullScreen] = useState(window.innerWidth < 768);
   
@@ -105,32 +112,108 @@ const Simulations = () => {
   const [activeAccountIndex, setActiveAccountIndex] = useState(0);
   const mobileScrollRef = useRef(null);
   
+  // 📱 Swipe gauche-droite pour ouvrir le sidebar (comme MainLayout mais pour le mode fullscreen)
+  // Le position:fixed bloque les events du Layout parent, donc on gère nous-mêmes
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+  const swipeHandled = useRef(false);
+  
+  useEffect(() => {
+    // Seulement sur mobile en mode plein écran
+    if (!isMobile || !isFullScreen) return;
+    
+    const handleTouchStart = (e) => {
+      touchStartX.current = e.touches[0].clientX;
+      touchStartY.current = e.touches[0].clientY;
+      swipeHandled.current = false;
+    };
+    
+    const handleTouchMove = (e) => {
+      if (touchStartX.current === null || swipeHandled.current) return;
+      
+      const touchCurrentX = e.touches[0].clientX;
+      const touchCurrentY = e.touches[0].clientY;
+      const deltaX = touchCurrentX - touchStartX.current;
+      const deltaY = touchCurrentY - touchStartY.current;
+      
+      // Vérifier si c'est un swipe horizontal significatif (comme MainLayout)
+      if (Math.abs(deltaX) > 50 && Math.abs(deltaX) > Math.abs(deltaY) * 2) {
+        // Swipe gauche → droite: Ouvrir sidebar
+        if (deltaX > 0) {
+          swipeHandled.current = true;
+          window.dispatchEvent(new CustomEvent('openSidebar'));
+        }
+      }
+    };
+    
+    const handleTouchEnd = () => {
+      touchStartX.current = null;
+      touchStartY.current = null;
+      swipeHandled.current = false;
+    };
+    
+    // Ajouter les listeners sur le document (capture tous les touch events)
+    document.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.addEventListener('touchmove', handleTouchMove, { passive: true });
+    document.addEventListener('touchend', handleTouchEnd, { passive: true });
+    
+    return () => {
+      document.removeEventListener('touchstart', handleTouchStart);
+      document.removeEventListener('touchmove', handleTouchMove);
+      document.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [isMobile, isFullScreen]);
+  
   // Détecter le compte visible lors du scroll (mobile)
   useEffect(() => {
     const container = mobileScrollRef.current;
     if (!container || !isMobile) return;
     
     const handleScroll = () => {
-      const scrollTop = container.scrollTop;
-      const itemHeight = container.clientHeight;
-      const newIndex = Math.round(scrollTop / itemHeight);
-      const accounts = userData?.accounts || [];
-      if (newIndex !== activeAccountIndex && newIndex >= 0 && newIndex < accounts.length) {
-        setActiveAccountIndex(newIndex);
+      const cards = container.querySelectorAll('[data-card-scroll]');
+      const containerTop = container.scrollTop;
+      const containerHeight = container.clientHeight;
+      
+      // Trouver la carte la plus visible
+      let bestIndex = 0;
+      let bestVisibility = 0;
+      
+      cards.forEach((card, index) => {
+        const cardTop = card.offsetTop - container.offsetTop;
+        const cardHeight = card.offsetHeight;
+        
+        // Calculer combien de la carte est visible
+        const visibleTop = Math.max(containerTop, cardTop);
+        const visibleBottom = Math.min(containerTop + containerHeight, cardTop + cardHeight);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
+        
+        if (visibleHeight > bestVisibility) {
+          bestVisibility = visibleHeight;
+          bestIndex = index;
+        }
+      });
+      
+      if (bestIndex !== activeAccountIndex) {
+        setActiveAccountIndex(bestIndex);
       }
     };
     
     container.addEventListener('scroll', handleScroll);
     return () => container.removeEventListener('scroll', handleScroll);
-  }, [isMobile, activeAccountIndex, userData?.accounts]);
+  }, [isMobile, activeAccountIndex]);
   
   // Fonction pour scroller vers un compte spécifique
   const scrollToAccount = (index) => {
     const container = mobileScrollRef.current;
     if (!container) return;
-    const itemHeight = container.clientHeight;
-    container.scrollTo({ top: index * itemHeight, behavior: 'smooth' });
-    setActiveAccountIndex(index);
+    
+    // Trouver le wrapper parent (pas la carte, mais le conteneur snap)
+    const snapItems = container.children;
+    if (snapItems[index]) {
+      const targetTop = snapItems[index].offsetTop;
+      container.scrollTo({ top: targetTop, behavior: 'smooth' });
+      setActiveAccountIndex(index);
+    }
   };
   
   const [isCalculating, setIsCalculating] = useState(false);
@@ -575,16 +658,8 @@ const Simulations = () => {
       
       if (progress < 1) {
         requestAnimationFrame(animate);
-      } else {
-        // Animation terminée, nettoyer
-        setTimeout(() => {
-          setAnimatingValues(prev => {
-            const newValues = { ...prev };
-            delete newValues[accountName];
-            return newValues;
-          });
-        }, 100);
       }
+      // NE PAS supprimer animatingValues - garder la valeur finale pour l'affichage
     };
     
     requestAnimationFrame(animate);
@@ -691,6 +766,7 @@ const Simulations = () => {
       setSimulations(resetSims);
       setShowResults(false);
       setShowWarningModal(false);
+      setAnimatingValues({}); // Nettoyer les valeurs d'animation
     }
   };
 
@@ -1076,8 +1152,9 @@ const Simulations = () => {
             const displayedAmount = hasChange ? newSolde : soldeActuel;
             const sizing = getCircleSizing(displayedAmount);
 
-            // 📱 Sur mobile, ne calculer l'évolution que pour le compte actif
-            const shouldShowResults = showResults && hasChange && (!isMobile || activeAccountIndex === index);
+            // 📱 Afficher les résultats pour TOUS les comptes modifiés (pas seulement le compte actif)
+            // Cela permet de voir les résultats même après avoir scrollé vers un autre compte
+            const shouldShowResults = showResults && hasChange;
             const evolution = shouldShowResults
               ? calculateEvolution(acc.nom, newSolde, isCredit)
               : [];
@@ -1102,17 +1179,16 @@ const Simulations = () => {
                 key={index}
                 style={{
                   ...(isMobile && {
-                    height: 'calc(100vh - 380px)',
-                    minHeight: 'calc(100vh - 380px)',
+                    minHeight: 'calc(100vh - 180px)',
                     scrollSnapAlign: 'start',
                     scrollSnapStop: 'always',
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    justifyContent: 'center',
+                    justifyContent: 'flex-start',
                     padding: '10px',
-                    paddingTop: '40px',
-                    paddingBottom: '100px'
+                    paddingBottom: '300px',
+                    boxSizing: 'border-box'
                   }),
                   ...(!isMobile && {
                     display: 'contents'
@@ -1126,7 +1202,9 @@ const Simulations = () => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   padding: isMobile ? '15px 20px 20px' : '20px 25px 25px',
-                  background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)',
+                  background: isDark 
+                    ? 'linear-gradient(180deg, rgba(16, 2, 97, 0.98) 0%, rgba(4, 4, 73, 0.98) 100%)' 
+                    : 'rgba(255,255,255,0.98)',
                   backdropFilter: 'blur(10px)',
                   borderRadius: '20px',
                   boxShadow: alertInfo?.level === 'danger'
@@ -1145,12 +1223,7 @@ const Simulations = () => {
                   minWidth: isMobile ? '90%' : '280px',
                   maxWidth: isMobile ? '95%' : '320px',
                   width: isMobile ? '90%' : 'auto',
-                  animation: alertInfo?.level === 'danger' ? 'shake 0.5s ease-in-out' : 'none',
-                  ...(isMobile && {
-                    maxHeight: 'calc(100vh - 420px)',
-                    overflowY: 'auto',
-                    WebkitOverflowScrolling: 'touch'
-                  })
+                  animation: alertInfo?.level === 'danger' ? 'shake 0.5s ease-in-out' : 'none'
                 }}
               >
                 {/* NOM DU COMPTE EN HAUT */}
@@ -1245,8 +1318,10 @@ const Simulations = () => {
                   }}>
                     <div style={{
                       position: 'relative',
-                      width: `${sizing.circleSize}px`,
-                      height: `${sizing.circleSize}px`,
+                      width: `${Math.max(sizing.circleSize, 100)}px`,
+                      height: `${Math.max(sizing.circleSize, 100)}px`,
+                      minWidth: '100px',
+                      minHeight: '100px',
                       transition: 'all 0.3s ease'
                     }}>
                       {/* Bordure animée gradient */}
@@ -1265,7 +1340,7 @@ const Simulations = () => {
                           : '0 0 15px rgba(255, 165, 0, 0.4)'
                       }} />
                       
-                      {/* Contenu intérieur bleu foncé */}
+                      {/* Contenu intérieur */}
                       <div style={{
                         position: 'absolute',
                         top: '4px',
@@ -1273,42 +1348,52 @@ const Simulations = () => {
                         right: '4px',
                         bottom: '4px',
                         borderRadius: '50%',
-                        background: isDark ? 'linear-gradient(180deg, #040449 0%, #100261 100%)' : 'linear-gradient(180deg, #ffffff 0%, #f8fafc 100%)',
+                        background: isDark 
+                          ? 'linear-gradient(180deg, #040449 0%, #100261 100%)' 
+                          : 'linear-gradient(180deg, #ffffff 0%, #f0f4f8 100%)',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
-                        justifyContent: 'center'
+                        justifyContent: 'center',
+                        padding: '4px',
+                        overflow: 'visible',
+                        boxSizing: 'border-box'
                       }}>
-                        <span style={{ fontSize: '1.8em', marginBottom: '2px' }}>
+                        <span style={{ fontSize: '1.3em', lineHeight: 1, flexShrink: 0, marginBottom: '2px' }}>
                           {getCompteIcon(acc.type)}
                         </span>
+                        {/* Solde actuel - toujours visible */}
                         <p style={{ 
-                          margin: '3px 0 0', 
-                          color: isCredit ? '#ffa500' : '#3498db', 
+                          margin: '0', 
+                          color: isDark ? (isCredit ? '#ffa500' : '#60a5fa') : (isCredit ? '#c0392b' : '#1a5276'), 
                           fontWeight: 'bold',
-                          fontSize: `${(hasChange ? 0.75 : 0.85) * sizing.fontScale}em`,
+                          fontSize: `${(hasChange ? 0.55 : 0.65) * sizing.fontScale}em`,
                           textDecoration: hasChange ? 'line-through' : 'none',
-                          opacity: hasChange ? 0.5 : 1,
-                          maxWidth: '100px',
+                          opacity: hasChange ? 0.6 : 1,
+                          maxWidth: '90%',
                           overflow: 'hidden',
                           textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap'
+                          whiteSpace: 'nowrap',
+                          lineHeight: 1.2,
+                          flexShrink: 0
                         }}>
                           {formatMontantCourt(soldeActuel)}
                         </p>
+                        {/* Nouveau solde - affiché quand il y a un changement */}
                         {hasChange && (
                           <p 
                             className={animatingValues[acc.nom] !== undefined ? 'solde-animating' : ''}
                             style={{ 
-                              margin: '2px 0 0', 
-                              color: isCredit ? '#ffa500' : '#3498db', 
+                              margin: '0', 
+                              color: isDark ? (isCredit ? '#ffd700' : '#22d3ee') : (isCredit ? '#c0392b' : '#1a5276'), 
                               fontWeight: 'bold',
-                              fontSize: `${1.1 * sizing.fontScale}em`,
-                              maxWidth: '100px',
+                              fontSize: `${0.7 * sizing.fontScale}em`,
+                              maxWidth: '90%',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
                               whiteSpace: 'nowrap',
-                              textShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                              lineHeight: 1.2,
+                              flexShrink: 0
                             }}
                           >
                             {formatMontantCourt(animatingValues[acc.nom] !== undefined ? animatingValues[acc.nom] : newSolde)}
@@ -1386,6 +1471,8 @@ const Simulations = () => {
                   borderRadius: '12px',
                   padding: '15px',
                   minHeight: '100px',
+                  maxHeight: isMobile ? '350px' : 'none',
+                  overflowY: isMobile ? 'auto' : 'visible',
                   border: alertInfo?.level === 'danger' 
                     ? '1px solid rgba(255, 165, 0, 0.3)'
                     : alertInfo?.level === 'warning'
@@ -1643,23 +1730,6 @@ const Simulations = () => {
             ))}
           </div>
           
-          {/* Indicateur Swipe - en bas au centre */}
-          {activeAccountIndex < accounts.length - 1 && (
-            <div style={{
-              position: 'fixed',
-              bottom: '20px',
-              left: '50%',
-              transform: 'translateX(-50%)',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              opacity: 0.6,
-              zIndex: 50
-            }}>
-              <span style={{ fontSize: '0.75em', color: 'rgba(255,255,255,0.7)', marginBottom: '2px' }}>Swipe</span>
-              <span style={{ fontSize: '1.2em', color: 'rgba(255,255,255,0.7)' }}>↓</span>
-            </div>
-          )}
         </>
       )}
 
@@ -2061,18 +2131,29 @@ const Simulations = () => {
 
       {/* Mode Plein Écran */}
       {isFullScreen && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: isDark ? 'linear-gradient(180deg, #040449 0%, #100261 100%)' : '#ffffff',
-          zIndex: 1000,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden'
-        }}>
+        <div 
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: isDark ? 'linear-gradient(180deg, #040449 0%, #100261 100%)' : '#ffffff',
+            zIndex: 1000,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden'
+          }}
+        >
+          {/* 📱 PWA Safe Area - Zone pour l'encoche/heure système */}
+          {isMobile && isPWA && (
+            <div style={{
+              height: 'env(safe-area-inset-top, 0px)',
+              background: isDark ? '#040449' : '#ffffff',
+              width: '100%',
+              flexShrink: 0
+            }} />
+          )}
           {/* Header plein écran */}
           <div style={{
             background: 'transparent',

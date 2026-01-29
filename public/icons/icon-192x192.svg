@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="192" height="192" viewBox="0 0 192 192" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Gradient doré uniforme (sans rouge) -->
+    <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffd700"/>
+      <stop offset="50%" style="stop-color:#ffb800"/>
+      <stop offset="100%" style="stop-color:#ffa500"/>
+    </linearGradient>
+  </defs>
+  
+  <rect width="192" height="192" fill="white" rx="28.799999999999997"/>
+  <circle cx="96" cy="96" r="82.56" fill="url(#goldGradient)"/>
+  <circle cx="96" cy="96" r="63.36" fill="white"/>
+  <circle cx="96" cy="96" r="43.2" fill="none" stroke="url(#goldGradient)" stroke-width="8.347826086956522"/>
+  <circle cx="96" cy="96" r="12.096" fill="url(#goldGradient)"/>
+  <path d="M96 46.121739130434776 L101.00869565217391 62.81739130434782 L96 57.80869565217391 L90.99130434782609 62.81739130434782 Z" fill="url(#goldGradient)"/>
+</svg>

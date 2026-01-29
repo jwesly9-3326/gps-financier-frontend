@@ -96,7 +96,14 @@ const Login = () => {
       trackLogin('email');
       showToast(t('auth.login.success'), 'success');
       setTimeout(() => {
-        window.location.href = '/dashboard';
+        // 📱 Détecter si mobile PWA pour ouvrir sidebar après redirection
+        const isMobilePWA = window.innerWidth < 768 && window.matchMedia('(display-mode: standalone)').matches;
+        if (isMobilePWA) {
+          // Mobile PWA: Rediriger vers dashboard avec sidebar ouvert
+          window.location.href = '/dashboard?openSidebar=true';
+        } else {
+          window.location.href = '/dashboard';
+        }
       }, 1000);
     } else if (result.requires2FA) {
       // 2FA requis - le state est géré par AuthContext
@@ -141,7 +148,13 @@ const Login = () => {
       }
       
       setTimeout(() => {
-        window.location.href = '/dashboard';
+        // 📱 Détecter si mobile PWA pour ouvrir sidebar après redirection
+        const isMobilePWA = window.innerWidth < 768 && window.matchMedia('(display-mode: standalone)').matches;
+        if (isMobilePWA) {
+          window.location.href = '/dashboard?openSidebar=true';
+        } else {
+          window.location.href = '/dashboard';
+        }
       }, 1000);
     } else {
       setTwoFAError(result.error || t('auth.twoFA.errorInvalidCode'));
@@ -172,8 +185,17 @@ const Login = () => {
         trackLogin('google');
         showToast(t('auth.login.success'), 'success');
         setTimeout(() => {
-          // Rediriger vers onboarding si nouvel utilisateur
-          window.location.href = result.isNewUser ? '/onboarding' : '/dashboard';
+          // 📱 Détecter si mobile PWA pour ouvrir sidebar après redirection
+          const isMobilePWA = window.innerWidth < 768 && window.matchMedia('(display-mode: standalone)').matches;
+          if (result.isNewUser) {
+            // Nouvel utilisateur: Onboarding
+            window.location.href = '/onboarding';
+          } else if (isMobilePWA) {
+            // Mobile PWA: Dashboard avec sidebar ouvert
+            window.location.href = '/dashboard?openSidebar=true';
+          } else {
+            window.location.href = '/dashboard';
+          }
         }, 1000);
       } else {
         showToast(result.error || 'Erreur de connexion Google', 'error');

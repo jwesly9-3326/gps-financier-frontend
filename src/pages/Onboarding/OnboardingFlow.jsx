@@ -200,7 +200,8 @@ const OnboardingContent = () => {
       left: 0,
       right: 0,
       bottom: 0,
-      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
       background: 'linear-gradient(180deg, #040449 0%, #100261 50%, #040449 100%)',
       zIndex: 1000
     }}>
@@ -208,7 +209,12 @@ const OnboardingContent = () => {
       <StepIndicator />
 
       {/* Contenu de l'étape courante */}
-      <div style={{ height: 'calc(100% - 120px)', overflow: 'auto' }}>
+      <div style={{ 
+        flex: 1, 
+        overflow: 'auto',
+        WebkitOverflowScrolling: 'touch',
+        paddingBottom: 'env(safe-area-inset-bottom, 20px)'
+      }}>
         {renderStep()}
       </div>
     </div>

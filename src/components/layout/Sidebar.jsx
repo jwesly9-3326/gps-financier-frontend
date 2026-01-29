@@ -6,7 +6,7 @@
 // ✅ Utilise useGuideProgress pour la logique centralisée
 // 🎨 Theme support
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
@@ -18,6 +18,13 @@ const Sidebar = ({ isMobile = false, isOpen = true, onClose = () => {}, onMobile
   const navigate = useNavigate();
   const { logout } = useAuth();
   const { theme, isDark } = useTheme();
+  
+  // 📱 Détecter si on est en mode PWA (standalone)
+  const [isPWA, setIsPWA] = useState(false);
+  
+  useEffect(() => {
+    setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
+  }, []);
   
   // ✅ Hook centralisé pour la progression du guide
   const { isPageAccessible, isGuideComplete } = useGuideProgress();
@@ -91,12 +98,20 @@ const Sidebar = ({ isMobile = false, isOpen = true, onClose = () => {}, onMobile
         flexDirection: 'column',
         padding: isMobile ? '25px 10px' : '15px 12px',
         boxShadow: 'none',
-        height: isMobile ? 'calc(100vh - 60px)' : '100%',
+        height: isMobile 
+          ? (isPWA 
+            ? 'calc(100vh - 60px - env(safe-area-inset-top, 0px))' 
+            : 'calc(100vh - 60px)') 
+          : '100%',
         borderRight: 'none',
         transition: 'all 0.3s ease',
         // Mobile: position fixe plein écran | Desktop: position normale dans le flex
         position: isMobile ? 'fixed' : 'relative',
-        top: isMobile ? '60px' : 'auto',
+        top: isMobile 
+          ? (isPWA 
+            ? 'calc(60px + env(safe-area-inset-top, 0px))' 
+            : '60px') 
+          : 'auto',
         left: 0,
         right: isMobile ? 0 : 'auto',
         bottom: isMobile ? 0 : 'auto',

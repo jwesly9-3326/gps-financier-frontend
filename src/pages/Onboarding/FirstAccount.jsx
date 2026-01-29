@@ -267,7 +267,7 @@ const FirstAccount = () => {
               }}>
                 {[
                   { value: 'cheque', label: t('onboarding.firstAccount.types.cheque'), icon: '💳', color: '#3498db' },
-                  { value: 'epargne', label: t('onboarding.firstAccount.types.savings'), icon: '🏦', color: '#2ecc71' },
+                  { value: 'epargne', label: t('onboarding.firstAccount.types.savings'), icon: '🌱', color: '#2ecc71' },
                   { value: 'credit', label: t('onboarding.firstAccount.types.credit'), icon: '💳', hint: t('onboarding.firstAccount.types.creditHint'), color: '#ffa500' },
                   { value: 'hypotheque', label: t('onboarding.firstAccount.types.mortgage'), icon: '🏠', hint: t('onboarding.firstAccount.types.mortgageHint'), color: '#9b59b6' }
                 ].map((option) => (
