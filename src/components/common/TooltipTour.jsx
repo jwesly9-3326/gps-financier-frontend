@@ -2,6 +2,8 @@
 // Affiche un tooltip stylisé avec highlight de l'élément ciblé
 // Navigation: Suivant | Précédent | Ignorer
 // Overlay sombre autour de l'élément highlighté
+// 📱 Sur mobile/PWA: tooltip centré sans highlight (plus fiable)
+// 📱 Mobile/PWA: "Ignorer" et "Terminer" affichent le bouton "On continue!" dans le header
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -13,37 +15,77 @@ const TooltipTour = ({
   totalSteps,
   onNext,
   onPrev,
-  onSkip
+  onSkip,
+  onComplete // 📱 Callback pour "On continue!" (utilisé par les pages)
 }) => {
   const { t } = useTranslation();
   const [targetRect, setTargetRect] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ top: 0, left: 0 });
+  const [isReady, setIsReady] = useState(false);
   const tooltipRef = useRef(null);
 
-  // Trouver l'élément cible et calculer sa position
-  const updatePosition = useCallback(() => {
-    if (!currentTooltip?.target) return;
+  // 📱 Détection mobile/PWA
+  const isMobile = window.innerWidth < 768;
+  const isPWA = window.matchMedia('(display-mode: standalone)').matches;
+  
+  // 📱 Sur mobile/PWA: pas de highlight, juste tooltip centré
+  const useSimpleMode = isMobile || isPWA;
 
-    const element = document.querySelector(currentTooltip.target);
-    if (!element) {
-      console.warn(`[TooltipTour] Élément non trouvé: ${currentTooltip.target}`);
+  // Calculer la position du tooltip (centré sur mobile, près de l'élément sur desktop)
+  const updatePosition = useCallback(() => {
+    if (!currentTooltip) return;
+
+    const tooltipWidth = isMobile ? Math.min(300, window.innerWidth - 40) : 320;
+    const tooltipHeight = isMobile ? 200 : 220;
+    const screenPadding = 20;
+
+    if (useSimpleMode) {
+      // 📱 Mode simple: tooltip centré verticalement et horizontalement
+      const top = (window.innerHeight - tooltipHeight) / 2;
+      const left = (window.innerWidth - tooltipWidth) / 2;
+      
+      setTooltipPosition({ top, left });
+      setTargetRect(null); // Pas de highlight
+      setIsReady(true);
       return;
     }
 
+    // 🖥️ Desktop: highlight + positionnement près de l'élément
+    const element = document.querySelector(currentTooltip.target);
+    if (!element) {
+      console.warn(`[TooltipTour] Élément non trouvé: ${currentTooltip.target}`);
+      // Fallback: centrer le tooltip
+      setTooltipPosition({ 
+        top: (window.innerHeight - tooltipHeight) / 2, 
+        left: (window.innerWidth - tooltipWidth) / 2 
+      });
+      setTargetRect(null);
+      setIsReady(true);
+      return;
+    }
+
+    // 🆕 FIX: Scroll l'élément dans la vue AVANT de calculer sa position
+    // Ceci corrige le problème de highlight mal positionné dans les conteneurs scrollables
+    element.scrollIntoView({ behavior: 'instant', block: 'nearest', inline: 'nearest' });
+
     const rect = element.getBoundingClientRect();
-    console.log('[TooltipTour] Element trouvé, rect:', rect.width, rect.height, rect.top, rect.left);
-    setTargetRect(rect);
-
-    // Calculer la position du tooltip selon la direction
-    const padding = 16;
-    const tooltipWidth = 320;
-    const tooltipHeight = 200; // Un peu plus haut pour le contenu
-
-    let top, left;
-    const position = currentTooltip.position || 'bottom';
-    const screenPadding = 20;
+    
+    // Appliquer l'offset du highlight si défini
+    const offset = currentTooltip.highlightOffset || { left: 0, top: 0, width: 0, height: 0 };
+    const adjustedRect = {
+      left: rect.left + (offset.left || 0),
+      top: rect.top + (offset.top || 0),
+      width: rect.width + (offset.width || 0),
+      height: rect.height + (offset.height || 0),
+      right: rect.right + (offset.left || 0) + (offset.width || 0),
+      bottom: rect.bottom + (offset.top || 0) + (offset.height || 0)
+    };
+    setTargetRect(adjustedRect);
 
     // Calculer les positions possibles
+    const padding = 16;
+    const position = currentTooltip.position || 'bottom';
+    
     const positions = {
       top: {
         top: rect.top - tooltipHeight - padding,
@@ -63,7 +105,7 @@ const TooltipTour = ({
       }
     };
 
-    // Vérifier si une position est valide (dans l'écran)
+    // Vérifier si une position est valide
     const isValidPosition = (pos) => {
       return (
         pos.top >= screenPadding &&
@@ -73,22 +115,11 @@ const TooltipTour = ({
       );
     };
 
-    // Utiliser la position demandée si elle est valide
     let chosenPos = positions[position];
     
-    // Si la position demandée n'est pas valide, essayer les alternatives
     if (!isValidPosition(chosenPos)) {
-      // Ordre de préférence selon la position demandée
-      const fallbackOrder = {
-        right: ['right', 'left', 'bottom', 'top'],
-        left: ['left', 'right', 'bottom', 'top'],
-        top: ['top', 'bottom', 'right', 'left'],
-        bottom: ['bottom', 'top', 'right', 'left']
-      };
-      
-      const order = fallbackOrder[position] || ['bottom', 'top', 'right', 'left'];
-      
-      for (const pos of order) {
+      const fallbackOrder = ['bottom', 'top', 'right', 'left'];
+      for (const pos of fallbackOrder) {
         if (isValidPosition(positions[pos])) {
           chosenPos = positions[pos];
           break;
@@ -96,39 +127,50 @@ const TooltipTour = ({
       }
     }
 
-    // Ajustements finaux pour garder dans l'écran (au cas où aucune position n'est parfaite)
-    top = chosenPos.top;
-    left = chosenPos.left;
-    
-    // Ajuster horizontalement si nécessaire
+    // Ajustements finaux
+    let { top, left } = chosenPos;
     if (left < screenPadding) left = screenPadding;
     if (left + tooltipWidth > window.innerWidth - screenPadding) {
       left = window.innerWidth - tooltipWidth - screenPadding;
     }
-    
-    // Ajuster verticalement si nécessaire
     if (top < screenPadding) top = screenPadding;
     if (top + tooltipHeight > window.innerHeight - screenPadding) {
       top = window.innerHeight - tooltipHeight - screenPadding;
     }
 
     setTooltipPosition({ top, left });
-  }, [currentTooltip]);
+    setIsReady(true);
+  }, [currentTooltip, isMobile, useSimpleMode]);
 
-  // Mettre à jour la position quand le tooltip change
+  // 📱 Gérer le clic sur "Terminer" - comportement IDENTIQUE desktop et mobile
+  // Terminer = fermer les tooltips et afficher la barre "On continue!" en haut
+  const handleFinish = () => {
+    // Comportement identique sur desktop et mobile:
+    // Fermer les tooltips, l'utilisateur peut explorer la page
+    // La barre "On continue!" s'affichera via onNext() qui déclenche onComplete dans useTooltipTour
+    onNext();
+  };
+
+  // 📱 Gérer le clic sur "Ignorer" - comportement IDENTIQUE desktop et mobile
+  // Ignorer = fermer les tooltips et afficher le bouton "On continue!" dans le header
+  const handleSkip = () => {
+    // Comportement identique sur desktop et mobile:
+    // Fermer les tooltips, le bouton "On continue!" apparaît dans le header
+    onSkip();
+  };
+
+  // Mettre à jour quand le tooltip change
   useEffect(() => {
     if (isActive && currentTooltip) {
-      console.log('[TooltipTour] isActive:', isActive, 'currentTooltip:', currentTooltip?.id, 'target:', currentTooltip?.target);
-      // Petit délai pour laisser le DOM se stabiliser
+      setIsReady(false);
       const timer = setTimeout(updatePosition, 100);
       return () => clearTimeout(timer);
     }
-  }, [isActive, currentTooltip, updatePosition]);
+  }, [isActive, currentStep, updatePosition]);
 
   // Mettre à jour sur resize
   useEffect(() => {
     if (!isActive) return;
-
     const handleResize = () => updatePosition();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
@@ -137,30 +179,27 @@ const TooltipTour = ({
   // Gérer les touches clavier
   useEffect(() => {
     if (!isActive) return;
-
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        onSkip();
-      } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
-        onNext();
-      } else if (e.key === 'ArrowLeft') {
-        onPrev();
+      if (e.key === 'Escape') handleSkip();
+      else if (e.key === 'ArrowRight' || e.key === 'Enter') {
+        if (currentStep === totalSteps - 1) {
+          handleFinish();
+        } else {
+          onNext();
+        }
       }
+      else if (e.key === 'ArrowLeft') onPrev();
     };
-
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isActive, onNext, onPrev, onSkip]);
+  }, [isActive, onNext, onPrev, currentStep, totalSteps]);
 
-  // Log pour débuguer les conditions de rendu
-  useEffect(() => {
-    console.log('[TooltipTour] Conditions rendu - isActive:', isActive, 'currentTooltip:', !!currentTooltip, 'targetRect:', !!targetRect);
-  }, [isActive, currentTooltip, targetRect]);
+  if (!isActive || !currentTooltip || !isReady) return null;
 
-  if (!isActive || !currentTooltip || !targetRect) return null;
-
-  // Calculer la flèche du tooltip
+  // Calculer la flèche (desktop uniquement)
   const getArrowStyle = () => {
+    if (useSimpleMode || !targetRect) return { display: 'none' };
+    
     const position = currentTooltip.position || 'bottom';
     const arrowSize = 12;
     const baseStyle = {
@@ -172,49 +211,31 @@ const TooltipTour = ({
 
     switch (position) {
       case 'top':
-        return {
-          ...baseStyle,
-          bottom: -arrowSize,
-          left: '50%',
-          transform: 'translateX(-50%)',
+        return { ...baseStyle, bottom: -arrowSize, left: '50%', transform: 'translateX(-50%)',
           borderWidth: `${arrowSize}px ${arrowSize}px 0 ${arrowSize}px`,
-          borderColor: '#1a1a2e transparent transparent transparent'
-        };
+          borderColor: '#1a1a2e transparent transparent transparent' };
       case 'bottom':
-        return {
-          ...baseStyle,
-          top: -arrowSize,
-          left: '50%',
-          transform: 'translateX(-50%)',
+        return { ...baseStyle, top: -arrowSize, left: '50%', transform: 'translateX(-50%)',
           borderWidth: `0 ${arrowSize}px ${arrowSize}px ${arrowSize}px`,
-          borderColor: 'transparent transparent #1a1a2e transparent'
-        };
+          borderColor: 'transparent transparent #1a1a2e transparent' };
       case 'left':
-        return {
-          ...baseStyle,
-          right: -arrowSize,
-          top: '50%',
-          transform: 'translateY(-50%)',
+        return { ...baseStyle, right: -arrowSize, top: '50%', transform: 'translateY(-50%)',
           borderWidth: `${arrowSize}px 0 ${arrowSize}px ${arrowSize}px`,
-          borderColor: 'transparent transparent transparent #1a1a2e'
-        };
+          borderColor: 'transparent transparent transparent #1a1a2e' };
       case 'right':
-        return {
-          ...baseStyle,
-          left: -arrowSize,
-          top: '50%',
-          transform: 'translateY(-50%)',
+        return { ...baseStyle, left: -arrowSize, top: '50%', transform: 'translateY(-50%)',
           borderWidth: `${arrowSize}px ${arrowSize}px ${arrowSize}px 0`,
-          borderColor: 'transparent #1a1a2e transparent transparent'
-        };
+          borderColor: 'transparent #1a1a2e transparent transparent' };
       default:
-        return baseStyle;
+        return { display: 'none' };
     }
   };
 
+  const isLastStep = currentStep === totalSteps - 1;
+
   return (
     <>
-      {/* Overlay sombre avec trou pour l'élément highlighté */}
+      {/* Overlay sombre */}
       <div
         style={{
           position: 'fixed',
@@ -226,48 +247,61 @@ const TooltipTour = ({
           pointerEvents: 'none'
         }}
       >
-        {/* Overlay semi-transparent */}
-        <svg
-          width="100%"
-          height="100%"
-          style={{ position: 'absolute', top: 0, left: 0 }}
-        >
-          <defs>
-            <mask id="tooltip-mask">
-              <rect width="100%" height="100%" fill="white" />
-              <rect
-                x={targetRect.left - 8}
-                y={targetRect.top - 8}
-                width={targetRect.width + 16}
-                height={targetRect.height + 16}
-                rx="12"
-                fill="black"
-              />
-            </mask>
-          </defs>
-          <rect
-            width="100%"
-            height="100%"
-            fill="rgba(0, 0, 0, 0.75)"
-            mask="url(#tooltip-mask)"
-          />
-        </svg>
-
-        {/* Bordure brillante autour de l'élément */}
-        <div
-          style={{
+        {useSimpleMode ? (
+          // 📱 Mobile/PWA: overlay complet sans trou
+          <div style={{
             position: 'absolute',
-            left: targetRect.left - 8,
-            top: targetRect.top - 8,
-            width: targetRect.width + 16,
-            height: targetRect.height + 16,
-            border: '3px solid #667eea',
-            borderRadius: '12px',
-            boxShadow: '0 0 20px rgba(102, 126, 234, 0.6), 0 0 40px rgba(102, 126, 234, 0.3)',
-            animation: 'tooltip-pulse 2s infinite',
-            pointerEvents: 'none'
-          }}
-        />
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)'
+          }} />
+        ) : targetRect ? (
+          // 🖥️ Desktop: overlay avec trou pour highlight
+          <>
+            <svg width="100%" height="100%" style={{ position: 'absolute', top: 0, left: 0 }}>
+              <defs>
+                <mask id="tooltip-mask">
+                  <rect width="100%" height="100%" fill="white" />
+                  <rect
+                    x={targetRect.left - 8}
+                    y={targetRect.top - 8}
+                    width={targetRect.width + 16}
+                    height={targetRect.height + 16}
+                    rx="12"
+                    fill="black"
+                  />
+                </mask>
+              </defs>
+              <rect width="100%" height="100%" fill="rgba(0, 0, 0, 0.75)" mask="url(#tooltip-mask)" />
+            </svg>
+            
+            {/* Bordure brillante autour de l'élément */}
+            <div style={{
+              position: 'absolute',
+              left: targetRect.left - 8,
+              top: targetRect.top - 8,
+              width: targetRect.width + 16,
+              height: targetRect.height + 16,
+              border: '3px solid #667eea',
+              borderRadius: '12px',
+              boxShadow: '0 0 20px rgba(102, 126, 234, 0.6), 0 0 40px rgba(102, 126, 234, 0.3)',
+              animation: 'tooltip-pulse 2s infinite',
+              pointerEvents: 'none'
+            }} />
+          </>
+        ) : (
+          // Fallback: overlay complet
+          <div style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.8)'
+          }} />
+        )}
       </div>
 
       {/* Tooltip */}
@@ -277,10 +311,11 @@ const TooltipTour = ({
           position: 'fixed',
           top: tooltipPosition.top,
           left: tooltipPosition.left,
-          width: '320px',
+          width: isMobile ? `${Math.min(300, window.innerWidth - 40)}px` : '320px',
+          maxWidth: 'calc(100vw - 40px)',
           background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-          borderRadius: '16px',
-          padding: '20px',
+          borderRadius: isMobile ? '14px' : '16px',
+          padding: isMobile ? '16px' : '20px',
           boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 30px rgba(102, 126, 234, 0.3)',
           border: '1px solid rgba(102, 126, 234, 0.3)',
           zIndex: 99999,
@@ -289,7 +324,7 @@ const TooltipTour = ({
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Flèche */}
+        {/* Flèche (desktop uniquement) */}
         <div style={getArrowStyle()} />
 
         {/* Header avec icône et progression */}
@@ -297,37 +332,27 @@ const TooltipTour = ({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '12px'
+          marginBottom: isMobile ? '10px' : '12px'
         }}>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '10px'
-          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '10px' }}>
             <span style={{
-              fontSize: '1.5em',
+              fontSize: isMobile ? '1.3em' : '1.5em',
               background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%)',
-              padding: '8px',
+              padding: isMobile ? '6px' : '8px',
               borderRadius: '10px'
             }}>
               {currentTooltip.icon || '💡'}
             </span>
-            <h3 style={{
-              margin: 0,
-              fontSize: '1.1em',
-              fontWeight: 'bold',
-              color: 'white'
-            }}>
+            <h3 style={{ margin: 0, fontSize: isMobile ? '1em' : '1.1em', fontWeight: 'bold', color: 'white' }}>
               {t(currentTooltip.titleKey)}
             </h3>
           </div>
           
-          {/* Indicateur de progression */}
           <span style={{
-            fontSize: '0.8em',
+            fontSize: isMobile ? '0.75em' : '0.8em',
             color: 'rgba(255,255,255,0.6)',
             background: 'rgba(255,255,255,0.1)',
-            padding: '4px 10px',
+            padding: isMobile ? '3px 8px' : '4px 10px',
             borderRadius: '12px'
           }}>
             {currentStep + 1}/{totalSteps}
@@ -336,8 +361,8 @@ const TooltipTour = ({
 
         {/* Contenu */}
         <p style={{
-          margin: '0 0 16px',
-          fontSize: '0.95em',
+          margin: isMobile ? '0 0 12px' : '0 0 16px',
+          fontSize: isMobile ? '0.9em' : '0.95em',
           color: 'rgba(255,255,255,0.85)',
           lineHeight: '1.5',
           whiteSpace: 'pre-line'
@@ -348,10 +373,10 @@ const TooltipTour = ({
         {/* Barre de progression */}
         <div style={{
           width: '100%',
-          height: '4px',
+          height: isMobile ? '3px' : '4px',
           background: 'rgba(255,255,255,0.1)',
           borderRadius: '2px',
-          marginBottom: '16px',
+          marginBottom: isMobile ? '12px' : '16px',
           overflow: 'hidden'
         }}>
           <div style={{
@@ -368,29 +393,27 @@ const TooltipTour = ({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          gap: '10px'
+          gap: isMobile ? '6px' : '10px'
         }}>
-          {/* Bouton Ignorer */}
           <button
-            onClick={onSkip}
+            onClick={handleSkip}
             style={{
-              padding: '8px 14px',
+              padding: isMobile ? '8px 10px' : '8px 14px',
               border: 'none',
               background: 'transparent',
               color: 'rgba(255,255,255,0.5)',
-              fontSize: '0.85em',
+              fontSize: isMobile ? '0.8em' : '0.85em',
               cursor: 'pointer',
-              transition: 'color 0.2s'
+              transition: 'color 0.2s',
+              minWidth: isMobile ? '60px' : 'auto'
             }}
-            onMouseEnter={(e) => e.target.style.color = 'rgba(255,255,255,0.8)'}
-            onMouseLeave={(e) => e.target.style.color = 'rgba(255,255,255,0.5)'}
           >
             {t('tooltips.skip')}
           </button>
 
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {/* Bouton Précédent */}
-            {currentStep > 0 && (
+          <div style={{ display: 'flex', gap: isMobile ? '6px' : '8px' }}>
+            {/* Bouton Précédent - visible sur desktop uniquement */}
+            {currentStep > 0 && !isMobile && (
               <button
                 onClick={onPrev}
                 style={{
@@ -404,44 +427,28 @@ const TooltipTour = ({
                   cursor: 'pointer',
                   transition: 'all 0.2s'
                 }}
-                onMouseEnter={(e) => {
-                  e.target.style.borderColor = 'rgba(255,255,255,0.4)';
-                  e.target.style.background = 'rgba(255,255,255,0.1)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.borderColor = 'rgba(255,255,255,0.2)';
-                  e.target.style.background = 'transparent';
-                }}
               >
                 ← {t('tooltips.prev')}
               </button>
             )}
 
-            {/* Bouton Suivant / Terminer */}
             <button
-              onClick={onNext}
+              onClick={isLastStep ? handleFinish : onNext}
               style={{
-                padding: '10px 20px',
+                padding: isMobile ? '10px 16px' : '10px 20px',
                 border: 'none',
                 borderRadius: '10px',
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white',
-                fontSize: '0.9em',
+                fontSize: isMobile ? '0.85em' : '0.9em',
                 fontWeight: '600',
                 cursor: 'pointer',
                 boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.transform = 'translateY(-2px)';
-                e.target.style.boxShadow = '0 6px 20px rgba(102, 126, 234, 0.5)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.transform = 'translateY(0)';
-                e.target.style.boxShadow = '0 4px 15px rgba(102, 126, 234, 0.4)';
+                transition: 'all 0.2s',
+                minWidth: isMobile ? '100px' : 'auto'
               }}
             >
-              {currentStep === totalSteps - 1 ? t('tooltips.finish') : t('tooltips.next')} →
+              {isLastStep ? t('tooltips.finish') : t('tooltips.next')} →
             </button>
           </div>
         </div>
@@ -450,23 +457,12 @@ const TooltipTour = ({
       {/* CSS Animations */}
       <style>{`
         @keyframes tooltip-appear {
-          from {
-            opacity: 0;
-            transform: scale(0.95) translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
+          from { opacity: 0; transform: scale(0.95) translateY(10px); }
+          to { opacity: 1; transform: scale(1) translateY(0); }
         }
-        
         @keyframes tooltip-pulse {
-          0%, 100% {
-            box-shadow: 0 0 20px rgba(102, 126, 234, 0.6), 0 0 40px rgba(102, 126, 234, 0.3);
-          }
-          50% {
-            box-shadow: 0 0 30px rgba(102, 126, 234, 0.8), 0 0 60px rgba(102, 126, 234, 0.4);
-          }
+          0%, 100% { box-shadow: 0 0 20px rgba(102, 126, 234, 0.6), 0 0 40px rgba(102, 126, 234, 0.3); }
+          50% { box-shadow: 0 0 30px rgba(102, 126, 234, 0.8), 0 0 60px rgba(102, 126, 234, 0.4); }
         }
       `}</style>
     </>

@@ -111,16 +111,18 @@ const FirstAccount = () => {
     <div style={{
       height: '100%',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      overflowY: 'auto',
+      WebkitOverflowScrolling: 'touch'
     }}>
       <div style={{
         maxWidth: '700px',
         margin: '0 auto',
-        padding: '0 20px 20px',
+        padding: '20px 20px 100px',
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'center'
+        justifyContent: 'flex-start'
       }}>
         {/* Progress Bar */}
         <div style={{ marginBottom: '20px' }}>

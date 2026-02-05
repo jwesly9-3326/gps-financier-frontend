@@ -12,7 +12,7 @@ const GoldenO = ({ size = 24 }) => (
     height: `${size}px`,
     borderRadius: '50%',
     border: `${Math.max(2, size / 10)}px solid transparent`,
-    background: 'linear-gradient(#1e1b4b, #1e1b4b) padding-box, linear-gradient(180deg, #ffd700, #ff8c00, #ff4500, #ffd700) border-box',
+    background: 'linear-gradient(#1e1b4b, #1e1b4b) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box',
     boxShadow: '0 0 8px rgba(255, 165, 0, 0.6)',
     flexShrink: 0
   }} />
@@ -71,7 +71,7 @@ const InstallPWA = ({ variant = 'banner' }) => {
             color: 'white'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
-              <h3 style={{ margin: 0, fontSize: '1.1em' }}>📲 Installer PL4TO</h3>
+              <h3 style={{ margin: 0, fontSize: '1.1em', color: 'white' }}>📲 Installer PL4TO</h3>
               <button
                 onClick={() => setShowIOSInstructions(false)}
                 style={{ background: 'none', border: 'none', color: 'white', fontSize: '1.5em', cursor: 'pointer' }}

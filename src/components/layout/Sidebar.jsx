@@ -100,17 +100,19 @@ const Sidebar = ({ isMobile = false, isOpen = true, onClose = () => {}, onMobile
         boxShadow: 'none',
         height: isMobile 
           ? (isPWA 
-            ? 'calc(100vh - 60px - env(safe-area-inset-top, 0px))' 
-            : 'calc(100vh - 60px)') 
+            ? 'calc(100vh - 70px - env(safe-area-inset-top, 0px))' 
+            : 'calc(100vh - 85px)') 
           : '100%',
         borderRight: 'none',
         transition: 'all 0.3s ease',
         // Mobile: position fixe plein écran | Desktop: position normale dans le flex
         position: isMobile ? 'fixed' : 'relative',
+        // 📱 FIX: Mobile navigateur ET PWA - ajuster le top pour le header
+        // PWA: 70px + safe-area, Navigateur: 85px (header agrandi pour barre d'état)
         top: isMobile 
           ? (isPWA 
-            ? 'calc(60px + env(safe-area-inset-top, 0px))' 
-            : '60px') 
+            ? 'calc(70px + env(safe-area-inset-top, 0px))' 
+            : '85px') 
           : 'auto',
         left: 0,
         right: isMobile ? 0 : 'auto',

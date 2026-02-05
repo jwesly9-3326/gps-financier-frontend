@@ -56,19 +56,21 @@ const Parametres = () => {
   }, [shouldShowGuide, isGuideLoading]);
   
   // Fermer le modal et afficher la barre "On continue"
-  const closeModal = () => {
+  const closeModal = async () => {
     setShowGuide(false);
-    setShowContinueBar(true);
+    // Déclencher directement la fin de l'onboarding et le trial
+    await continueToNextPage();
   };
   
   // Marquer comme complété et retourner à l'Accueil (fin de l'onboarding)
-  const continueToNextPage = () => {
+  const continueToNextPage = async () => {
     setShowContinueBar(false);
     markGuideCompleted('parametres');
     // Démarrer le trial de 14 jours
-    startTrial();
+    await startTrial();
     setTimeout(() => {
-      navigate('/dashboard');
+      // Ajouter ?onboarding=complete pour déclencher le modal trial
+      navigate('/dashboard?onboarding=complete');
     }, 100);
   };
   
@@ -194,10 +196,9 @@ const Parametres = () => {
   const [twoFASetupData, setTwoFASetupData] = useState(null); // { qrCode, secret }
   const [twoFABackupCodes, setTwoFABackupCodes] = useState([]);
   const [twoFACode, setTwoFACode] = useState('');
-  const [twoFAPassword, setTwoFAPassword] = useState('');
+  const [twoFAConfirmText, setTwoFAConfirmText] = useState('');
   const [twoFALoading, setTwoFALoading] = useState(false);
-  const [logoutAllLoading, setLogoutAllLoading] = useState(false);
-  const [showLogoutSuccessModal, setShowLogoutSuccessModal] = useState(false);
+  // Sessions actives supprimées - fonctionnalité non implémentée
   const [twoFAError, setTwoFAError] = useState(null);
   const [twoFAStatus, setTwoFAStatus] = useState({ enabled: false, backupCodesRemaining: 0 });
   
@@ -253,22 +254,26 @@ const Parametres = () => {
   
   // 🔐 Désactiver 2FA
   const handleDisable2FA = async () => {
-    if (!twoFAPassword) return;
+    if (twoFAConfirmText.toUpperCase() !== "SUPPRIMER") {
+      setTwoFAError("Veuillez écrire SUPPRIMER pour confirmer");
+      return;
+    }
     
     setTwoFALoading(true);
     setTwoFAError(null);
     try {
-      await authService.disable2FA(twoFAPassword);
+      await authService.disable2FA();
       setTwoFAStatus({ enabled: false, backupCodesRemaining: 0 });
       setSecurity(prev => ({ ...prev, twoFactorEnabled: false }));
       setShow2FADisableModal(false);
-      setTwoFAPassword('');
+      setTwoFAConfirmText("");
     } catch (error) {
-      setTwoFAError(error.response?.data?.message || 'Mot de passe incorrect');
+      setTwoFAError(error.response?.data?.message || "Erreur lors de la désactivation");
     } finally {
       setTwoFALoading(false);
     }
   };
+
   
   // 🔐 Régénérer les codes backup
   const handleRegenerateBackup = async () => {
@@ -1068,13 +1073,26 @@ const Parametres = () => {
               <p style={{ margin: 0, fontSize: '0.7em', color: '#667eea', fontStyle: 'italic' }}>
                 {t('settings.subscription.essential.tagline')}
               </p>
+              {/* Prix barré + Prix promo en haut */}
               <p style={{ margin: '8px 0 0' }}>
-                <span style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#667eea' }}>{t('settings.subscription.essential.price')}</span>
-                <span style={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b', fontSize: '0.8em' }}>{t('settings.subscription.perMonth')}</span>
+                <span style={{ 
+                  textDecoration: 'line-through', 
+                  color: isDark ? 'rgba(255,255,255,0.4)' : '#94a3b8',
+                  fontSize: '1.1em',
+                  marginRight: '8px'
+                }}>
+                  {t('settings.subscription.beta.originalPrice')}
+                </span>
+                <span style={{ fontSize: '1.5em', fontWeight: 'bold', color: '#10b981' }}>
+                  {t('settings.subscription.beta.promoPrice')}
+                </span>
+                <span style={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b', fontSize: '0.8em' }}>
+                  {t('settings.subscription.perMonth')} {t('settings.subscription.beta.promoDuration')}
+                </span>
               </p>
             </div>
             
-            {/* Premiers Utilisateurs / Early Adopters Badge */}
+            {/* Premiers Utilisateurs / Early Adopters Badge - Simplifié */}
             <div 
               style={{
                 background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(217, 119, 6, 0.3) 100%)',
@@ -1085,10 +1103,10 @@ const Parametres = () => {
                 textAlign: 'center'
               }}
             >
-              <p style={{ margin: '0 0 8px', fontWeight: '700', color: isDark ? '#f59e0b' : '#b45309', fontSize: '1.05em' }}>
+              <p style={{ margin: '0 0 6px', fontWeight: '700', color: isDark ? '#f59e0b' : '#b45309', fontSize: '1.05em' }}>
                 🎁 {t('settings.subscription.beta.title')}
               </p>
-              <p style={{ margin: '0 0 4px', fontWeight: '700', fontSize: '0.95em', color: isDark ? '#fbbf24' : '#92400e' }}>
+              <p style={{ margin: '0 0 6px', fontWeight: '700', fontSize: '0.95em', color: isDark ? '#fbbf24' : '#92400e' }}>
                 🎉 {t('settings.subscription.beta.limitedOffer')}
               </p>
               <p style={{ margin: 0, fontSize: '0.9em', lineHeight: '1.4', color: isDark ? '#fbbf24' : '#92400e' }}>
@@ -1758,7 +1776,7 @@ const Parametres = () => {
                     padding: '10px 20px',
                     border: 'none',
                     borderRadius: '10px',
-                    background: '#ef4444',
+                    background: '#ffa500',
                     color: 'white',
                     fontWeight: '600',
                     cursor: 'pointer'
@@ -1819,137 +1837,14 @@ const Parametres = () => {
           
           {/* Erreur 2FA */}
           {twoFAError && (
-            <p style={{ margin: '12px 0 0', color: '#ef4444', fontSize: '0.9em' }}>
+            <p style={{ margin: '12px 0 0', color: '#ffa500', fontSize: '0.9em' }}>
               ❌ {twoFAError}
             </p>
           )}
         </div>
       </div>
       
-      {/* Sessions actives */}
-      <div style={{
-        marginTop: '16px',
-        padding: isMobile ? '16px' : '20px',
-        background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.95)',
-        borderRadius: '12px',
-        border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.1)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
-          <span style={{ fontSize: '1.3em' }}>📱</span>
-          <h3 style={{ margin: 0, color: isDark ? 'white' : '#1e293b', fontSize: '1.1em' }}>{t('settings.security.sessions.title')}</h3>
-        </div>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-          <div style={{
-            padding: '12px 16px',
-            background: 'rgba(46, 204, 113, 0.15)',
-            borderRadius: '10px',
-            border: '2px solid #27ae60',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <div>
-              <p style={{ margin: 0, fontWeight: '600', color: isDark ? 'white' : '#1e293b', fontSize: '0.95em' }}>💻 Chrome - Windows</p>
-              <small style={{ color: '#2ecc71', fontSize: '0.8em' }}>{t('settings.security.sessions.current')}</small>
-            </div>
-          </div>
-          
-          <div style={{
-            padding: '12px 16px',
-            background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
-            borderRadius: '10px',
-            border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center'
-          }}>
-            <div>
-              <p style={{ margin: 0, fontWeight: '600', color: isDark ? 'white' : '#1e293b', fontSize: '0.95em' }}>📱 Safari - iPhone</p>
-              <small style={{ color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b', fontSize: '0.8em' }}>{t('settings.security.sessions.ago', { time: '2 jours' })}</small>
-            </div>
-            <button style={{
-              padding: '6px 12px',
-              border: 'none',
-              borderRadius: '8px',
-              background: 'rgba(255, 165, 0, 0.2)',
-              color: '#ffa500',
-              fontSize: '0.8em',
-              cursor: 'pointer'
-            }}>
-              {t('settings.security.sessions.disconnect')}
-            </button>
-          </div>
-        </div>
-        
-        <button 
-          disabled={logoutAllLoading}
-          onClick={async () => {
-            setLogoutAllLoading(true);
-            try {
-              // Récupérer le token depuis le bon emplacement
-              const tokenData = localStorage.getItem('gps_financier_token');
-              const token = tokenData ? JSON.parse(tokenData) : null;
-              
-              if (!token) {
-                alert('Session expirée. Veuillez vous reconnecter.');
-                return;
-              }
-              
-              const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/logout-all-sessions`, {
-                method: 'POST',
-                headers: {
-                  'Authorization': `Bearer ${token}`,
-                  'Content-Type': 'application/json'
-                }
-              });
-              
-              const data = await response.json();
-              
-              if (data.success) {
-                // Remplacer le token par le nouveau (même format JSON)
-                if (data.newToken) {
-                  localStorage.setItem('gps_financier_token', JSON.stringify(data.newToken));
-                }
-                setShowLogoutSuccessModal(true);
-              } else {
-                alert(data.error || 'Erreur lors de la déconnexion');
-              }
-            } catch (error) {
-              console.error('Erreur:', error);
-              alert('Erreur de connexion au serveur');
-            } finally {
-              setLogoutAllLoading(false);
-            }
-          }}
-          style={{
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '10px',
-            background: logoutAllLoading ? 'rgba(255, 165, 0, 0.5)' : 'linear-gradient(135deg, #ffa500 0%, #e67e22 100%)',
-            color: 'white',
-            fontWeight: '600',
-            cursor: logoutAllLoading ? 'not-allowed' : 'pointer',
-            fontSize: '0.9em',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px'
-          }}
-        >
-          {logoutAllLoading && (
-            <span style={{
-              width: '16px',
-              height: '16px',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderTopColor: 'white',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite'
-            }} />
-          )}
-          {logoutAllLoading ? 'Déconnexion...' : t('settings.security.sessions.disconnectAll')}
-        </button>
-      </div>
+
       
       {/* Données sensibles */}
       <div style={{
@@ -1997,7 +1892,7 @@ const Parametres = () => {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
           <span style={{ fontSize: '1.3em' }}>🗑️</span>
-          <h3 style={{ margin: 0, color: '#ef4444', fontSize: '1.1em' }}>{t('settings.security.deleteAccount.title')}</h3>
+          <h3 style={{ margin: 0, color: '#ffa500', fontSize: '1.1em' }}>{t('settings.security.deleteAccount.title')}</h3>
         </div>
         <p style={{ margin: '0 0 16px', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', fontSize: '0.9em' }}>
           {t('settings.security.deleteAccount.warning')}
@@ -2006,21 +1901,21 @@ const Parametres = () => {
           onClick={() => setShowDeleteAccountModal(true)}
           style={{
             padding: '12px 24px',
-            border: '2px solid #ef4444',
+            border: '2px solid #ffa500',
             borderRadius: '10px',
             background: 'transparent',
-            color: '#ef4444',
+            color: '#ffa500',
             fontWeight: '600',
             cursor: 'pointer',
             transition: 'all 0.2s'
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.background = '#ef4444';
+            e.currentTarget.style.background = '#ffa500';
             e.currentTarget.style.color = 'white';
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.background = 'transparent';
-            e.currentTarget.style.color = '#ef4444';
+            e.currentTarget.style.color = '#ffa500';
           }}
         >
           {t('settings.security.deleteAccount.button')}
@@ -2640,7 +2535,6 @@ const Parametres = () => {
                   <ul style={{ paddingLeft: '20px' }}>
                     <li><strong>{t('settings.about.modals.privacy.rights.access')}</strong></li>
                     <li><strong>{t('settings.about.modals.privacy.rights.modify')}</strong></li>
-                    <li><strong>{t('settings.about.modals.privacy.rights.export')}</strong></li>
                     <li><strong>{t('settings.about.modals.privacy.rights.delete')}</strong></li>
                   </ul>
                   
@@ -2652,7 +2546,7 @@ const Parametres = () => {
                   <h3 style={{ color: isDark ? 'white' : '#1e293b' }}>{t('settings.about.modals.privacy.dpo.title')}</h3>
                   <p>
                     {t('settings.about.modals.privacy.dpo.intro')}<br />
-                    <a href="mailto:privacy@pl4to.ca" style={{ color: '#667eea' }}>{t('settings.about.modals.privacy.dpo.email')}</a>
+                    <a href="mailto:contact@pl4to.com" style={{ color: '#667eea' }}>{t('settings.about.modals.privacy.dpo.email')}</a>
                   </p>
                   
                   <p style={{ marginTop: '24px', fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.6)' : '#64748b' }}>
@@ -3040,6 +2934,7 @@ const Parametres = () => {
         messageKey="settings.guideModal.message"
         hintIcon="👆"
         hintKey="settings.guideModal.hint"
+        buttonKey="settings.guide.finish"
       />
       
       {/* Mode Plein Écran */}
@@ -3097,37 +2992,62 @@ const Parametres = () => {
               )}
             </div>
             
-            <button
-              onClick={(e) => { 
-                e.stopPropagation(); 
-                if (isMobile) {
-                  // Sur mobile, si on est dans une section, retourner au menu
-                  if (activeSection !== null) {
-                    setActiveSection(null);
+            {/* Boutons à droite */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '15px' }}>
+              {/* 📱 Mobile: Bouton "Terminer!" dans le header */}
+              {isMobile && showContinueBar && (
+                <button
+                  onClick={continueToNextPage}
+                  style={{
+                    background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+                    border: 'none',
+                    borderRadius: '20px',
+                    padding: '10px 20px',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '0.9em',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(255, 152, 0, 0.4)',
+                    transition: 'all 0.3s',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {t('common.finish')} →
+                </button>
+              )}
+              
+              <button
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  if (isMobile) {
+                    // Sur mobile, si on est dans une section, retourner au menu
+                    if (activeSection !== null) {
+                      setActiveSection(null);
+                    } else {
+                      // Sinon ouvrir le sidebar principal
+                      window.dispatchEvent(new CustomEvent('openSidebar'));
+                    }
                   } else {
-                    // Sinon ouvrir le sidebar principal
-                    window.dispatchEvent(new CustomEvent('openSidebar'));
+                    setIsFullScreen(false);
                   }
-                } else {
-                  setIsFullScreen(false);
-                }
-              }}
-              style={{
-                background: isDark ? 'rgba(0,0,0,0.2)' : '#e2e8f0',
-                border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #cbd5e1',
-                borderRadius: '50%',
-                width: isMobile ? '36px' : '40px',
-                height: isMobile ? '36px' : '40px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                fontSize: isMobile ? '1.1em' : '1.3em',
-                color: isDark ? 'white' : '#475569'
-              }}
-            >
-              {isMobile && activeSection !== null ? '←' : '✕'}
-            </button>
+                }}
+                style={{
+                  background: isDark ? 'rgba(0,0,0,0.2)' : '#e2e8f0',
+                  border: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid #cbd5e1',
+                  borderRadius: '50%',
+                  width: isMobile ? '36px' : '40px',
+                  height: isMobile ? '36px' : '40px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  fontSize: isMobile ? '1.1em' : '1.3em',
+                  color: isDark ? 'white' : '#475569'
+                }}
+              >
+                {isMobile && activeSection !== null ? '←' : '✕'}
+              </button>
+            </div>
           </div>
           
           {/* Sous-titre sur mobile - seulement quand on est dans le menu */}
@@ -3141,35 +3061,6 @@ const Parametres = () => {
               {t('settings.subtitle')}
             </p>
           )}
-          
-          {/* ZONE DE NOTIFICATIONS - Barre "On continue" seulement si active */}
-          {showContinueBar && (
-              <button
-                onClick={continueToNextPage}
-                style={{
-                  background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
-                  border: 'none',
-                  borderRadius: '25px',
-                  padding: '12px 30px',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  fontSize: '1em',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(255, 152, 0, 0.4)',
-                  transition: 'all 0.3s'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(255, 152, 0, 0.5)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(255, 152, 0, 0.4)';
-                }}
-              >
-                {t('common.finish')} →
-              </button>
-            )}
           
           {/* Contenu plein écran */}
           <div 
@@ -3292,7 +3183,7 @@ const Parametres = () => {
                   style={{
                     width: '100%',
                     padding: '14px 16px',
-                    border: `2px solid ${twoFAError ? '#ef4444' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)')}`,
+                    border: `2px solid ${twoFAError ? '#ffa500' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)')}`,
                     borderRadius: '10px',
                     background: isDark ? 'rgba(255,255,255,0.05)' : 'white',
                     color: isDark ? 'white' : '#1e293b',
@@ -3307,7 +3198,7 @@ const Parametres = () => {
               
               {/* Erreur */}
               {twoFAError && (
-                <p style={{ color: '#ef4444', fontSize: '0.9em', marginBottom: '16px' }}>
+                <p style={{ color: '#ffa500', fontSize: '0.9em', marginBottom: '16px' }}>
                   ❌ {twoFAError}
                 </p>
               )}
@@ -3432,17 +3323,35 @@ const Parametres = () => {
             <div style={{ padding: '24px' }}>
               {twoFABackupCodes.length > 0 ? (
                 <>
-                  {/* Avertissement */}
+                  {/* Avertissement IMPORTANT */}
                   <div style={{
-                    background: 'rgba(255, 165, 0, 0.15)',
-                    border: '1px solid rgba(255, 165, 0, 0.3)',
-                    borderRadius: '10px',
-                    padding: '12px 16px',
-                    marginBottom: '16px'
+                    background: 'linear-gradient(135deg, rgba(255, 165, 0, 0.15) 0%, rgba(230, 126, 34, 0.2) 100%)',
+                    border: '2px solid rgba(255, 165, 0, 0.5)',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    marginBottom: '20px'
                   }}>
-                    <p style={{ margin: 0, color: '#ffa500', fontSize: '0.9em' }}>
-                      ⚠️ {t('settings.security.twoFactor.backup.warning')}
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <span style={{ fontSize: '1.5em' }}>⚠️</span>
+                      <div>
+                        <p style={{ 
+                          margin: '0 0 8px 0', 
+                          color: '#ffa500', 
+                          fontSize: '1em',
+                          fontWeight: '700'
+                        }}>
+                          {t('settings.security.twoFactor.backup.warningTitle') || 'Ces codes ne seront plus affichés. Conservez-les en lieu sûr!'}
+                        </p>
+                        <p style={{ 
+                          margin: 0, 
+                          color: isDark ? 'rgba(255,255,255,0.8)' : '#64748b', 
+                          fontSize: '0.85em',
+                          lineHeight: '1.4'
+                        }}>
+                          {t('settings.security.twoFactor.backup.warningDescription') || 'Si vous perdez accès à votre application d\'authentification, ces codes seront votre seul moyen de récupérer votre compte.'}
+                        </p>
+                      </div>
+                    </div>
                   </div>
                   
                   {/* Codes */}
@@ -3530,7 +3439,7 @@ const Parametres = () => {
                     style={{
                       width: '100%',
                       padding: '14px 16px',
-                      border: `2px solid ${twoFAError ? '#ef4444' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)')}`,
+                      border: `2px solid ${twoFAError ? '#ffa500' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)')}`,
                       borderRadius: '10px',
                       background: isDark ? 'rgba(255,255,255,0.05)' : 'white',
                       color: isDark ? 'white' : '#1e293b',
@@ -3544,7 +3453,7 @@ const Parametres = () => {
                   />
                   
                   {twoFAError && (
-                    <p style={{ color: '#ef4444', fontSize: '0.9em', marginBottom: '16px' }}>
+                    <p style={{ color: '#ffa500', fontSize: '0.9em', marginBottom: '16px' }}>
                       ❌ {twoFAError}
                     </p>
                   )}
@@ -3601,7 +3510,7 @@ const Parametres = () => {
           onClick={() => {
             if (!twoFALoading) {
               setShow2FADisableModal(false);
-              setTwoFAPassword('');
+              setTwoFAConfirmText('');
               setTwoFAError(null);
             }
           }}
@@ -3627,13 +3536,13 @@ const Parametres = () => {
               maxWidth: '400px',
               width: '100%',
               overflow: 'hidden',
-              border: '2px solid #ef4444'
+              border: '2px solid #ffa500'
             }}
           >
             {/* Header */}
             <div style={{
               padding: '20px 24px',
-              background: 'rgba(239, 68, 68, 0.15)',
+              background: 'rgba(255, 165, 0, 0.15)',
               borderBottom: '1px solid rgba(239, 68, 68, 0.3)',
               display: 'flex',
               alignItems: 'center',
@@ -3641,7 +3550,7 @@ const Parametres = () => {
             }}>
               <span style={{ fontSize: '2em' }}>⚠️</span>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.3em', color: '#ef4444' }}>
+                <h2 style={{ margin: 0, fontSize: '1.3em', color: '#ffa500' }}>
                   {t('settings.security.twoFactor.disableModal.title')}
                 </h2>
                 <p style={{ margin: '4px 0 0', fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
@@ -3653,21 +3562,21 @@ const Parametres = () => {
             {/* Contenu */}
             <div style={{ padding: '24px' }}>
               <p style={{ color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b', marginBottom: '16px' }}>
-                {t('settings.security.twoFactor.disableModal.enterPassword')}
+                Écrivez <strong style={{ color: '#ffa500' }}>SUPPRIMER</strong> pour confirmer:
               </p>
               
               <input
-                type="password"
-                value={twoFAPassword}
+                type="text"
+                value={twoFAConfirmText}
                 onChange={(e) => {
-                  setTwoFAPassword(e.target.value);
+                  setTwoFAConfirmText(e.target.value.toUpperCase());
                   setTwoFAError(null);
                 }}
-                placeholder={t('settings.security.twoFactor.disableModal.passwordPlaceholder')}
+                placeholder="SUPPRIMER"
                 style={{
                   width: '100%',
                   padding: '14px 16px',
-                  border: `2px solid ${twoFAError ? '#ef4444' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)')}`,
+                  border: `2px solid ${twoFAError ? '#ffa500' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)')}`,
                   borderRadius: '10px',
                   background: isDark ? 'rgba(255,255,255,0.05)' : 'white',
                   color: isDark ? 'white' : '#1e293b',
@@ -3678,7 +3587,7 @@ const Parametres = () => {
               />
               
               {twoFAError && (
-                <p style={{ color: '#ef4444', fontSize: '0.9em', marginBottom: '16px' }}>
+                <p style={{ color: '#ffa500', fontSize: '0.9em', marginBottom: '16px' }}>
                   ❌ {twoFAError}
                 </p>
               )}
@@ -3687,7 +3596,7 @@ const Parametres = () => {
                 <button
                   onClick={() => {
                     setShow2FADisableModal(false);
-                    setTwoFAPassword('');
+                    setTwoFAConfirmText('');
                     setTwoFAError(null);
                   }}
                   disabled={twoFALoading}
@@ -3707,16 +3616,16 @@ const Parametres = () => {
                 </button>
                 <button
                   onClick={handleDisable2FA}
-                  disabled={!twoFAPassword || twoFALoading}
+                  disabled={twoFAConfirmText !== 'SUPPRIMER' || twoFALoading}
                   style={{
                     flex: 1,
                     padding: '14px',
                     border: 'none',
                     borderRadius: '10px',
-                    background: twoFAPassword && !twoFALoading ? '#ef4444' : 'rgba(239, 68, 68, 0.3)',
+                    background: twoFAConfirmText === 'SUPPRIMER' && !twoFALoading ? '#ffa500' : 'rgba(239, 68, 68, 0.3)',
                     color: 'white',
                     fontWeight: '600',
-                    cursor: twoFAPassword && !twoFALoading ? 'pointer' : 'not-allowed',
+                    cursor: twoFAConfirmText === 'SUPPRIMER' && !twoFALoading ? 'pointer' : 'not-allowed',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -3736,114 +3645,6 @@ const Parametres = () => {
                   {t('settings.security.twoFactor.disableModal.confirm')}
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* ✅ Modal de succès - Déconnexion de toutes les sessions */}
-      {showLogoutSuccessModal && (
-        <div 
-          onClick={() => setShowLogoutSuccessModal(false)}
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0,0,0,0.7)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            zIndex: 3000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px',
-            animation: 'fadeIn 0.3s ease'
-          }}
-        >
-          <div 
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: isDark ? 'linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)' : '#ffffff',
-              borderRadius: '24px',
-              maxWidth: '380px',
-              width: '100%',
-              overflow: 'hidden',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-              animation: 'slideUp 0.4s ease',
-              border: isDark ? '1px solid rgba(34, 197, 94, 0.3)' : '1px solid rgba(34, 197, 94, 0.2)'
-            }}
-          >
-            {/* Icône de succès animée */}
-            <div style={{
-              padding: '32px 24px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              textAlign: 'center'
-            }}>
-              <div style={{
-                width: '80px',
-                height: '80px',
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '20px',
-                animation: 'pulse 2s ease infinite'
-              }}>
-                <span style={{ fontSize: '40px' }}>✅</span>
-              </div>
-              
-              <h2 style={{ 
-                margin: '0 0 12px', 
-                fontSize: '1.4em', 
-                color: isDark ? 'white' : '#1e293b',
-                fontWeight: '700'
-              }}>
-                {t('settings.security.sessions.disconnectAllSuccess') || 'Sessions déconnectées!'}
-              </h2>
-              
-              <p style={{ 
-                margin: 0, 
-                fontSize: '0.95em', 
-                color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b',
-                lineHeight: '1.5'
-              }}>
-                Toutes vos autres sessions ont été déconnectées. Seule cette session reste active.
-              </p>
-            </div>
-            
-            {/* Bouton */}
-            <div style={{ padding: '0 24px 24px' }}>
-              <button
-                onClick={() => setShowLogoutSuccessModal(false)}
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  border: 'none',
-                  borderRadius: '14px',
-                  background: 'linear-gradient(135deg, #22c55e 0%, #10b981 100%)',
-                  color: 'white',
-                  fontWeight: '700',
-                  fontSize: '1.05em',
-                  cursor: 'pointer',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  boxShadow: '0 4px 14px rgba(34, 197, 94, 0.4)'
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.transform = 'scale(1.02)';
-                  e.target.style.boxShadow = '0 6px 20px rgba(34, 197, 94, 0.5)';
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.transform = 'scale(1)';
-                  e.target.style.boxShadow = '0 4px 14px rgba(34, 197, 94, 0.4)';
-                }}
-              >
-                Compris!
-              </button>
             </div>
           </div>
         </div>
@@ -3875,13 +3676,13 @@ const Parametres = () => {
               maxWidth: '500px',
               width: '100%',
               overflow: 'hidden',
-              border: '2px solid #ef4444'
+              border: '2px solid #ffa500'
             }}
           >
             {/* Header d'avertissement */}
             <div style={{
               padding: '20px 24px',
-              background: 'rgba(239, 68, 68, 0.15)',
+              background: 'rgba(255, 165, 0, 0.15)',
               borderBottom: '1px solid rgba(239, 68, 68, 0.3)',
               display: 'flex',
               alignItems: 'center',
@@ -3889,7 +3690,7 @@ const Parametres = () => {
             }}>
               <span style={{ fontSize: '2em' }}>⚠️</span>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.3em', color: '#ef4444' }}>
+                <h2 style={{ margin: 0, fontSize: '1.3em', color: '#ffa500' }}>
                   {t('settings.security.deleteAccount.modal.title')}
                 </h2>
                 <p style={{ margin: '4px 0 0', fontSize: '0.9em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
@@ -3944,7 +3745,7 @@ const Parametres = () => {
                   style={{
                     width: '100%',
                     padding: '14px 16px',
-                    border: `2px solid ${deleteConfirmText === deleteConfirmWord ? '#ef4444' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)')}`,
+                    border: `2px solid ${deleteConfirmText === deleteConfirmWord ? '#ffa500' : (isDark ? 'rgba(255,255,255,0.2)' : 'rgba(0,0,0,0.1)')}`,
                     borderRadius: '10px',
                     background: isDark ? 'rgba(255,255,255,0.05)' : 'white',
                     color: isDark ? 'white' : '#1e293b',
@@ -3962,10 +3763,10 @@ const Parametres = () => {
               {deleteError && (
                 <div style={{
                   padding: '12px 16px',
-                  background: 'rgba(239, 68, 68, 0.15)',
+                  background: 'rgba(255, 165, 0, 0.15)',
                   borderRadius: '10px',
                   marginBottom: '16px',
-                  color: '#ef4444',
+                  color: '#ffa500',
                   fontSize: '0.9em'
                 }}>
                   ❌ {deleteError}
@@ -4004,7 +3805,7 @@ const Parametres = () => {
                     border: 'none',
                     borderRadius: '10px',
                     background: deleteConfirmText === deleteConfirmWord && !isDeleting 
-                      ? '#ef4444' 
+                      ? '#ffa500' 
                       : (isDark ? 'rgba(239, 68, 68, 0.3)' : 'rgba(239, 68, 68, 0.2)'),
                     color: 'white',
                     fontWeight: '600',

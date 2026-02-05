@@ -1,7 +1,8 @@
 {
   "common": {
     "appName": "Pl4to",
-    "tagline": "Le GPS pour ton portefeuille",
+    "tagline": "Le GPS pour ton portefeuille.",
+    "taglineSubtitle": "Une plateforme qui s'adapte à toi, pas l'inverse.",
     "loading": "Chargement...",
     "save": "Sauvegarder",
     "saved": "✓ Sauvegardé",
@@ -38,11 +39,11 @@
     "dayRemaining": "jour restant",
     "trialExpired": "Essai terminé",
     "welcome": {
-      "title": "Bienvenue dans ton GPS Financier!",
-      "message": "Tu as 14 jours d'accès gratuit au plan Essentiel avec toutes les fonctionnalités.",
+      "title": "Bienvenue sur TA plateforme financière!",
+      "message": "Tu as 14 jours pour créer TON propre GPS financier. Tes données t'appartiennent, ton outil aussi.",
       "betaTitle": "Offre Premiers Utilisateurs",
       "limited": "Accès limité",
-      "price": "Plan Essentiel: 9,99$/mois",
+      "price": "Plan Essentiel: 5,99$/mois",
       "priceNote": "Prix exclusif pour les premiers utilisateurs",
       "expirationNote": "À la fin de ton essai, tu pourras choisir un plan pour continuer.",
       "ignore": "Ignorer",
@@ -68,6 +69,10 @@
     }
   },
   "tooltips": {
+    "skip": "Ignorer",
+    "next": "Suivant",
+    "prev": "Précédent",
+    "finish": "Terminer",
     "dashboard": {
       "calendar": {
         "title": "Calendrier d'événements",
@@ -82,8 +87,8 @@
         "content": "Vois tes prochaines transactions prévues d'un coup d'œil. Clique pour naviguer directement dans ton GPS."
       },
       "destinations": {
-        "title": "Tes destinations",
-        "content": "Suis la progression de tes objectifs financiers. Chaque destination te rapproche de tes buts!"
+        "title": "Tes objectifs",
+        "content": "Suis la progression de tes objectifs financiers. Visualise ton avancement vers chaque destination!"
       }
     },
     "comptes": {
@@ -112,7 +117,7 @@
     },
     "objectifs": {
       "addGoal": {
-        "title": "Nouvelle destination",
+        "title": "Nouvel objectif",
         "content": "Définis un nouvel objectif financier. Ton GPS calculera la route pour l'atteindre!"
       },
       "goalCard": {
@@ -149,7 +154,7 @@
       },
       "quicktest": {
         "title": "Tests rapides",
-        "content": "Utilise ces boutons pour simuler rapidement des scénarios courants: achat impulsif, urgence, bonus... Vois l'impact instantanément!"
+        "content": "Utilise ces boutons pour simuler rapidement des scénarios courants: achat imprévu, urgence, bonus... Vois l'impact instantanément!"
       },
       "accounts": {
         "title": "Tes comptes",
@@ -201,6 +206,7 @@
       "emailPlaceholder": "votre@email.com",
       "password": "Mot de passe",
       "passwordPlaceholder": "••••••••",
+      "rememberMe": "Se souvenir de moi",
       "submit": "Reprendre mon voyage",
       "submitting": "Recalibrage du GPS...",
       "forgotPassword": "Mot de passe oublié?",
@@ -264,8 +270,8 @@
   },
   "landing": {
     "title": "Vois enfin où tu vas.",
-    "discover": "Vois enfin où tu vas.",
-    "subtitle": "Le premier GPS pour tes finances personnelles.",
+    "discover": "Une plateforme qui s'adapte à toi, pas l'inverse.",
+    "subtitle": "Construis ton propre GPS financier. Reprends le contrôle.",
     "tagline": "Finis l'incertitude. Commence à naviguer.",
     "cta": "🧭 Activer mon GPS",
     "ctaBadge": "14 jours d'essai gratuit",
@@ -788,7 +794,7 @@
       "message": "O calcule et vous montre votre voyage jusqu'à destination. Ici, O ne vous demandera jamais 'On arrive bientôt?' O recalcule sans râler! 🧑‍💻🗺️✈️"
     },
     "guideModal": {
-      "title": "Tes Destinations",
+      "title": "Tes Objectifs",
       "message": "Tes objectifs sont comme des destinations dans un GPS.\nPL4TO calcule et te montre ton voyage jusqu'à destination.\nTu sauras toujours combien de temps il te reste!",
       "hint": "Définis tes objectifs d'épargne et de remboursement"
     },
@@ -1003,7 +1009,7 @@
       "currentPlan": "PLAN ACTUEL",
       "perMonth": "/mois",
       "orYearly": "Ou {{price}}/an",
-      "orYearlyEssential": "Ou {{price}}/an (1 mois gratuit)",
+      "orYearlyEssential": "Ou {{price}}/an (2 mois gratuits)",
       "orYearlyPro": "Ou {{price}}/an (2 mois gratuits)",
       "currentButton": "Plan actuel",
       "upgradeButton": "Passer à Essentiel",
@@ -1019,28 +1025,33 @@
         "exportable": "Données exportables"
       },
       "discovery": {
-        "name": "Discovery",
+        "name": "Découverte",
         "tagline": "Découvrez votre parcours",
         "price": "0$"
       },
       "essential": {
         "name": "Essentiel",
         "tagline": "Le GPS pour ton portefeuille",
-        "price": "14,99$",
-        "yearlyPrice": "159$"
+        "price": "9,99$",
+        "yearlyPrice": "99$",
+        "yearlyNote": "(2 mois gratuits)"
       },
       "pro": {
         "name": "Pro + IA",
         "tagline": "IA Coach, votre assistant GPS",
-        "price": "24,99$",
-        "yearlyPrice": "249$"
+        "price": "14,99$",
+        "yearlyPrice": "149$",
+        "yearlyNote": "(2 mois gratuits)"
       },
       "beta": {
         "title": "PREMIERS UTILISATEURS",
         "learnMore": "En savoir plus",
         "close": "Fermer",
         "limitedOffer": "Offre limitée !",
-        "description": "Profitez du prix 9,99$/mois pendant 12 mois. Prix régulier 14,99$ après."
+        "originalPrice": "9,99$",
+        "promoPrice": "5,99$",
+        "promoDuration": "pendant 12 mois",
+        "description": "Profitez de cette offre. Prix régulier 9,99$ après."
       },
       "features": {
         "navigation": "Navigation",
@@ -1164,6 +1175,8 @@
           "regenerateTitle": "Régénérer les codes",
           "subtitle": "Sauvegardez vos codes de secours",
           "warning": "Ces codes ne seront plus affichés. Conservez-les en lieu sûr!",
+          "warningTitle": "Ces codes ne seront plus affichés. Conservez-les en lieu sûr!",
+          "warningDescription": "Si vous perdez accès à votre application d'authentification, ces codes seront votre seul moyen de récupérer votre compte.",
           "copy": "Copier les codes",
           "copied": "Codes copiés!",
           "saved": "J'ai sauvegardé mes codes",
@@ -1304,7 +1317,7 @@
           "currentDate": "Décembre 2025",
           "newFeatures": "✨ Nouvelles fonctionnalités",
           "feature1": "Tableau de bord intuitif",
-          "feature2": "Gestion multi-comptes (chèques, épargne, crédit, investissement)",
+          "feature2": "Gestion multi-comptes (chèques, épargne, crédit)",
           "feature3": "Budget avec entrées/sorties récurrentes",
           "feature4": "GPS Financier avec projections sur plusieurs années",
           "feature5": "Objectifs financiers",
@@ -1316,9 +1329,9 @@
           "improvement3": "Masquage des soldes pour plus de confidentialité",
           "upcoming": "🔮 À venir",
           "upcoming1": "Coach IA pour recommandations personnalisées",
-          "upcoming2": "Import automatique des transactions bancaires",
+          "upcoming2": "Comptes d'investissement",
           "upcoming3": "Application mobile native",
-          "upcoming4": "Partage familial"
+          "upcoming4": "Et bien plus encore..."
         },
         "contact": {
           "title": "📧 Nous contacter",
@@ -1398,7 +1411,7 @@
           "dpo": {
             "title": "6. Contact DPO",
             "intro": "Pour toute question relative à vos données personnelles:",
-            "email": "privacy@pl4to.ca"
+            "email": "contact@pl4to.com"
           },
           "lastUpdate": "Dernière mise à jour: Décembre 2025"
         },
@@ -1434,9 +1447,9 @@
       "minRemaining": "min restantes"
     },
     "welcome": {
-      "title": "Bienvenue sur Pl4to! 🎉",
-      "subtitle": "Configurons ton GPS financier",
-      "description": "En quelques étapes, ton GPS sera prêt à te montrer l'évolution de ton portefeuille.",
+      "title": "Bienvenue! C'est TA plateforme 🎉",
+      "subtitle": "Crée ton propre GPS financier",
+      "description": "En quelques étapes, tu peux construire l'outil qui s'adapte à TOI, pas l'inverse.",
       "cta": "Commencer mon voyage",
       "benefit1": "Découvre où tu seras dans <strong>54 ans</strong>",
       "benefit2": "Recalcule ta route <strong>à tout moment</strong>",
@@ -1536,7 +1549,7 @@
     },
     "loading": {
       "title": "Ton GPS se prépare...",
-      "subtitle": "Dans quelques secondes, tu vas découvrir ce que c'est un GPS Financier.",
+      "subtitle": "",
       "steps": {
         "accounts": "Configuration de ton profil",
         "budget": "Analyse",
@@ -1553,6 +1566,7 @@
   "dashboard": {
     "title": "Mon tableau de bord",
     "completeGuide": "Complétez votre guide!",
+    "tourComplete": "Tu connais maintenant ton tableau de bord!",
     "welcome": {
       "title": "Bienvenue sur PL4TO!",
       "message": "Votre calendrier et tableau de bord vous aident à anticiper vos dépenses selon les périodes et événements à venir.",
@@ -1816,17 +1830,17 @@
     "limits": {
       "accounts": {
         "title": "Limite de comptes atteinte",
-        "description": "Vous avez atteint la limite de {{max}} comptes du plan Discovery.",
+        "description": "Vous avez atteint la limite de {{max}} comptes du plan Découverte.",
         "benefit": "Avec le plan Essentiel, ajoutez des comptes illimités!"
       },
       "destinations": {
-        "title": "Limite de destinations atteinte",
-        "description": "Vous avez atteint la limite de {{max}} destinations du plan Discovery.",
-        "benefit": "Avec le plan Essentiel, définissez des destinations illimitées!"
+        "title": "Limite d'objectifs atteinte",
+        "description": "Vous avez atteint la limite de {{max}} objectifs du plan Découverte.",
+        "benefit": "Avec le plan Essentiel, définissez des objectifs illimités!"
       },
       "budget": {
         "title": "Limite de budget atteinte",
-        "description": "Vous avez atteint la limite de {{max}} items budget du plan Discovery.",
+        "description": "Vous avez atteint la limite de {{max}} items budget du plan Découverte.",
         "benefit": "Avec le plan Essentiel, gérez un budget illimité!"
       },
       "simulations": {

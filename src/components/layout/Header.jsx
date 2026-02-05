@@ -88,7 +88,10 @@ const Header = ({ isMobile = false, toggleSidebar = () => {}, sidebarOpen = true
         }} />
       )}
       <div className="gps-app-header" style={{
-        padding: isMobile ? '10px 15px' : undefined
+        // 📱 FIX: Padding supérieur pour mobile navigateur (pas PWA)
+        // Le header doit être visible sous la barre d'état du téléphone
+        padding: isMobile ? '10px 15px' : undefined,
+        paddingTop: (isMobile && !isPWA) ? '40px' : undefined
       }}>
       {/* Bouton Hamburger + Logo PL4TO */}
       <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '10px' }}>

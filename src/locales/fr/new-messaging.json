@@ -1,0 +1,86 @@
+{
+  "newMessaging": {
+    "taglineMain": "Reprends le contrôle. Avec TON outil.",
+    "taglineMainAlt1": "Ton outil financier. Créé par toi, pour toi.",
+    "taglineMainAlt2": "Construis ton propre GPS financier",
+    "taglineMainAlt3": "Ton GPS financier. Vraiment le tien.",
+    
+    "subtitle": "PL4TO te donne la plateforme pour créer le GPS de TES finances",
+    "subtitleAlt1": "PL4TO te donne la plateforme. Tu crées ton GPS.",
+    "subtitleAlt2": "Une plateforme. Ton outil. Tes règles.",
+    "subtitleAlt3": "Une plateforme qui s'adapte à toi, pas l'inverse",
+    
+    "welcomeImproved": {
+      "title": "Bienvenue sur",
+      "titleEmphasis": "TA",
+      "titleEnd": "plateforme financière",
+      "message": "PL4TO te donne les outils. Tu crées ton GPS. Tes données restent à toi. Toujours.",
+      
+      "principle1Title": "C'est TON outil",
+      "principle1Text": "Tu le personnalises selon tes besoins. Pas de one-size-fits-all.",
+      
+      "principle2Title": "TES données restent à toi",
+      "principle2Text": "Aucun numéro de compte requis. Contrôle total. Confidentialité maximale.",
+      
+      "principle3Title": "TON parcours, à ta façon",
+      "principle3Text": "Vois où tu vas sur 54 ans. Ajuste ta route. Atteins tes destinations.",
+      
+      "cta": "Créer mon GPS 🚀",
+      "estimatedTime": "⏱️ Configuration: 5 minutes"
+    },
+    
+    "valueProps": {
+      "ownership": "Ton outil. Vraiment.",
+      "privacy": "Tes données. Chez toi.",
+      "customization": "Ta situation. Ton système.",
+      "vision": "Ton futur. Maintenant visible.",
+      "control": "Reprends le contrôle",
+      "platform": "Une plateforme. Infinies possibilités."
+    },
+    
+    "pricing": {
+      "essential": {
+        "name": "Essential",
+        "price": "9,99$/mois",
+        "oldPrice": "14,99$",
+        "tagline": "Tout ce dont tu as besoin",
+        "features": [
+          "Comptes illimités",
+          "Destinations illimitées", 
+          "GPS complet 54 ans",
+          "Budget illimité",
+          "Simulations illimitées"
+        ]
+      },
+      "betaFounder": {
+        "name": "Beta Founder",
+        "price": "5,99$/mois",
+        "oldPrice": "9,99$",
+        "tagline": "Prix à vie. Jamais augmenté.",
+        "badge": "🏆 Fondateur",
+        "features": [
+          "Tout Essential",
+          "Prix garanti à vie",
+          "Accès features futures",
+          "Badge Fondateur",
+          "Support prioritaire"
+        ],
+        "limited": "250 places seulement"
+      },
+      "proAI": {
+        "name": "Pro + IA",
+        "price": "14,99$/mois",
+        "oldPrice": "24,99$",
+        "tagline": "Ton coach financier personnel",
+        "comingSoon": "Bientôt disponible",
+        "features": [
+          "Tout Essential",
+          "Coach IA 'Alain'",
+          "Optimisations automatiques",
+          "Analyse prédictive",
+          "Alertes intelligentes"
+        ]
+      }
+    }
+  }
+}

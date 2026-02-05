@@ -1,7 +1,8 @@
 {
   "common": {
     "appName": "Pl4to",
-    "tagline": "The GPS for your wallet",
+    "tagline": "The GPS for your wallet.",
+    "taglineSubtitle": "A platform that adapts to you, not the other way around.",
     "loading": "Loading...",
     "save": "Save",
     "saved": "✓ Saved",
@@ -38,11 +39,11 @@
     "dayRemaining": "day remaining",
     "trialExpired": "Trial ended",
     "welcome": {
-      "title": "Welcome to your Financial GPS!",
-      "message": "You have 14 days of free access to the Essential plan with all features.",
+      "title": "Welcome to YOUR financial platform!",
+      "message": "You have 14 days to create YOUR own financial GPS. Your data belongs to you, your tool too.",
       "betaTitle": "Early Adopters Offer",
       "limited": "Limited access",
-      "price": "Essential Plan: $9.99/month",
+      "price": "Essential Plan: $5.99/month",
       "priceNote": "Exclusive price for early users",
       "expirationNote": "At the end of your trial, you can choose a plan to continue.",
       "ignore": "Ignore",
@@ -68,6 +69,10 @@
     }
   },
   "tooltips": {
+    "skip": "Skip",
+    "next": "Next",
+    "prev": "Previous",
+    "finish": "Finish",
     "dashboard": {
       "calendar": {
         "title": "Event Calendar",
@@ -82,8 +87,8 @@
         "content": "See your next scheduled transactions at a glance. Click to navigate directly to your GPS."
       },
       "destinations": {
-        "title": "Your Destinations",
-        "content": "Track your financial objectives and their progress. Each destination brings you closer to your goals!"
+        "title": "Your Goals",
+        "content": "Track the progress of your financial goals. See how close you are to each destination!"
       }
     },
     "comptes": {
@@ -112,7 +117,7 @@
     },
     "objectifs": {
       "addGoal": {
-        "title": "New Destination",
+        "title": "New Goal",
         "content": "Define a new financial objective. Your GPS will calculate the route to reach it!"
       },
       "goalCard": {
@@ -201,6 +206,7 @@
       "emailPlaceholder": "your@email.com",
       "password": "Password",
       "passwordPlaceholder": "••••••••",
+      "rememberMe": "Remember me",
       "submit": "Resume my journey",
       "submitting": "Recalibrating GPS...",
       "forgotPassword": "Forgot password?",
@@ -264,8 +270,8 @@
   },
   "landing": {
     "title": "Finally see where you're going.",
-    "discover": "Finally see where you're going.",
-    "subtitle": "The first GPS for your personal finances.",
+    "discover": "A platform that adapts to you, not the other way around.",
+    "subtitle": "Build your own financial GPS. Take back control.",
     "tagline": "End the uncertainty. Start navigating.",
     "cta": "🧭 Activate my GPS",
     "ctaBadge": "14-day free trial",
@@ -1003,7 +1009,7 @@
       "currentPlan": "CURRENT PLAN",
       "perMonth": "/month",
       "orYearly": "Or {{price}}/year",
-      "orYearlyEssential": "Or {{price}}/year (1 month free)",
+      "orYearlyEssential": "Or {{price}}/year (2 months free)",
       "orYearlyPro": "Or {{price}}/year (2 months free)",
       "currentButton": "Current plan",
       "upgradeButton": "Upgrade to Essential",
@@ -1026,21 +1032,26 @@
       "essential": {
         "name": "Essential",
         "tagline": "Navigate to your new economy",
-        "price": "$14.99",
-        "yearlyPrice": "$159"
+        "price": "$9.99",
+        "yearlyPrice": "$99",
+        "yearlyNote": "(2 months free)"
       },
       "pro": {
         "name": "Pro + AI",
         "tagline": "AI Coach, your GPS assistant",
-        "price": "$24.99",
-        "yearlyPrice": "$249"
+        "price": "$14.99",
+        "yearlyPrice": "$149",
+        "yearlyNote": "(2 months free)"
       },
       "beta": {
         "title": "EARLY ADOPTERS",
         "learnMore": "Learn more",
         "close": "Close",
         "limitedOffer": "Limited offer!",
-        "description": "Get the $9.99/month price for 12 months. Regular price $14.99 after."
+        "originalPrice": "$9.99",
+        "promoPrice": "$5.99",
+        "promoDuration": "for 12 months",
+        "description": "Enjoy this offer. Regular price $9.99 after."
       },
       "features": {
         "navigation": "Navigation",
@@ -1164,6 +1175,8 @@
           "regenerateTitle": "Regenerate codes",
           "subtitle": "Save your backup codes",
           "warning": "These codes won't be shown again. Keep them safe!",
+          "warningTitle": "These codes won't be shown again. Keep them safe!",
+          "warningDescription": "If you lose access to your authenticator app, these codes will be your only way to recover your account.",
           "copy": "Copy codes",
           "copied": "Codes copied!",
           "saved": "I've saved my codes",
@@ -1304,7 +1317,7 @@
           "currentDate": "December 2025",
           "newFeatures": "✨ New features",
           "feature1": "Intuitive dashboard",
-          "feature2": "Multi-account management (checking, savings, credit, investment)",
+          "feature2": "Multi-account management (checking, savings, credit)",
           "feature3": "Budget with recurring income/expenses",
           "feature4": "Financial GPS with multi-year projections",
           "feature5": "Financial goals",
@@ -1316,9 +1329,9 @@
           "improvement3": "Balance hiding for more privacy",
           "upcoming": "🔮 Coming soon",
           "upcoming1": "AI Coach for personalized recommendations",
-          "upcoming2": "Automatic bank transaction import",
+          "upcoming2": "Investment accounts",
           "upcoming3": "Native mobile app",
-          "upcoming4": "Family sharing"
+          "upcoming4": "And much more..."
         },
         "contact": {
           "title": "📧 Contact us",
@@ -1398,7 +1411,7 @@
           "dpo": {
             "title": "6. DPO Contact",
             "intro": "For any questions regarding your personal data:",
-            "email": "privacy@pl4to.ca"
+            "email": "contact@pl4to.com"
           },
           "lastUpdate": "Last updated: December 2025"
         },
@@ -1434,9 +1447,9 @@
       "minRemaining": "min remaining"
     },
     "welcome": {
-      "title": "Welcome to Pl4to! 🎉",
-      "subtitle": "Let's set up your Financial GPS",
-      "description": "In a few steps, your GPS will be ready to show you your portfolio evolution.",
+      "title": "Welcome! This is YOUR platform 🎉",
+      "subtitle": "Create your own financial GPS",
+      "description": "In a few steps, you can build the tool that adapts to YOU, not the other way around.",
       "cta": "Start my journey",
       "benefit1": "Discover where you'll be in <strong>54 years</strong>",
       "benefit2": "Recalculate your route <strong>anytime</strong>",
@@ -1538,10 +1551,10 @@
     },
     "loading": {
       "title": "Your GPS is getting ready...",
-      "subtitle": "In a few seconds, you'll discover what a Financial GPS is.",
+      "subtitle": "",
       "steps": {
         "accounts": "Setting up your profile",
-        "budget": "Analyzing your situation",
+        "budget": "Analyzing...",
         "trajectory": "Calculating your trajectory...",
         "complete": "Preparing your tool"
       }
@@ -1555,6 +1568,7 @@
   "dashboard": {
     "title": "My Dashboard",
     "completeGuide": "Complete your guide!",
+    "tourComplete": "You now know your dashboard!",
     "welcome": {
       "title": "Welcome to PL4TO!",
       "message": "Your calendar and dashboard help you anticipate expenses based on upcoming periods and events.",

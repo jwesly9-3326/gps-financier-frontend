@@ -180,14 +180,62 @@ export const SubscriptionProvider = ({ children }) => {
       const subscription = await subscriptionService.getStatus();
       
       if (subscription) {
-        setCurrentPlan(subscription.currentPlan || PLANS.DISCOVERY);
+        // 🔧 FIX: Vérifier côté frontend si le trial est expiré
+        // Le backend devrait déjà faire cette vérification, mais on ajoute une sécurité
+        let effectivePlan = subscription.currentPlan || PLANS.DISCOVERY;
+        let trialActive = subscription.trialActive || false;
+        
+        // Si le trial a une date de fin et qu'elle est passée, forcer discovery
+        // SAUF si l'utilisateur a un abonnement Stripe actif (planChosen avec plan payant)
+        if (subscription.trialEndDate) {
+          const trialEndDate = new Date(subscription.trialEndDate);
+          const now = new Date();
+          
+          // Trial expiré?
+          if (now > trialEndDate) {
+            // Vérifier si l'utilisateur a un abonnement payant actif
+            const hasPaidSubscription = subscription.stripeSubscriptionId && 
+                                        subscription.stripeStatus === 'active';
+            
+            if (!hasPaidSubscription) {
+              // Pas d'abonnement payant = forcer discovery
+              effectivePlan = PLANS.DISCOVERY;
+              trialActive = false;
+              console.log('[Subscription] Trial expiré, pas d\'abonnement payant actif, plan forcé à discovery');
+            }
+          }
+        }
+        
+        // 🔒 Double vérification: si le plan est 'essential' mais pas d'abonnement Stripe actif
+        if (effectivePlan === PLANS.ESSENTIAL) {
+          const hasActiveStripe = subscription.stripeSubscriptionId && 
+                                  subscription.stripeStatus === 'active';
+          if (!hasActiveStripe && !trialActive) {
+            effectivePlan = PLANS.DISCOVERY;
+            console.log('[Subscription] Plan Essential sans abonnement Stripe actif, forcé à discovery');
+          }
+        }
+        
+        setCurrentPlan(effectivePlan);
         setIsBetaFounder(subscription.isBetaFounder || false);
         setTrialInfo({
-          isActive: subscription.trialActive || false,
+          isActive: trialActive,
           startDate: subscription.trialStartDate,
           endDate: subscription.trialEndDate,
           daysRemaining: subscription.trialDaysRemaining,
           hasChosen: subscription.planChosen || false
+        });
+        
+        // 🔧 DEBUG: Afficher les infos de subscription
+        console.log('[Subscription] DEBUG - Backend response:', {
+          backendPlan: subscription.currentPlan,
+          effectivePlan: effectivePlan,
+          trialEndDate: subscription.trialEndDate,
+          trialActive: trialActive,
+          planChosen: subscription.planChosen,
+          stripeSubscriptionId: subscription.stripeSubscriptionId || 'none',
+          stripeStatus: subscription.stripeStatus || 'none',
+          now: new Date().toISOString()
         });
         
         // Mettre en cache
@@ -206,16 +254,47 @@ export const SubscriptionProvider = ({ children }) => {
       const cached = localStorage.getItem(STORAGE_KEYS.SUBSCRIPTION_CACHE);
       if (cached) {
         const cachedData = JSON.parse(cached);
-        setCurrentPlan(cachedData.currentPlan || PLANS.DISCOVERY);
+        
+        // 🔒 Appliquer les mêmes vérifications sur les données en cache
+        let effectivePlan = cachedData.currentPlan || PLANS.DISCOVERY;
+        let trialActive = cachedData.trialActive || false;
+        
+        // Vérifier si le trial est expiré
+        if (cachedData.trialEndDate) {
+          const trialEndDate = new Date(cachedData.trialEndDate);
+          const now = new Date();
+          
+          if (now > trialEndDate) {
+            const hasPaidSubscription = cachedData.stripeSubscriptionId && 
+                                        cachedData.stripeStatus === 'active';
+            if (!hasPaidSubscription) {
+              effectivePlan = PLANS.DISCOVERY;
+              trialActive = false;
+              console.log('[Subscription] Cache: Trial expiré, forcé à discovery');
+            }
+          }
+        }
+        
+        // Double vérification pour Essential
+        if (effectivePlan === PLANS.ESSENTIAL) {
+          const hasActiveStripe = cachedData.stripeSubscriptionId && 
+                                  cachedData.stripeStatus === 'active';
+          if (!hasActiveStripe && !trialActive) {
+            effectivePlan = PLANS.DISCOVERY;
+            console.log('[Subscription] Cache: Essential sans Stripe, forcé à discovery');
+          }
+        }
+        
+        setCurrentPlan(effectivePlan);
         setIsBetaFounder(cachedData.isBetaFounder || false);
         setTrialInfo({
-          isActive: cachedData.trialActive || false,
+          isActive: trialActive,
           startDate: cachedData.trialStartDate,
           endDate: cachedData.trialEndDate,
           daysRemaining: cachedData.trialDaysRemaining,
           hasChosen: cachedData.planChosen || false
         });
-        console.log('[Subscription] Utilisé cache local');
+        console.log('[Subscription] Utilisé cache local, plan effectif:', effectivePlan);
       }
     } finally {
       setIsLoading(false);

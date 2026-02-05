@@ -23,6 +23,7 @@ const Login = () => {
     email: '',
     password: '',
   });
+  const [rememberMe, setRememberMe] = useState(false);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [loginError, setLoginError] = useState(null);
@@ -32,6 +33,15 @@ const Login = () => {
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [twoFAError, setTwoFAError] = useState(null);
   const [twoFALoading, setTwoFALoading] = useState(false);
+  
+  // 💾 Charger l'email sauvegardé au montage
+  useEffect(() => {
+    const savedEmail = localStorage.getItem('pl4to_remembered_email');
+    if (savedEmail) {
+      setFormData(prev => ({ ...prev, email: savedEmail }));
+      setRememberMe(true);
+    }
+  }, []);
 
   // Composant O animé pour le logo
   const AnimatedO = ({ size = 55 }) => (
@@ -93,6 +103,13 @@ const Login = () => {
     setLoading(false);
 
     if (result.success) {
+      // 💾 Sauvegarder ou supprimer l'email selon "Se souvenir de moi"
+      if (rememberMe) {
+        localStorage.setItem('pl4to_remembered_email', formData.email);
+      } else {
+        localStorage.removeItem('pl4to_remembered_email');
+      }
+      
       trackLogin('email');
       showToast(t('auth.login.success'), 'success');
       setTimeout(() => {
@@ -637,9 +654,38 @@ const Login = () => {
               )}
             </div>
 
-            {/* Forgot Password */}
-            {!loginError && (
-              <div style={{ textAlign: 'center', marginBottom: '25px' }}>
+            {/* Se souvenir de moi + Forgot Password */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              marginBottom: '25px'
+            }}>
+              {/* Checkbox Se souvenir de moi */}
+              <label style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '8px',
+                cursor: 'pointer',
+                color: 'rgba(255,255,255,0.8)',
+                fontSize: '0.9em'
+              }}>
+                <input
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  style={{
+                    width: '18px',
+                    height: '18px',
+                    accentColor: '#667eea',
+                    cursor: 'pointer'
+                  }}
+                />
+                {t('auth.login.rememberMe')}
+              </label>
+              
+              {/* Mot de passe oublié */}
+              {!loginError && (
                 <Link 
                   to="/forgot-password"
                   style={{
@@ -650,8 +696,8 @@ const Login = () => {
                 >
                   🗝️ {t('auth.login.forgotPassword')}
                 </Link>
-              </div>
-            )}
+              )}
+            </div>
 
             {/* Submit Button */}
             <button

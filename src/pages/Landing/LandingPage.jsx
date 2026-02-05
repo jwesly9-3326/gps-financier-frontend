@@ -8,18 +8,60 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import LanguageSwitcher from '../../components/common/LanguageSwitcher';
+import { useTheme } from '../../context/ThemeContext';
 
 const LandingPage = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const { isDark, toggleTheme } = useTheme();
   const [isNight, setIsNight] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // 📱 Détecter si on est en mode PWA (standalone)
+  const [isPWA, setIsPWA] = useState(false);
+
+  // 🎨 Couleurs selon le thème
+  const colors = {
+    // Backgrounds
+    pageBg: isDark 
+      ? 'linear-gradient(180deg, #040449 0%, #0a0a2e 30%, #0f0f3d 50%, #0a0a2e 70%, #040449 100%)'
+      : 'linear-gradient(180deg, #f8fafc 0%, #e2e8f0 30%, #f1f5f9 50%, #e2e8f0 70%, #f8fafc 100%)',
+    ringBg: isDark ? '#040449' : '#f8fafc',
+    // Textes
+    textPrimary: isDark ? 'white' : '#1e293b',
+    textSecondary: isDark ? 'rgba(255,255,255,0.9)' : '#334155',
+    textMuted: isDark ? 'rgba(255,255,255,0.7)' : '#64748b',
+    textSubtle: isDark ? 'rgba(255,255,255,0.5)' : '#94a3b8',
+    // Cartes et bordures
+    cardBg: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.9)',
+    cardBorder: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)',
+    cardHover: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,1)',
+    // Boutons
+    btnSecondaryBg: isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.05)',
+    btnSecondaryBorder: isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.2)',
+    btnSecondaryText: isDark ? 'white' : '#1e293b',
+    btnSecondaryHoverBg: isDark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.1)',
+    btnSecondaryHoverBorder: isDark ? 'white' : '#1e293b',
+    // Grille et étoiles
+    gridColor: isDark ? 'rgba(99, 102, 241, 0.04)' : 'rgba(99, 102, 241, 0.08)',
+    starsOpacity: isDark ? 0.6 : 0,
+    // Trajectoire
+    trajGradientStart: isDark ? 'rgba(129, 140, 248, 0.8)' : 'rgba(99, 102, 241, 0.9)',
+    trajGradientEnd: isDark ? 'rgba(34, 197, 94, 0.8)' : 'rgba(34, 197, 94, 0.9)',
+    // Overlay footer
+    footerOverlay: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+  };
 
   // Détecter la taille de l'écran
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  
+  // Détecter le mode PWA (standalone)
+  useEffect(() => {
+    setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
   }, []);
 
   useEffect(() => {
@@ -48,7 +90,7 @@ const LandingPage = () => {
         height: `${size}px`,
         borderRadius: '50%',
         border: `${Math.max(3, size / 12)}px solid transparent`,
-        background: 'linear-gradient(#040449, #040449) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box',
+        background: `linear-gradient(${colors.ringBg}, ${colors.ringBg}) padding-box, linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700) border-box`,
         animation: 'gps-ring-spin 3s linear infinite',
         boxShadow: '0 0 20px rgba(255, 165, 0, 0.6)'
       }} />
@@ -110,12 +152,12 @@ const LandingPage = () => {
   return (
     <div style={{
       minHeight: '100vh',
-      background: 'linear-gradient(180deg, #040449 0%, #0a0a2e 30%, #0f0f3d 50%, #0a0a2e 70%, #040449 100%)',
-      transition: 'background 1s ease',
+      background: colors.pageBg,
+      transition: 'background 0.5s ease',
       overflow: 'hidden',
       position: 'relative'
     }}>
-      {/* 🌟 Étoiles de fond subtiles */}
+      {/* 🌟 Étoiles de fond subtiles - visible seulement en dark mode */}
       <div style={{
         position: 'absolute',
         top: 0,
@@ -128,8 +170,9 @@ const LandingPage = () => {
                           radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.1), transparent),
                           radial-gradient(1px 1px at 160px 120px, rgba(255,255,255,0.15), transparent)`,
         backgroundSize: '200px 200px',
-        opacity: 0.6,
-        pointerEvents: 'none'
+        opacity: colors.starsOpacity,
+        pointerEvents: 'none',
+        transition: 'opacity 0.5s ease'
       }} />
       
       {/* 🟦 Quadrillage/Grille en arrière-plan - style très subtil */}
@@ -140,8 +183,8 @@ const LandingPage = () => {
         right: 0,
         bottom: 0,
         backgroundImage: `
-          linear-gradient(rgba(99, 102, 241, 0.04) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(99, 102, 241, 0.04) 1px, transparent 1px)
+          linear-gradient(${colors.gridColor} 1px, transparent 1px),
+          linear-gradient(90deg, ${colors.gridColor} 1px, transparent 1px)
         `,
         backgroundSize: '50px 50px',
         opacity: 0.6,
@@ -173,7 +216,12 @@ const LandingPage = () => {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: isMobile ? '100px 20px 15px 20px' : '20px 60px 20px 120px',
+        // Mobile PWA: 100px (safe-area pour notch)
+        // Mobile Web: 45px (barre d'adresse existe déjà)
+        // Desktop: 20px
+        padding: isMobile 
+          ? (isPWA ? '100px 20px 15px 20px' : '45px 20px 15px 20px') 
+          : '20px 60px 20px 120px',
         maxWidth: '1400px',
         margin: '0 auto',
         position: 'relative',
@@ -182,28 +230,60 @@ const LandingPage = () => {
         {/* Logo PL4TO avec O animé */}
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px' }}>
           <span style={{ 
-            color: 'white', 
+            color: colors.textPrimary, 
             fontSize: isMobile ? '1.5em' : '2.4em', 
             fontWeight: 'bold',
-            letterSpacing: '2px'
+            letterSpacing: '2px',
+            transition: 'color 0.3s ease'
           }}>
             PL4T
           </span>
           <AnimatedO size={isMobile ? 32 : 50} />
         </div>
         
-        {/* Language Switcher + Bouton Connexion */}
+        {/* Language Switcher + Theme Switch + Bouton Connexion */}
         <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '15px' }}>
           <LanguageSwitcher style="toggle" />
+          
+          {/* 🌙☀️ Switch de thème */}
+          <button
+            onClick={toggleTheme}
+            style={{
+              background: colors.btnSecondaryBg,
+              border: `2px solid ${colors.btnSecondaryBorder}`,
+              color: colors.btnSecondaryText,
+              padding: isMobile ? '8px 12px' : '10px 14px',
+              borderRadius: '25px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              fontSize: isMobile ? '0.9em' : '1em'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = colors.btnSecondaryHoverBg;
+              e.target.style.borderColor = colors.btnSecondaryHoverBorder;
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = colors.btnSecondaryBg;
+              e.target.style.borderColor = colors.btnSecondaryBorder;
+            }}
+            title={isDark ? 'Passer en mode clair' : 'Passer en mode sombre'}
+          >
+            {isDark ? '☀️' : '🌙'}
+          </button>
           
           {/* Bouton Connexion - caché sur mobile car déjà dans CTA "Déjà membre?" */}
           {!isMobile && (
             <button
               onClick={() => navigate('/login')}
               style={{
-                background: 'rgba(255,255,255,0.15)',
-                border: '2px solid rgba(255,255,255,0.3)',
-                color: 'white',
+                background: colors.btnSecondaryBg,
+                border: `2px solid ${colors.btnSecondaryBorder}`,
+                color: colors.btnSecondaryText,
                 padding: '10px 25px',
                 borderRadius: '25px',
                 fontWeight: '600',
@@ -212,12 +292,12 @@ const LandingPage = () => {
                 backdropFilter: 'blur(10px)'
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = 'rgba(255,255,255,0.25)';
-                e.target.style.borderColor = 'white';
+                e.target.style.background = colors.btnSecondaryHoverBg;
+                e.target.style.borderColor = colors.btnSecondaryHoverBorder;
               }}
               onMouseLeave={(e) => {
-                e.target.style.background = 'rgba(255,255,255,0.15)';
-                e.target.style.borderColor = 'rgba(255,255,255,0.3)';
+                e.target.style.background = colors.btnSecondaryBg;
+                e.target.style.borderColor = colors.btnSecondaryBorder;
               }}
             >
               {t('landing.login')}
@@ -242,7 +322,7 @@ const LandingPage = () => {
       }}>
         {(isMobile ? ['1K', '25K', '100K', '500K'] : ['50', '250', '1K', '5K', '25K', '100K', '500K', '1M']).map((amount, i) => (
           <span key={i} style={{
-            color: 'rgba(255,255,255,0.6)',
+            color: colors.textMuted,
             fontSize: isMobile ? '7px' : '9px',
             fontFamily: 'monospace'
           }}>
@@ -266,7 +346,7 @@ const LandingPage = () => {
       }}>
         {(isMobile ? ['2026', '2035', '2045', '2060'] : ['2026', '2030', '2035', '2040', '2045', '2050', '2055', '2060']).map((year, i) => (
           <span key={i} style={{
-            color: 'rgba(255,255,255,0.6)',
+            color: colors.textMuted,
             fontSize: isMobile ? '7px' : '9px',
             fontFamily: 'monospace'
           }}>
@@ -407,10 +487,11 @@ const LandingPage = () => {
           <h1 style={{
             fontSize: 'clamp(2.5em, 5vw, 4em)',
             fontWeight: 'bold',
-            color: 'white',
+            color: colors.textPrimary,
             marginBottom: '20px',
-            textShadow: '0 4px 30px rgba(0,0,0,0.5)',
-            lineHeight: '1.2'
+            textShadow: isDark ? '0 4px 30px rgba(0,0,0,0.5)' : '0 2px 10px rgba(0,0,0,0.1)',
+            lineHeight: '1.2',
+            transition: 'color 0.3s ease'
           }}>
             {t('landing.subtitle')}
           </h1>
@@ -418,11 +499,12 @@ const LandingPage = () => {
           {/* Sous-titre - Vois enfin où tu vas */}
           <p style={{
             fontSize: 'clamp(1.2em, 2.5vw, 1.6em)',
-            color: 'rgba(255,255,255,0.9)',
+            color: colors.textSecondary,
             marginBottom: '15px',
             maxWidth: '700px',
             lineHeight: '1.5',
-            textShadow: '0 2px 15px rgba(0,0,0,0.3)'
+            textShadow: isDark ? '0 2px 15px rgba(0,0,0,0.3)' : 'none',
+            transition: 'color 0.3s ease'
           }}>
             {t('landing.discover')}
           </p>
@@ -430,10 +512,11 @@ const LandingPage = () => {
           {/* Tagline - Finis l'incertitude */}
           <p style={{
             fontSize: 'clamp(1em, 2vw, 1.3em)',
-            color: 'rgba(255,255,255,0.75)',
+            color: colors.textMuted,
             marginBottom: '40px',
             maxWidth: '600px',
-            textShadow: '0 2px 10px rgba(0,0,0,0.3)'
+            textShadow: isDark ? '0 2px 10px rgba(0,0,0,0.3)' : 'none',
+            transition: 'color 0.3s ease'
           }}>
             {t('landing.tagline')}
           </p>
@@ -480,8 +563,8 @@ const LandingPage = () => {
               onClick={() => navigate('/login')}
               style={{
                 background: 'transparent',
-                color: 'white',
-                border: '2px solid rgba(255,255,255,0.5)',
+                color: colors.btnSecondaryText,
+                border: `2px solid ${colors.btnSecondaryBorder}`,
                 padding: '18px 40px',
                 borderRadius: '50px',
                 fontSize: '1.1em',
@@ -491,12 +574,12 @@ const LandingPage = () => {
                 backdropFilter: 'blur(10px)'
               }}
               onMouseEnter={(e) => {
-                e.target.style.background = 'rgba(255,255,255,0.1)';
-                e.target.style.borderColor = 'white';
+                e.target.style.background = colors.btnSecondaryHoverBg;
+                e.target.style.borderColor = colors.btnSecondaryHoverBorder;
               }}
               onMouseLeave={(e) => {
                 e.target.style.background = 'transparent';
-                e.target.style.borderColor = 'rgba(255,255,255,0.5)';
+                e.target.style.borderColor = colors.btnSecondaryBorder;
               }}
             >
               👤 {t('auth.register.hasAccount')}
@@ -533,7 +616,7 @@ const LandingPage = () => {
             flexWrap: 'wrap'
           }}>
             <span style={{
-              color: 'rgba(255,255,255,0.7)',
+              color: colors.textMuted,
               fontSize: '0.95em',
               display: 'flex',
               alignItems: 'center',
@@ -542,7 +625,7 @@ const LandingPage = () => {
               {t('landing.privacy')}
             </span>
             <span style={{
-              color: 'rgba(255,255,255,0.7)',
+              color: colors.textMuted,
               fontSize: '0.95em',
               display: 'flex',
               alignItems: 'center',
@@ -556,7 +639,7 @@ const LandingPage = () => {
 
       {/* 📊 Section Features - Scroll down */}
       <section style={{
-        background: 'linear-gradient(180deg, transparent 0%, rgba(0,0,0,0.3) 100%)',
+        background: `linear-gradient(180deg, transparent 0%, ${colors.footerOverlay} 100%)`,
         padding: '80px 40px',
         position: 'relative',
         zIndex: 5
@@ -567,17 +650,18 @@ const LandingPage = () => {
         }}>
           {/* Aperçu de l'app */}
           <div style={{
-            background: 'rgba(255,255,255,0.08)',
+            background: colors.cardBg,
             backdropFilter: 'blur(10px)',
             borderRadius: '20px',
             padding: '20px',
             marginBottom: '60px',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: `1px solid ${colors.cardBorder}`,
             maxWidth: '900px',
-            margin: '0 auto 60px'
+            margin: '0 auto 60px',
+            boxShadow: isDark ? 'none' : '0 4px 20px rgba(0,0,0,0.08)'
           }}>
             <div style={{
-              background: 'rgba(0,0,0,0.2)',
+              background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)',
               borderRadius: '12px',
               padding: '60px 40px',
               display: 'flex',
@@ -589,14 +673,16 @@ const LandingPage = () => {
                 width: '100%',
                 maxWidth: '800px',
                 height: '400px',
-                background: 'linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(129, 140, 248, 0.2) 100%)',
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(96, 165, 250, 0.2) 0%, rgba(129, 140, 248, 0.2) 100%)'
+                  : 'linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(129, 140, 248, 0.15) 100%)',
                 borderRadius: '12px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                border: '2px dashed rgba(255,255,255,0.2)'
+                border: `2px dashed ${colors.cardBorder}`
               }}>
-                <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.6)' }}>
+                <div style={{ textAlign: 'center', color: colors.textMuted }}>
                   <div style={{ fontSize: '3em', marginBottom: '10px' }}>🧭</div>
                   <p style={{ fontSize: '1.2em', fontWeight: '600' }}>{t('landing.preview.title')}</p>
                   <p style={{ fontSize: '0.95em', opacity: 0.7, marginTop: '8px' }}>{t('landing.preview.subtitle')}</p>
@@ -615,72 +701,75 @@ const LandingPage = () => {
           }}>
             {/* Feature 1 - Ton futur, visualisé */}
             <div style={{
-              background: 'rgba(255,255,255,0.1)',
+              background: colors.cardBg,
               backdropFilter: 'blur(10px)',
               borderRadius: '20px',
               padding: '35px 25px',
-              border: '1px solid rgba(255,255,255,0.15)',
+              border: `1px solid ${colors.cardBorder}`,
               transition: 'all 0.3s',
-              textAlign: 'center'
+              textAlign: 'center',
+              boxShadow: isDark ? 'none' : '0 4px 20px rgba(0,0,0,0.08)'
             }}>
               <div style={{ fontSize: '3em', marginBottom: '15px' }}>🗺️</div>
               <h3 style={{ 
-                color: 'white', 
+                color: colors.textPrimary, 
                 fontSize: '1.3em', 
                 fontWeight: 'bold',
                 marginBottom: '10px'
               }}>
                 {t('landing.features.gps.title')}
               </h3>
-              <p style={{ color: 'rgba(255,255,255,0.8)', lineHeight: '1.6' }}>
+              <p style={{ color: colors.textMuted, lineHeight: '1.6' }}>
                 {t('landing.features.gps.description')}
               </p>
             </div>
 
             {/* Feature 2 - Teste avant d'agir */}
             <div style={{
-              background: 'rgba(255,255,255,0.1)',
+              background: colors.cardBg,
               backdropFilter: 'blur(10px)',
               borderRadius: '20px',
               padding: '35px 25px',
-              border: '1px solid rgba(255,255,255,0.15)',
+              border: `1px solid ${colors.cardBorder}`,
               transition: 'all 0.3s',
-              textAlign: 'center'
+              textAlign: 'center',
+              boxShadow: isDark ? 'none' : '0 4px 20px rgba(0,0,0,0.08)'
             }}>
               <div style={{ fontSize: '3em', marginBottom: '15px' }}>🧮</div>
               <h3 style={{ 
-                color: 'white', 
+                color: colors.textPrimary, 
                 fontSize: '1.3em', 
                 fontWeight: 'bold',
                 marginBottom: '10px'
               }}>
                 {t('landing.features.calculator.title')}
               </h3>
-              <p style={{ color: 'rgba(255,255,255,0.8)', lineHeight: '1.6' }}>
+              <p style={{ color: colors.textMuted, lineHeight: '1.6' }}>
                 {t('landing.features.calculator.description')}
               </p>
             </div>
 
             {/* Feature 3 - Tes destinations */}
             <div style={{
-              background: 'rgba(255,255,255,0.1)',
+              background: colors.cardBg,
               backdropFilter: 'blur(10px)',
               borderRadius: '20px',
               padding: '35px 25px',
-              border: '1px solid rgba(255,255,255,0.15)',
+              border: `1px solid ${colors.cardBorder}`,
               transition: 'all 0.3s',
-              textAlign: 'center'
+              textAlign: 'center',
+              boxShadow: isDark ? 'none' : '0 4px 20px rgba(0,0,0,0.08)'
             }}>
               <div style={{ fontSize: '3em', marginBottom: '15px' }}>🎯</div>
               <h3 style={{ 
-                color: 'white', 
+                color: colors.textPrimary, 
                 fontSize: '1.3em', 
                 fontWeight: 'bold',
                 marginBottom: '10px'
               }}>
                 {t('landing.features.goals.title')}
               </h3>
-              <p style={{ color: 'rgba(255,255,255,0.8)', lineHeight: '1.6' }}>
+              <p style={{ color: colors.textMuted, lineHeight: '1.6' }}>
                 {t('landing.features.goals.description')}
               </p>
             </div>
@@ -692,20 +781,21 @@ const LandingPage = () => {
       <footer style={{
         padding: '40px',
         textAlign: 'center',
-        borderTop: '1px solid rgba(255,255,255,0.1)',
+        borderTop: `1px solid ${colors.cardBorder}`,
         position: 'relative',
         zIndex: 5
       }}>
         <p style={{
-          color: 'rgba(255,255,255,0.5)',
+          color: colors.textSubtle,
           fontSize: '0.9em',
           marginBottom: '10px'
         }}>
           {t('landing.company')}
         </p>
         <p style={{
-          color: 'rgba(255,255,255,0.4)',
-          fontSize: '0.8em'
+          color: colors.textSubtle,
+          fontSize: '0.8em',
+          opacity: 0.8
         }}>
           © 2025 Pl4to Inc. Tous droits réservés.
         </p>

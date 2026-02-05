@@ -153,11 +153,9 @@ const authService = {
     return response.data;
   },
 
-  // Disable 2FA - Désactive 2FA avec mot de passe
-  disable2FA: async (password) => {
-    const response = await api.delete('/api/auth/2fa/disable', { 
-      data: { password } 
-    });
+  // Disable 2FA - Désactive 2FA (confirmation par texte SUPPRIMER)
+  disable2FA: async () => {
+    const response = await api.delete('/api/auth/2fa/disable');
     return response.data;
   },
 

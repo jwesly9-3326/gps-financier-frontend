@@ -3,7 +3,7 @@
 // ✅ Utilise useGuideProgress pour la logique centralisée
 // 🎨 Theme support
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '../../context/UserDataContext';
@@ -59,7 +59,10 @@ const Budget = () => {
   };
   
   // ✅ Hook centralisé pour la progression du guide
-  const { shouldShowGuide, markGuideCompleted } = useGuideProgress();
+  const { shouldShowGuide, markGuideCompleted, isGuideComplete } = useGuideProgress();
+  
+  // 💡 Ref pour tracker si le tour est lancé manuellement (bouton aide) vs onboarding
+  const isManualTourRef = useRef(false);
   
   // 🎯 Hook pour les tooltips interactifs
   const {
@@ -73,7 +76,13 @@ const Budget = () => {
     startTour: startTooltipTour,
     resetTooltips
   } = useTooltipTour('budget', {
-    onComplete: () => setShowContinueBar(true)
+    onComplete: () => {
+      // N'active "On continue!" que si c'est l'onboarding, pas le bouton d'aide
+      if (!isManualTourRef.current) {
+        setShowContinueBar(true);
+      }
+      isManualTourRef.current = false;
+    }
   });
   
   // 🔧 Debug: Fonction globale pour tester les tooltips
@@ -1015,7 +1024,8 @@ const Budget = () => {
             >
               {formData.dateReference 
                 ? (() => {
-                    const d = new Date(formData.dateReference);
+                    const [yr, mo, dy] = formData.dateReference.split('-').map(Number);
+                    const d = new Date(yr, mo - 1, dy);
                     const monthsShort = i18n.language === 'fr' 
                       ? ['jan', 'fév', 'mar', 'avr', 'mai', 'jun', 'jul', 'aoû', 'sep', 'oct', 'nov', 'déc']
                       : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -1121,7 +1131,8 @@ const Budget = () => {
           >
             {formData.date ? (
               (() => {
-                const d = new Date(formData.date);
+                const [yr, mo, dy] = formData.date.split('-').map(Number);
+                const d = new Date(yr, mo - 1, dy);
                 const monthsFull = i18n.language === 'fr'
                   ? ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
                   : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -1158,7 +1169,8 @@ const Budget = () => {
             >
               {formData.dateDepart ? (
                 (() => {
-                  const d = new Date(formData.dateDepart);
+                  const [yr, mo, dy] = formData.dateDepart.split('-').map(Number);
+                  const d = new Date(yr, mo - 1, dy);
                   const monthsFull = i18n.language === 'fr'
                     ? ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
                     : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -1191,7 +1203,8 @@ const Budget = () => {
             >
               {formData.dateFinRecurrence ? (
                 (() => {
-                  const d = new Date(formData.dateFinRecurrence);
+                  const [yr, mo, dy] = formData.dateFinRecurrence.split('-').map(Number);
+                  const d = new Date(yr, mo - 1, dy);
                   const monthsFull = i18n.language === 'fr'
                     ? ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']
                     : ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -1430,10 +1443,11 @@ const Budget = () => {
         height: '80px'
       }
     ) : {
-      top: '20%',
-      bottom: '20%',
+      // Desktop: rectangle centré autour de la bulle compteur
+      top: '30%',
+      bottom: '30%',
       left: isEntree ? '0%' : '70%',
-      width: '30%'
+      width: '25%'
     };
     
     // 📱 Mobile: Calcul dynamique de la taille et disposition des bulles
@@ -1623,24 +1637,36 @@ const Budget = () => {
             >
               {/* Badge verrou pour items verrouillés */}
               {isLocked && (
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  width: '40px',
-                  height: '40px',
-                  borderRadius: '50%',
-                  background: 'rgba(0,0,0,0.7)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.2em',
-                  zIndex: 10,
-                  filter: 'none',
-                  pointerEvents: 'auto'
-                }}>
-                  🔒
+                <div 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setUpgradeModal({ isOpen: true, type: 'budgetItems' });
+                  }}
+                  style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    width: '50px',
+                    height: '50px',
+                    borderRadius: '10px',
+                    background: 'rgba(0,0,0,0.8)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '2px',
+                    fontSize: '1.2em',
+                    zIndex: 10,
+                    filter: 'none',
+                    pointerEvents: 'auto',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'}
+                >
+                  <span>🔒</span>
                 </div>
               )}
               {/* Badge d'optimisation */}
@@ -1683,27 +1709,6 @@ const Budget = () => {
                     : '0 2px 8px rgba(243, 156, 18, 0.4)'
                 }}>
                   {item.flexibility === 'fixed' ? '🔒' : '🔄'}
-                </div>
-              )}
-              {/* 🔒 Badge verrou pour items au-delà de la limite */}
-              {isLocked && (
-                <div style={{
-                  position: 'absolute',
-                  top: '50%',
-                  left: '50%',
-                  transform: 'translate(-50%, -50%)',
-                  zIndex: 100,
-                  filter: 'none',
-                  background: 'rgba(0,0,0,0.7)',
-                  borderRadius: '50%',
-                  width: '35px',
-                  height: '35px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1.2em'
-                }}>
-                  🔒
                 </div>
               )}
               <span style={{
@@ -1958,9 +1963,16 @@ const Budget = () => {
         textAlign: 'center',
         zIndex: 20
       }}>
+      <div 
+          data-tooltip="balance"
+          style={{
+            display: 'inline-block',
+            padding: '15px 40px',
+            borderRadius: '16px'
+          }}
+        >
         <p style={{ color: isDark ? 'rgba(255,255,255,0.8)' : '#64748b', fontSize: isMobile ? '0.8em' : '0.95em', margin: '0 0 8px', fontWeight: '600' }}>{t('budget.monthlyBalance')}</p>
         <p 
-          data-tooltip="balance"
           style={{
             fontSize: isMobile ? '1.8em' : (isFullScreen ? '2.8em' : '2.4em'),
             fontWeight: 'bold',
@@ -1971,6 +1983,7 @@ const Budget = () => {
         >
           {!balancesHidden ? (budgetSummary.balance >= 0 ? '+' : '') + formatMontant(budgetSummary.balance) : '••••••'}
         </p>
+        </div>
         
         {/* Message empty state */}
         {entrees.length === 0 && sorties.length === 0 && (
@@ -2351,17 +2364,41 @@ const Budget = () => {
             alignItems: 'flex-start',
             flexShrink: 0
           }}>
-            <h1 style={{ 
-              fontSize: isMobile ? '1.3em' : '1.8em', 
-              fontWeight: 'bold', 
-              color: isDark ? 'white' : '#1e293b', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '10px', 
-              margin: isMobile && isPWA ? '5px 0 0 0' : (isMobile ? '15px 0 0 0' : '25px 0 0 0')
-            }}>
-              📋 {t('budget.title')}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h1 style={{ 
+                fontSize: isMobile ? '1.3em' : '1.8em', 
+                fontWeight: 'bold', 
+                color: isDark ? 'white' : '#1e293b', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px', 
+                margin: isMobile && isPWA ? '5px 0 0 0' : (isMobile ? '15px 0 0 0' : '25px 0 0 0')
+              }}>
+                📋 {t('budget.title')}
+              </h1>
+              
+              {/* 📱 PWA/Mobile: Bouton "On continue!" dans le header */}
+              {isMobile && showContinueBar && (
+                <button
+                  onClick={continueToNextPage}
+                  style={{
+                    background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+                    border: 'none',
+                    borderRadius: '20px',
+                    padding: '8px 16px',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '0.85em',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(255, 152, 0, 0.4)',
+                    whiteSpace: 'nowrap',
+                    marginTop: isMobile && isPWA ? '5px' : (isMobile ? '15px' : '25px')
+                  }}
+                >
+                  {t('common.onContinue')} →
+                </button>
+              )}
+            </div>
             
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: isMobile ? '10px' : '15px', marginTop: isMobile && isPWA ? '5px' : (isMobile ? '15px' : '25px') }}>
               {budgetSummary.budgetJournalier !== 0 && (
@@ -2454,6 +2491,34 @@ const Budget = () => {
 
           <div style={{ flex: 1, position: 'relative', background: 'transparent', overflow: 'hidden' }}>
             {renderPlatformContent()}
+            
+            {/* 💡 Bouton d'aide - Relancer le guide */}
+            {isGuideComplete && (
+              <button
+                onClick={() => {
+                  isManualTourRef.current = true;
+                  resetTooltips();
+                  setTimeout(() => startTooltipTour(), 100);
+                }}
+                style={{
+                  position: 'fixed',
+                  bottom: '24px',
+                  right: '24px',
+                  background: 'transparent',
+                  border: 'none',
+                  fontSize: '32px',
+                  cursor: 'pointer',
+                  zIndex: 1000,
+                  padding: '8px',
+                  transition: 'transform 0.2s ease',
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                title={t('common.helpGuide', 'Aide - Voir le guide de la page')}
+              >
+                💡
+              </button>
+            )}
           </div>
         </div>
       )}

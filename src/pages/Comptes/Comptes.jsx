@@ -56,6 +56,9 @@ const Comptes = () => {
   // ✅ Hook centralisé pour la progression du guide
   const { isPageAccessible, shouldShowGuide, markGuideCompleted, isGuideComplete, isLoading: isGuideLoading } = useGuideProgress();
   
+  // 💡 Ref pour tracker si le tour est lancé manuellement (bouton aide) vs onboarding
+  const isManualTourRef = useRef(false);
+  
   // ✅ Hook pour le tour de tooltips
   const {
     isActive: isTooltipActive,
@@ -68,7 +71,13 @@ const Comptes = () => {
     startTour: startTooltipTour,
     resetTooltips
   } = useTooltipTour('comptes', {
-    onComplete: () => setShowContinueBar(true)
+    onComplete: () => {
+      // N'active "On continue!" que si c'est l'onboarding, pas le bouton d'aide
+      if (!isManualTourRef.current) {
+        setShowContinueBar(true);
+      }
+      isManualTourRef.current = false;
+    }
   });
   
   // 🔧 Debug: Fonction globale pour tester les tooltips
@@ -1320,23 +1329,34 @@ const Comptes = () => {
               >
                 {/* Badge verrou */}
                 {isLocked && (
-                  <div style={{
-                    position: 'absolute',
-                    top: '50%',
-                    left: '50%',
-                    transform: 'translate(-50%, -50%)',
-                    zIndex: 100,
-                    filter: 'none',
-                    background: 'rgba(0,0,0,0.7)',
-                    borderRadius: '50%',
-                    width: '60px',
-                    height: '60px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1.8em'
-                  }}>
-                    🔒
+                  <div 
+                    onClick={() => setUpgradeModal({ isOpen: true, type: 'accounts' })}
+                    style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      zIndex: 100,
+                      filter: 'none',
+                      background: 'rgba(0,0,0,0.8)',
+                      borderRadius: '15px',
+                      width: '120px',
+                      height: '80px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '5px',
+                      cursor: 'pointer',
+                      transition: 'transform 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.05)'}
+                    onMouseLeave={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'}
+                  >
+                    <span style={{ fontSize: '1.8em' }}>🔒</span>
+                    <span style={{ fontSize: '0.7em', color: 'white', fontWeight: '600' }}>
+                      {t('subscription.upgrade.unlock', 'Débloquer')}
+                    </span>
                   </div>
                 )}
                 
@@ -1470,6 +1490,7 @@ const Comptes = () => {
                     justifyContent: 'center'
                   }}>
                     {/* Boutons Modifier/Supprimer */}
+                    {/* 📱 PWA/Mobile: Boutons cachés pendant le guide */}
                     {!isGoMode && !isLocked && (
                       <div style={{
                         display: 'flex',
@@ -1634,6 +1655,7 @@ const Comptes = () => {
         </div>
 
         {/* 📱 Boutons flottants en haut à droite */}
+        {/* 📱 PWA/Mobile: Boutons cachés pendant le guide */}
         {!isGoMode && (
           <div style={{
             position: 'absolute',
@@ -2223,89 +2245,92 @@ const Comptes = () => {
       )}
 
       {/* ===== PLATEFORME PRINCIPALE (Cliquable pour afficher soldes puis plein écran) ===== */}
-      <div 
-        onClick={handleWindshieldClick}
-        style={{
-          position: 'relative',
-          flex: 1,
-          width: '100%',
-          background: isDark 
-            ? 'linear-gradient(180deg, #040449 0%, #100261 100%)'
-            : '#ffffff',
-          overflow: 'hidden',
-          cursor: 'pointer',
-          padding: '20px',
-          transition: 'background 0.3s ease'
-        }}
-      >
-        {/* Header avec titre */}
-        <div style={{ 
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '20px',
-          position: 'relative',
-          zIndex: 600
-        }}>
-          <h1 style={{ 
-            fontSize: '1.8em', 
-            fontWeight: 'bold', 
-            color: isDark ? 'white' : '#1e293b', 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: '8px', 
-            margin: 0 
-          }}>
-            💼 {t('accounts.title')}
-          </h1>
-          
-          {/* Bouton Ajouter + Bouton Œil */}
-          <div style={{
+      {/* ⚠️ CONDITIONNÉ: Ne rend PAS en mode plein écran pour éviter doublons data-tooltip */}
+      {!isFullScreen && (
+        <div 
+          onClick={handleWindshieldClick}
+          style={{
+            position: 'relative',
+            flex: 1,
+            width: '100%',
+            background: isDark 
+              ? 'linear-gradient(180deg, #040449 0%, #100261 100%)'
+              : '#ffffff',
+            overflow: 'hidden',
+            cursor: 'pointer',
+            padding: '20px',
+            transition: 'background 0.3s ease'
+          }}
+        >
+          {/* Header avec titre */}
+          <div style={{ 
             display: 'flex',
-            gap: '10px',
-            alignItems: 'center'
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '20px',
+            position: 'relative',
+            zIndex: 600
           }}>
-            {!isGoMode && (
-              <button
-                data-tooltip="add-account"
-                onClick={(e) => { e.stopPropagation(); handleAddClick(); }}
-                style={{
-                  padding: '10px 18px',
-                  background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
-                  border: 'none',
-                  borderRadius: '10px',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  fontSize: '0.9em',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
-                  transition: 'all 0.3s',
-                  position: 'relative',
-                  zIndex: 600
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow = '0 6px 20px rgba(76, 175, 80, 0.4)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(76, 175, 80, 0.3)';
-                }}
-              >
-                <span>➕</span>
-                <span>{t('accounts.addAccount')}</span>
-              </button>
-            )}
+            <h1 style={{ 
+              fontSize: '1.8em', 
+              fontWeight: 'bold', 
+              color: isDark ? 'white' : '#1e293b', 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '8px', 
+              margin: 0 
+            }}>
+              💼 {t('accounts.title')}
+            </h1>
             
+            {/* Bouton Ajouter + Bouton Œil */}
+            <div style={{
+              display: 'flex',
+              gap: '10px',
+              alignItems: 'center'
+            }}>
+              {!isGoMode && (
+                <button
+                  data-tooltip="add-account"
+                  onClick={(e) => { e.stopPropagation(); handleAddClick(); }}
+                  style={{
+                    padding: '10px 18px',
+                    background: 'linear-gradient(135deg, #4CAF50 0%, #45a049 100%)',
+                    border: 'none',
+                    borderRadius: '10px',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '0.9em',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 4px 15px rgba(76, 175, 80, 0.3)',
+                    transition: 'all 0.3s',
+                    position: 'relative',
+                    zIndex: 600
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.transform = 'translateY(-2px)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(76, 175, 80, 0.4)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.transform = 'translateY(0)';
+                    e.currentTarget.style.boxShadow = '0 4px 15px rgba(76, 175, 80, 0.3)';
+                  }}
+                >
+                  <span>➕</span>
+                  <span>{t('accounts.addAccount')}</span>
+                </button>
+              )}
+              
 
+            </div>
           </div>
-        </div>
 
-        {renderPlatformContent()}
-      </div>
+          {renderPlatformContent()}
+        </div>
+      )}
 
       {/* ===== MODE PLEIN ÉCRAN ===== */}
       {isFullScreen && (
@@ -2337,17 +2362,40 @@ const Comptes = () => {
             flexShrink: 0
           }}>
             {/* Titre - à gauche */}
-            <h1 style={{ 
-              fontSize: isMobile ? '1.1em' : '1.8em', 
-              fontWeight: 'bold', 
-              color: isDark ? 'white' : '#1e293b', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '10px', 
-              margin: 0
-            }}>
-              💼 {t('accounts.title')}
-            </h1>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <h1 style={{ 
+                fontSize: isMobile ? '1.1em' : '1.8em', 
+                fontWeight: 'bold', 
+                color: isDark ? 'white' : '#1e293b', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px', 
+                margin: 0
+              }}>
+                💼 {t('accounts.title')}
+              </h1>
+              
+              {/* 📱 PWA/Mobile: Bouton "On continue!" dans le header */}
+              {isMobile && showContinueBar && (
+                <button
+                  onClick={continueToNextPage}
+                  style={{
+                    background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+                    border: 'none',
+                    borderRadius: '20px',
+                    padding: '8px 16px',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '0.85em',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(255, 152, 0, 0.4)',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {t('common.onContinue')} →
+                </button>
+              )}
+            </div>
             
             {/* Boutons à droite */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '8px' : '10px' }}>
@@ -2472,6 +2520,35 @@ const Comptes = () => {
             {/* Affichage mobile ou desktop */}
             {isMobile ? renderMobileContent() : renderPlatformContent()}
           </div>
+          
+          {/* 💡 Bouton d'aide - UNIQUEMENT en mode plein écran et si onboarding terminé */}
+          {isGuideComplete && (
+            <button
+              onClick={() => {
+                isManualTourRef.current = true;
+                resetTooltips();
+                setTimeout(() => startTooltipTour(), 100);
+              }}
+              style={{
+                position: 'fixed',
+                bottom: '24px',
+                right: '24px',
+                background: 'transparent',
+                border: 'none',
+                fontSize: '32px',
+                cursor: 'pointer',
+                zIndex: 1000,
+                padding: '8px',
+                transition: 'transform 0.2s ease',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              title={t('common.helpGuide', 'Aide - Voir le guide de la page')}
+              aria-label={t('common.helpGuide', 'Aide - Voir le guide de la page')}
+            >
+              💡
+            </button>
+          )}
 
         </div>
       )}
@@ -2482,18 +2559,23 @@ const Comptes = () => {
       <PageGuideModal 
         isOpen={showGuide}
         onClose={closeModal}
-        page="comptes"
+        icon="💼"
+        titleKey="accounts.guideModal.title"
+        messageKey="accounts.guideModal.message"
+        hintIcon="👆"
+        hintKey="accounts.guideModal.hint"
       />
       
       {/* Tour de tooltips interactif */}
       <TooltipTour
         isActive={isTooltipActive}
+        currentTooltip={currentTooltip}
         currentStep={tooltipStep}
         totalSteps={tooltipTotal}
-        tooltip={currentTooltip}
         onNext={nextTooltip}
         onPrev={prevTooltip}
         onSkip={skipTooltips}
+        onComplete={continueToNextPage}
       />
       
       {/* Toast notifications */}

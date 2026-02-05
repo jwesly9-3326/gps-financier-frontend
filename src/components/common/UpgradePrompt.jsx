@@ -41,17 +41,17 @@ export const UpgradeModal = ({
           : 'With the Essential plan, add all your accounts!'
       },
       destinations: {
-        icon: '🎯',
-        title: isFr ? 'Limite de destinations atteinte' : 'Destinations limit reached',
+        icon: '🧭',
+        title: isFr ? 'Limite d\'objectifs atteinte' : 'Goals limit reached',
         description: isFr 
-          ? 'Vous avez atteint votre limite de destinations.'
-          : 'You have reached your destinations limit.',
+          ? 'Vous avez atteint votre limite d\'objectifs.'
+          : 'You have reached your goals limit.',
         benefit: isFr 
-          ? 'Avec le plan Essentiel, destinations illimitées!'
-          : 'With the Essential plan, unlimited destinations!'
+          ? 'Avec le plan Essentiel, objectifs illimités!'
+          : 'With the Essential plan, unlimited goals!'
       },
       budgetItems: {
-        icon: '📊',
+        icon: '📋',
         title: isFr ? 'Limite de budget atteinte' : 'Budget limit reached',
         description: isFr 
           ? 'Vous avez atteint la limite de budget de votre plan.'
@@ -91,7 +91,7 @@ export const UpgradeModal = ({
           : 'Plan for 54 years!'
       },
       calculatorPeriod: {
-        icon: '📊',
+        icon: '🧮',
         title: isFr ? 'Période non disponible' : 'Period not available',
         description: isFr 
           ? 'Cette période de calcul est réservée aux membres Essentiel.'
@@ -123,14 +123,14 @@ export const UpgradeModal = ({
     };
 
     return contents[limitType] || contents[featureName] || {
-      icon: '⭐',
-      title: isFr ? 'Fonctionnalité Premium' : 'Premium Feature',
+      icon: '💳',
+      title: isFr ? 'Limite de comptes atteinte' : 'Account limit reached',
       description: isFr 
-        ? 'Cette fonctionnalité est réservée aux membres Essentiel.'
-        : 'This feature is reserved for Essential members.',
+        ? 'Vous avez atteint la limite de votre portefeuille.'
+        : 'You have reached your wallet limit.',
       benefit: isFr 
-        ? 'Débloquez toutes les fonctionnalités!'
-        : 'Unlock all features!'
+        ? 'Avec le plan Essentiel, ajoutez tous vos comptes!'
+        : 'With the Essential plan, add all your accounts!'
     };
   };
 
@@ -144,17 +144,17 @@ export const UpgradeModal = ({
   // Données de comparaison
   const comparisonData = [
     { 
-      feature: isFr ? 'Vue GPS Jour' : 'GPS Day View', 
+      feature: isFr ? 'Vue quotidienne' : 'Daily View', 
       discovery: true, 
       essential: true 
     },
     { 
-      feature: isFr ? 'Vue GPS Mois' : 'GPS Month View', 
+      feature: isFr ? 'Vue mensuelle' : 'Monthly View', 
       discovery: false, 
       essential: true 
     },
     { 
-      feature: isFr ? 'Vue GPS Année (54 ans)' : 'GPS Year View (54 years)', 
+      feature: isFr ? 'Vue annuelle' : 'Yearly View', 
       discovery: false, 
       essential: true 
     },
@@ -164,12 +164,12 @@ export const UpgradeModal = ({
       essential: isFr ? 'Illimité' : 'Unlimited' 
     },
     { 
-      feature: isFr ? 'Destinations' : 'Destinations', 
+      feature: isFr ? 'Objectifs' : 'Goals', 
       discovery: '2', 
       essential: isFr ? 'Illimité' : 'Unlimited' 
     },
     { 
-      feature: isFr ? 'Simulations/mois' : 'Simulations/month', 
+      feature: isFr ? 'Calculatrice' : 'Calculator', 
       discovery: '5', 
       essential: isFr ? 'Illimité' : 'Unlimited' 
     },
@@ -197,10 +197,10 @@ export const UpgradeModal = ({
         onClick={(e) => e.stopPropagation()}
         style={{
           background: 'white',
-          borderRadius: '24px',
-          maxWidth: '520px',
+          borderRadius: '20px',
+          maxWidth: '480px',
           width: '100%',
-          maxHeight: '90vh',
+          maxHeight: '95vh',
           overflow: 'auto',
           boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
           animation: 'slideUp 0.3s ease-out'
@@ -209,7 +209,7 @@ export const UpgradeModal = ({
         {/* Header avec gradient */}
         <div style={{
           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          padding: '25px 30px',
+          padding: '20px 24px',
           textAlign: 'center',
           color: 'white',
           position: 'relative'
@@ -255,29 +255,29 @@ export const UpgradeModal = ({
         </div>
 
         {/* Contenu */}
-        <div style={{ padding: '24px' }}>
+        <div style={{ padding: '16px 20px' }}>
           
           {/* Social Proof */}
           <div style={{
             background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-            borderRadius: '12px',
-            padding: '12px 16px',
-            marginBottom: '20px',
+            borderRadius: '10px',
+            padding: '10px 14px',
+            marginBottom: '14px',
             textAlign: 'center'
           }}>
             <p style={{ margin: 0, color: '#92400e', fontWeight: '600', fontSize: '0.9em' }}>
               🇨🇦 {isFr 
-                ? 'Rejoignez 5,000+ Québécois qui planifient leur avenir!' 
-                : 'Join 5,000+ Canadians planning their future!'}
+                ? 'Rejoignez d\'autres membres qui planifient leur avenir!' 
+                : 'Join other members planning their future!'}
             </p>
           </div>
 
           {/* Mini-comparaison tableau */}
           <div style={{
             border: '2px solid #e2e8f0',
-            borderRadius: '16px',
+            borderRadius: '12px',
             overflow: 'hidden',
-            marginBottom: '20px'
+            marginBottom: '14px'
           }}>
             {/* Header tableau */}
             <div style={{
@@ -286,21 +286,21 @@ export const UpgradeModal = ({
               background: '#f8fafc',
               borderBottom: '2px solid #e2e8f0'
             }}>
-              <div style={{ padding: '12px 16px', fontWeight: '600', color: '#64748b', fontSize: '0.85em' }}>
+              <div style={{ padding: '8px 12px', fontWeight: '600', color: '#64748b', fontSize: '0.8em' }}>
                 {isFr ? 'Fonctionnalité' : 'Feature'}
               </div>
-              <div style={{ padding: '12px 8px', fontWeight: '600', color: '#64748b', fontSize: '0.85em', textAlign: 'center' }}>
-                Discovery
+              <div style={{ padding: '8px 6px', fontWeight: '600', color: '#64748b', fontSize: '0.8em', textAlign: 'center' }}>
+                {isFr ? 'Découverte' : 'Discovery'}
               </div>
               <div style={{ 
-                padding: '12px 8px', 
+                padding: '8px 6px', 
                 fontWeight: '700', 
                 color: '#667eea', 
-                fontSize: '0.85em', 
+                fontSize: '0.8em', 
                 textAlign: 'center',
                 background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)'
               }}>
-                Essentiel ⭐
+                Essentiel
               </div>
             </div>
             
@@ -314,19 +314,19 @@ export const UpgradeModal = ({
                   borderBottom: index < comparisonData.length - 1 ? '1px solid #e2e8f0' : 'none'
                 }}
               >
-                <div style={{ padding: '10px 16px', fontSize: '0.85em', color: '#1e293b' }}>
+                <div style={{ padding: '6px 12px', fontSize: '0.8em', color: '#1e293b' }}>
                   {row.feature}
                 </div>
-                <div style={{ padding: '10px 8px', textAlign: 'center', fontSize: '0.9em' }}>
+                <div style={{ padding: '6px', textAlign: 'center', fontSize: '0.85em' }}>
                   {typeof row.discovery === 'boolean' 
                     ? (row.discovery ? '✅' : '❌')
                     : <span style={{ color: '#64748b' }}>{row.discovery}</span>
                   }
                 </div>
                 <div style={{ 
-                  padding: '10px 8px', 
+                  padding: '6px', 
                   textAlign: 'center', 
-                  fontSize: '0.9em',
+                  fontSize: '0.85em',
                   background: 'linear-gradient(135deg, #667eea08 0%, #764ba208 100%)'
                 }}>
                   {typeof row.essential === 'boolean' 
@@ -343,7 +343,7 @@ export const UpgradeModal = ({
             display: 'flex',
             justifyContent: 'center',
             gap: '8px',
-            marginBottom: '16px'
+            marginBottom: '12px'
           }}>
             <button
               onClick={() => setShowAnnual(false)}
@@ -391,14 +391,14 @@ export const UpgradeModal = ({
             </button>
           </div>
 
-          {/* Prix */}
+          {/* Prix - Offre Beta */}
           <div style={{
             background: 'linear-gradient(135deg, #667eea15 0%, #764ba215 100%)',
             border: '2px solid #667eea',
-            borderRadius: '16px',
-            padding: '20px',
+            borderRadius: '12px',
+            padding: '14px',
             textAlign: 'center',
-            marginBottom: '20px'
+            marginBottom: '14px'
           }}>
             {showAnnual ? (
               <>
@@ -408,61 +408,54 @@ export const UpgradeModal = ({
                     color: '#94a3b8', 
                     textDecoration: 'line-through' 
                   }}>
-                    179,88$/an
+                    119,88$/an
                   </span>
                   <span style={{ 
                     fontSize: '2em', 
                     fontWeight: '700', 
                     color: '#667eea' 
                   }}>
-                    119,99$/an
+                    71,88$/an
                   </span>
                 </div>
                 <p style={{ margin: '8px 0 0', color: '#16a34a', fontWeight: '600', fontSize: '0.9em' }}>
-                  💰 {isFr ? 'Économisez 60$/an!' : 'Save $60/year!'}
-                </p>
-                <p style={{ margin: '4px 0 0', color: '#64748b', fontSize: '0.85em' }}>
-                  {isFr ? 'Équivalent à 10$/mois' : 'Equivalent to $10/month'}
+                  💰 {isFr ? 'Économisez 48$/an!' : 'Save $48/year!'}
                 </p>
               </>
             ) : (
               <>
-                <span style={{ 
-                  fontSize: '2.2em', 
-                  fontWeight: '700', 
-                  color: '#667eea' 
-                }}>
-                  14,99$
-                </span>
-                <span style={{ color: '#64748b', fontSize: '1em' }}>/mois</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                  <span style={{ 
+                    fontSize: '1.2em', 
+                    color: '#94a3b8', 
+                    textDecoration: 'line-through' 
+                  }}>
+                    9,99$
+                  </span>
+                  <span style={{ 
+                    fontSize: '2.2em', 
+                    fontWeight: '700', 
+                    color: '#667eea' 
+                  }}>
+                    5,99$
+                  </span>
+                  <span style={{ color: '#64748b', fontSize: '1em' }}>/mois</span>
+                </div>
+                <p style={{ margin: '8px 0 0', color: '#16a34a', fontWeight: '600', fontSize: '0.85em' }}>
+                  🎉 {isFr ? 'Offre premiers utilisateurs!' : 'Early adopter offer!'}
+                </p>
               </>
             )}
           </div>
 
-          {/* Garantie essai gratuit */}
-          <div style={{
-            background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
-            border: '2px solid #22c55e',
-            borderRadius: '12px',
-            padding: '14px 16px',
-            marginBottom: '20px',
-            textAlign: 'center'
-          }}>
-            <p style={{ margin: 0, color: '#16a34a', fontWeight: '600', fontSize: '0.95em' }}>
-              ✨ {isFr 
-                ? '14 jours satisfait ou remboursé - Sans risque!' 
-                : '14-day money-back guarantee - Risk free!'}
-            </p>
-          </div>
-
           {/* Boutons */}
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ display: 'flex', gap: '10px' }}>
             <button
               onClick={onClose}
               style={{
                 flex: 1,
-                padding: '14px',
-                borderRadius: '12px',
+                padding: '12px',
+                borderRadius: '10px',
                 border: '2px solid #e2e8f0',
                 background: 'white',
                 color: '#64748b',
@@ -477,8 +470,8 @@ export const UpgradeModal = ({
               onClick={handleUpgrade}
               style={{
                 flex: 2,
-                padding: '14px',
-                borderRadius: '12px',
+                padding: '12px',
+                borderRadius: '10px',
                 border: 'none',
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 color: 'white',
@@ -502,18 +495,15 @@ export const UpgradeModal = ({
           <div style={{
             display: 'flex',
             justifyContent: 'center',
-            gap: '20px',
-            marginTop: '16px',
+            gap: '24px',
+            marginTop: '12px',
             flexWrap: 'wrap'
           }}>
-            <span style={{ fontSize: '0.75em', color: '#94a3b8' }}>
+            <span style={{ fontSize: '0.9em', color: '#64748b', fontWeight: '600' }}>
               ✓ {isFr ? 'Annulation en 1 clic' : 'Cancel in 1 click'}
             </span>
-            <span style={{ fontSize: '0.75em', color: '#94a3b8' }}>
+            <span style={{ fontSize: '0.9em', color: '#64748b', fontWeight: '600' }}>
               ✓ {isFr ? 'Sans engagement' : 'No commitment'}
-            </span>
-            <span style={{ fontSize: '0.75em', color: '#94a3b8' }}>
-              ✓ {isFr ? 'Données exportables' : 'Exportable data'}
             </span>
           </div>
         </div>

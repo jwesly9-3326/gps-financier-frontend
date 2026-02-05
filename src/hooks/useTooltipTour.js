@@ -98,7 +98,7 @@ export const TOOLTIP_CONFIGS = {
       target: '[data-tooltip="add-goal"]',
       titleKey: 'tooltips.objectifs.addGoal.title',
       contentKey: 'tooltips.objectifs.addGoal.content',
-      position: 'bottom',
+      position: 'top',
       icon: '🧭'
     },
     {

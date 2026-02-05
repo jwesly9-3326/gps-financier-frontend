@@ -76,9 +76,11 @@ const useTrialReminders = () => {
     console.log(`[useTrialReminders] Modal fermé avec action: ${action}`);
   }, []);
 
-  // Rafraîchir le statut (utile après une action)
+  // Rafraîchir le statut (utile après l'onboarding ou une action)
   const refreshStatus = useCallback(() => {
+    console.log('[useTrialReminders] 🔄 Refresh demandé');
     setHasChecked(false);
+    setActionTaken(false); // ✅ Reset aussi actionTaken pour permettre le refetch
   }, []);
 
   return {

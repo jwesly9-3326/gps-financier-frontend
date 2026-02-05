@@ -19,10 +19,10 @@ const Simulations = () => {
   const { userData, isLoading } = useUserData();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
-  const { canRunSimulation, incrementSimulation, canAccessGpsView } = useSubscription();
+  const { canRunSimulation, incrementSimulation, canAccessGpsView, limits } = useSubscription();
   
   // ✅ Hook centralisé pour la progression du guide
-  const { shouldShowGuide, markGuideCompleted, isLoading: isGuideLoading } = useGuideProgress();
+  const { shouldShowGuide, markGuideCompleted, isGuideComplete, isLoading: isGuideLoading } = useGuideProgress();
   
   // 🎨 Theme support
   const { isDark } = useTheme();
@@ -39,7 +39,13 @@ const Simulations = () => {
     startTour: startTooltipTour,
     resetTooltips
   } = useTooltipTour('simulations', {
-    onComplete: () => setShowContinueBar(true)
+    onComplete: () => {
+      // N'active "On continue!" que si c'est l'onboarding, pas le bouton d'aide
+      if (!isManualTourRef.current) {
+        setShowContinueBar(true);
+      }
+      isManualTourRef.current = false;
+    }
   });
   
   // 🔧 Debug: Fonction globale pour tester les tooltips
@@ -54,6 +60,9 @@ const Simulations = () => {
   // État pour le guide utilisateur
   const [showGuide, setShowGuide] = useState(false);
   const [showContinueBar, setShowContinueBar] = useState(false);
+  
+  // 💡 Ref pour tracker si le tour est lancé manuellement (bouton aide) vs onboarding
+  const isManualTourRef = useRef(false);
   
   // Vérifier si le guide doit être affiché
   useEffect(() => {
@@ -302,14 +311,24 @@ const Simulations = () => {
     const absValue = Math.abs(montant);
     const digitCount = Math.floor(absValue).toString().length;
     
-    if (digitCount <= 4) {
-      return { circleSize: 120, fontScale: 1 };
+    // 🆕 Ajustement dynamique comme Comptes.jsx
+    // Cercles Simulations plus petits (120px vs 150px), donc tailles réduites proportionnellement
+    
+    if (digitCount <= 3) {
+      // Jusqu'à 999$
+      return { circleSize: 120, adjustedFontSize: 1.3 };
+    } else if (digitCount === 4) {
+      // 1 000$ - 9 999$
+      return { circleSize: 124, adjustedFontSize: 1.15 };
     } else if (digitCount === 5) {
-      return { circleSize: 126, fontScale: 0.85 }; 
+      // 10 000$ - 99 999$
+      return { circleSize: 130, adjustedFontSize: 1.0 }; 
     } else if (digitCount === 6) {
-      return { circleSize: 132, fontScale: 0.80 };
+      // 100 000$ - 999 999$
+      return { circleSize: 138, adjustedFontSize: 0.9 };
     } else {
-      return { circleSize: 138, fontScale: 0.70 };
+      // 1 000 000$+
+      return { circleSize: 148, adjustedFontSize: 0.8 };
     }
   };
 
@@ -1147,6 +1166,9 @@ const Simulations = () => {
             const color = getCompteColor(acc.type);
             const isCredit = acc.type === 'credit';
             const sim = simulations[acc.nom] || { entree: '', sortie: '' };
+            
+            // 🔒 Vérifier si ce compte est verrouillé (au-delà de la limite du plan)
+            const isLocked = index >= limits.maxAccounts;
 
             // 📐 Calcul du sizing dynamique basé sur le montant affiché
             const displayedAmount = hasChange ? newSolde : soldeActuel;
@@ -1207,14 +1229,18 @@ const Simulations = () => {
                     : 'rgba(255,255,255,0.98)',
                   backdropFilter: 'blur(10px)',
                   borderRadius: '20px',
-                  boxShadow: alertInfo?.level === 'danger'
+                  boxShadow: isLocked
+                    ? '0 4px 15px rgba(0,0,0,0.1)'
+                    : alertInfo?.level === 'danger'
                     ? '0 8px 30px rgba(255, 165, 0, 0.35)'
                     : alertInfo?.level === 'warning'
                     ? '0 8px 30px rgba(243, 156, 18, 0.3)'
                     : hasChange 
                     ? '0 8px 30px rgba(102, 126, 234, 0.25)'
                     : '0 4px 20px rgba(0,0,0,0.15)',
-                  border: alertInfo?.level === 'danger'
+                  border: isLocked
+                    ? '2px solid rgba(100,100,100,0.3)'
+                    : alertInfo?.level === 'danger'
                     ? '2px solid #ffa500'
                     : alertInfo?.level === 'warning'
                     ? '2px solid #f39c12'
@@ -1223,9 +1249,46 @@ const Simulations = () => {
                   minWidth: isMobile ? '90%' : '280px',
                   maxWidth: isMobile ? '95%' : '320px',
                   width: isMobile ? '90%' : 'auto',
-                  animation: alertInfo?.level === 'danger' ? 'shake 0.5s ease-in-out' : 'none'
+                  animation: alertInfo?.level === 'danger' ? 'shake 0.5s ease-in-out' : 'none',
+                  // 🔒 Style verrouillé pour comptes au-delà de la limite
+                  filter: isLocked ? 'grayscale(80%) blur(1px)' : 'none',
+                  opacity: isLocked ? 0.6 : 1,
+                  pointerEvents: isLocked ? 'none' : 'auto',
+                  position: 'relative'
                 }}
               >
+                {/* 🔒 Overlay cadenas pour comptes verrouillés */}
+                {isLocked && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: 'rgba(0,0,0,0.4)',
+                    borderRadius: '20px',
+                    zIndex: 10,
+                    pointerEvents: 'auto',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => setUpgradeModal({ isOpen: true, type: 'accounts' })}
+                  >
+                    <span style={{ fontSize: '2.5em', marginBottom: '8px' }}>🔒</span>
+                    <span style={{ 
+                      color: 'white', 
+                      fontSize: '0.85em', 
+                      fontWeight: '600',
+                      textAlign: 'center',
+                      padding: '0 10px'
+                    }}>
+                      {t('subscription.upgrade.unlockAccount', 'Plan Essentiel requis')}
+                    </span>
+                  </div>
+                )}
                 {/* NOM DU COMPTE EN HAUT */}
                 <div style={{ 
                   marginBottom: '15px', 
@@ -1367,7 +1430,7 @@ const Simulations = () => {
                           margin: '0', 
                           color: isDark ? (isCredit ? '#ffa500' : '#60a5fa') : (isCredit ? '#c0392b' : '#1a5276'), 
                           fontWeight: 'bold',
-                          fontSize: `${(hasChange ? 0.55 : 0.65) * sizing.fontScale}em`,
+                          fontSize: `${hasChange ? sizing.adjustedFontSize * 0.7 : sizing.adjustedFontSize}em`,
                           textDecoration: hasChange ? 'line-through' : 'none',
                           opacity: hasChange ? 0.6 : 1,
                           maxWidth: '90%',
@@ -1387,7 +1450,7 @@ const Simulations = () => {
                               margin: '0', 
                               color: isDark ? (isCredit ? '#ffd700' : '#22d3ee') : (isCredit ? '#c0392b' : '#1a5276'), 
                               fontWeight: 'bold',
-                              fontSize: `${0.7 * sizing.fontScale}em`,
+                              fontSize: `${sizing.adjustedFontSize}em`,
                               maxWidth: '90%',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
@@ -2183,6 +2246,28 @@ const Simulations = () => {
               }}>
                 {t('calculator.subtitle')}
               </p>
+              
+              {/* 📱 PWA/Mobile: Bouton "On continue!" dans le header */}
+              {isMobile && showContinueBar && (
+                <button
+                  onClick={continueToNextPage}
+                  style={{
+                    background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+                    border: 'none',
+                    borderRadius: '20px',
+                    padding: '8px 16px',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '0.85em',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(255, 152, 0, 0.4)',
+                    whiteSpace: 'nowrap',
+                    marginTop: '10px'
+                  }}
+                >
+                  {t('common.onContinue')} →
+                </button>
+              )}
             </div>
             
             {/* Boutons à droite: X en haut, Œil en dessous */}
@@ -2317,6 +2402,35 @@ const Simulations = () => {
         }
         allowNegative={false}
       />
+
+      {/* 💡 Bouton d'aide - En mode plein écran et si onboarding terminé */}
+      {isGuideComplete && isFullScreen && (
+        <button
+          onClick={() => {
+            isManualTourRef.current = true; // Marquer comme tour manuel
+            resetTooltips();
+            setTimeout(() => startTooltipTour(), 100);
+          }}
+          style={{
+            position: 'fixed',
+            bottom: isMobile ? '12px' : '24px',
+            right: isMobile ? '12px' : '24px',
+            background: 'transparent',
+            border: 'none',
+            fontSize: isMobile ? '24px' : '32px',
+            cursor: 'pointer',
+            zIndex: 1000,
+            padding: isMobile ? '4px' : '8px',
+            transition: 'transform 0.2s ease',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          title="Aide - Voir le guide de la page"
+          aria-label="Aide - Voir le guide de la page"
+        >
+          💡
+        </button>
+      )}
     </>
   );
 };

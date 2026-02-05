@@ -48,7 +48,13 @@ const GPSFinancier = ({ navigationMode = false, whatIfMode = false }) => {
     startTour: startTooltipTour,
     resetTooltips
   } = useTooltipTour('gps', {
-    onComplete: () => setShowContinueBar(true)
+    onComplete: () => {
+      // N'active "On continue!" que si c'est l'onboarding, pas le bouton d'aide
+      if (!isManualTourRef.current) {
+        setShowContinueBar(true);
+      }
+      isManualTourRef.current = false;
+    }
   });
   
   // 🔧 Debug: Fonction globale pour tester les tooltips
@@ -63,6 +69,10 @@ const GPSFinancier = ({ navigationMode = false, whatIfMode = false }) => {
   // État pour le guide utilisateur
   const [showGuide, setShowGuide] = useState(false);
   const [showContinueBar, setShowContinueBar] = useState(false);
+  const [hasStartedTooltipTour, setHasStartedTooltipTour] = useState(false); // 🔧 Empêcher redémarrage du tour
+  
+  // 💡 Ref pour tracker si le tour est lancé manuellement (bouton aide) vs onboarding
+  const isManualTourRef = useRef(false);
   
   // État pour le modal d'upgrade (restrictions abonnement)
   const [upgradeModal, setUpgradeModal] = useState({ isOpen: false, type: null });
@@ -91,13 +101,15 @@ const GPSFinancier = ({ navigationMode = false, whatIfMode = false }) => {
     const shouldShow = shouldShowGuide('gps');
     console.log('[GPS Guide] navigationMode:', navigationMode, 'shouldShow:', shouldShow, 'guidesCompleted:', guidesCompleted);
     
-    if (navigationMode && shouldShow && !showContinueBar) {
-      console.log('[GPS Guide] ✅ Affichage barre "On continue"');
-      // Pas de modal pour cette page, afficher directement la barre "On continue"
+    if (navigationMode && shouldShow && !showContinueBar && !isTooltipActive && !hasStartedTooltipTour) {
+      console.log('[GPS Guide] ✅ Démarrage du tour de tooltips GPS');
+      // Marquer comme démarré pour éviter le redémarrage
+      setHasStartedTooltipTour(true);
+      // Démarrer les tooltips - la barre "On continue" s'affichera à la fin (via onComplete)
       setShowGuide(false);
-      setShowContinueBar(true);
+      startTooltipTour();
     }
-  }, [navigationMode, isGuideLoading, shouldShowGuide, location.pathname, showContinueBar, guidesCompleted]);
+  }, [navigationMode, isGuideLoading, shouldShowGuide, location.pathname, showContinueBar, guidesCompleted, isTooltipActive, startTooltipTour, hasStartedTooltipTour]);
   
   // Les modifications de budget sont stockées dans userData.budgetPlanning.modifications
   const scrollContainerRef = useRef(null);
@@ -860,7 +872,7 @@ useEffect(() => {
         case 'trimestriel': totalEntrees += montant / 3; break;
         case 'semestriel': totalEntrees += montant / 6; break;
         case 'annuel': totalEntrees += montant / 12; break;
-        case 'uneFois': break; // N'affecte pas la balance mensuelle récurrente
+        case 'uneFois': case '1-fois': break; // N'affecte pas la balance mensuelle récurrente
         default: totalEntrees += montant;
       }
     });
@@ -875,7 +887,7 @@ useEffect(() => {
         case 'trimestriel': totalSorties += montant / 3; break;
         case 'semestriel': totalSorties += montant / 6; break;
         case 'annuel': totalSorties += montant / 12; break;
-        case 'uneFois': break; // N'affecte pas la balance mensuelle récurrente
+        case 'uneFois': case '1-fois': break; // N'affecte pas la balance mensuelle récurrente
         default: totalSorties += montant;
       }
     });
@@ -1062,9 +1074,10 @@ useEffect(() => {
           }
           break;
         case 'uneFois':
+        case '1-fois':
           // Une seule fois: transaction unique à la date spécifiée
-          if (item.dateDepart) {
-            const targetDate = parseLocalDate(item.dateDepart);
+          if (item.dateDepart || item.date) {
+            const targetDate = parseLocalDate(item.dateDepart || item.date);
             isMatch = date.getFullYear() === targetDate.getFullYear() &&
                       date.getMonth() === targetDate.getMonth() &&
                       date.getDate() === targetDate.getDate();
@@ -1911,7 +1924,7 @@ useEffect(() => {
           case 'annuel':
             entreesParMois += montant / 12;
             break;
-          case 'uneFois':
+          case 'uneFois': case '1-fois':
             break; // N'affecte pas le calcul mensuel
           default:
             entreesParMois += montant;
@@ -1940,7 +1953,7 @@ useEffect(() => {
           case 'annuel':
             sortiesParMois += montant / 12;
             break;
-          case 'uneFois':
+          case 'uneFois': case '1-fois':
             break; // N'affecte pas le calcul mensuel
           default:
             sortiesParMois += montant;
@@ -2276,7 +2289,7 @@ useEffect(() => {
           case 'trimestriel': entreesParMois += montant / 3; break;
           case 'semestriel': entreesParMois += montant / 6; break;
           case 'annuel': entreesParMois += montant / 12; break;
-          case 'uneFois': break;
+          case 'uneFois': case '1-fois': break;
           default: entreesParMois += montant;
         }
       });
@@ -2291,7 +2304,7 @@ useEffect(() => {
           case 'trimestriel': sortiesParMois += montant / 3; break;
           case 'semestriel': sortiesParMois += montant / 6; break;
           case 'annuel': sortiesParMois += montant / 12; break;
-          case 'uneFois': break;
+          case 'uneFois': case '1-fois': break;
           default: sortiesParMois += montant;
         }
       });
@@ -2421,7 +2434,7 @@ useEffect(() => {
           case 'trimestriel': sortiesMensuelles += montant / 3; break;
           case 'semestriel': sortiesMensuelles += montant / 6; break;
           case 'annuel': sortiesMensuelles += montant / 12; break;
-          case 'uneFois': break;
+          case 'uneFois': case '1-fois': break;
           default: sortiesMensuelles += montant;
         }
       });
@@ -3203,8 +3216,19 @@ useEffect(() => {
         
         // Synchroniser la vue si spécifiée
         if (viewParam && ['day', 'month', 'year'].includes(viewParam)) {
-          console.log('[GPS] Setting perspectiveView to:', viewParam);
-          setPerspectiveView(viewParam);
+          // 🔒 Vérifier les restrictions d'abonnement
+          if (viewParam === 'month' && !canAccessGpsView('month')) {
+            console.log('[GPS] Vue month bloquée - plan Discovery');
+            setPerspectiveView('day'); // Fallback vers jour
+            setUpgradeModal({ isOpen: true, type: 'gpsMonth' });
+          } else if (viewParam === 'year' && !canAccessGpsView('year')) {
+            console.log('[GPS] Vue year bloquée - plan Discovery');
+            setPerspectiveView('day'); // Fallback vers jour
+            setUpgradeModal({ isOpen: true, type: 'gpsYear' });
+          } else {
+            console.log('[GPS] Setting perspectiveView to:', viewParam);
+            setPerspectiveView(viewParam);
+          }
         }
         
         if (dateParam) {
@@ -3241,7 +3265,7 @@ useEffect(() => {
     if (!navigationMode) {
       hasInitializedNavFromUrl.current = false;
     }
-  }, [navigationMode, searchParams, navigationDays, navigationMonths, navigationYears]);
+  }, [navigationMode, searchParams, navigationDays, navigationMonths, navigationYears, canAccessGpsView]);
 
 
   // Animation des montants en Navigation (style machine à compter)
@@ -3963,6 +3987,16 @@ useEffect(() => {
   const changeViewWithAnimation = useCallback((targetView) => {
     if (isViewTransitioning || perspectiveView === targetView) return;
     
+    // 🔒 Vérifier les restrictions d'abonnement
+    if (targetView === 'month' && !canAccessGpsView('month')) {
+      setUpgradeModal({ isOpen: true, type: 'gpsMonth' });
+      return;
+    }
+    if (targetView === 'year' && !canAccessGpsView('year')) {
+      setUpgradeModal({ isOpen: true, type: 'gpsYear' });
+      return;
+    }
+    
     // Déterminer la direction: Day→Month→Year = recul (out), Year→Month→Day = avance (in)
     const viewOrder = { 'day': 0, 'month': 1, 'year': 2 };
     const direction = viewOrder[targetView] > viewOrder[perspectiveView] ? 'out' : 'in';
@@ -3982,7 +4016,7 @@ useEffect(() => {
         setIsViewTransitioning(false);
       }, 400);
     }, 300);
-  }, [perspectiveView, isViewTransitioning]);
+  }, [perspectiveView, isViewTransitioning, canAccessGpsView]);
 
   // Composant Loader GPS réutilisable
   const GPSLoader = ({ message }) => (
@@ -5308,7 +5342,7 @@ useEffect(() => {
                 }
               }}
               disabled={showGuide || showContinueBar}
-              title={t('gps.navigation.yearButton')}
+              title={!canAccessGpsView('year') ? t('gps.navigation.premiumRequired', 'Plan Essentiel requis') : t('gps.navigation.yearButton')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -5316,15 +5350,20 @@ useEffect(() => {
                 width: isMobile ? '36px' : '44px',
                 height: isMobile ? '36px' : '44px',
                 borderRadius: '12px',
-                border: perspectiveView === 'year' ? '2px solid #00bcd4' : '2px solid rgba(255,255,255,0.2)',
-                background: perspectiveView === 'year' ? 'rgba(0, 188, 212, 0.3)' : 'rgba(255,255,255,0.05)',
+                border: !canAccessGpsView('year') 
+                  ? '2px solid rgba(255,255,255,0.1)'
+                  : perspectiveView === 'year' ? '2px solid #00bcd4' : '2px solid rgba(255,255,255,0.2)',
+                background: !canAccessGpsView('year')
+                  ? 'rgba(100,100,100,0.2)'
+                  : perspectiveView === 'year' ? 'rgba(0, 188, 212, 0.3)' : 'rgba(255,255,255,0.05)',
                 cursor: (showGuide || showContinueBar) ? 'not-allowed' : 'pointer',
-                opacity: (showGuide || showContinueBar) ? 0.5 : 1,
+                opacity: !canAccessGpsView('year') ? 0.5 : (showGuide || showContinueBar) ? 0.5 : 1,
                 transition: 'all 0.3s ease',
-                fontSize: isMobile ? '16px' : '20px'
+                fontSize: isMobile ? '16px' : '20px',
+                position: 'relative'
               }}
             >
-              🟣
+              {!canAccessGpsView('year') ? '🔒' : '🟣'}
             </button>
             
             {/* Bouton Month - 🟢 */}
@@ -5348,7 +5387,7 @@ useEffect(() => {
                 }
               }}
               disabled={showGuide || showContinueBar}
-              title={t('gps.navigation.monthButton')}
+              title={!canAccessGpsView('month') ? t('gps.navigation.premiumRequired', 'Plan Essentiel requis') : t('gps.navigation.monthButton')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -5356,15 +5395,20 @@ useEffect(() => {
                 width: isMobile ? '36px' : '44px',
                 height: isMobile ? '36px' : '44px',
                 borderRadius: '12px',
-                border: perspectiveView === 'month' ? '2px solid #5dade2' : '2px solid rgba(255,255,255,0.2)',
-                background: perspectiveView === 'month' ? 'rgba(46, 204, 113, 0.3)' : 'rgba(255,255,255,0.05)',
+                border: !canAccessGpsView('month')
+                  ? '2px solid rgba(255,255,255,0.1)'
+                  : perspectiveView === 'month' ? '2px solid #5dade2' : '2px solid rgba(255,255,255,0.2)',
+                background: !canAccessGpsView('month')
+                  ? 'rgba(100,100,100,0.2)'
+                  : perspectiveView === 'month' ? 'rgba(46, 204, 113, 0.3)' : 'rgba(255,255,255,0.05)',
                 cursor: (showGuide || showContinueBar) ? 'not-allowed' : 'pointer',
-                opacity: (showGuide || showContinueBar) ? 0.5 : 1,
+                opacity: !canAccessGpsView('month') ? 0.5 : (showGuide || showContinueBar) ? 0.5 : 1,
                 transition: 'all 0.3s ease',
-                fontSize: isMobile ? '16px' : '20px'
+                fontSize: isMobile ? '16px' : '20px',
+                position: 'relative'
               }}
             >
-              🟢
+              {!canAccessGpsView('month') ? '🔒' : '🟢'}
             </button>
             
             {/* Bouton Day - 🔵 */}
@@ -8205,7 +8249,11 @@ useEffect(() => {
         {/* BAS DE L'ÉCRAN - Comptes + Contrôles */}
         <div style={{
           background: 'transparent',
-          padding: '10px 20px 15px',
+          // Mobile Web: padding plus grand en bas pour compenser la barre du navigateur
+          // Mobile PWA: padding normal (pas de barre)
+          padding: isMobile 
+            ? (isPWA ? '10px 20px 15px' : '10px 20px 45px') 
+            : '10px 20px 15px',
           zIndex: 5
         }}>
           {/* Ligne 1: Contrôles - Boutons de mode sur mobile */}
@@ -9205,6 +9253,35 @@ useEffect(() => {
               {t('common.onContinue')} →
             </button>
           </div>
+        )}
+
+        {/* 💡 Bouton d'aide - En mode plein écran et si onboarding terminé */}
+        {isGuideComplete && isFullScreen && (
+          <button
+            onClick={() => {
+              isManualTourRef.current = true; // Marquer comme tour manuel
+              resetTooltips();
+              setTimeout(() => startTooltipTour(), 100);
+            }}
+            style={{
+              position: 'fixed',
+              bottom: isMobile ? '215px' : '24px',
+              right: isMobile ? '8px' : '24px',
+              background: 'transparent',
+              border: 'none',
+              fontSize: isMobile ? '20px' : '32px',
+              cursor: 'pointer',
+              zIndex: 1000,
+              padding: isMobile ? '4px' : '8px',
+              transition: 'transform 0.2s ease',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            title="Aide - Voir le guide de la page"
+            aria-label="Aide - Voir le guide de la page"
+          >
+            💡
+          </button>
         )}
       </div>
     );

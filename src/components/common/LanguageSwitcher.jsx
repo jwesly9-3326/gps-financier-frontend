@@ -2,9 +2,11 @@
 // Permet de changer la langue de l'application (FR/EN)
 
 import { useTranslation } from 'react-i18next';
+import { useTheme } from '../../context/ThemeContext';
 
 const LanguageSwitcher = ({ style = 'buttons', size = 'normal' }) => {
   const { i18n } = useTranslation();
+  const { isDark } = useTheme();
   
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng);
@@ -112,9 +114,10 @@ const LanguageSwitcher = ({ style = 'buttons', size = 'normal' }) => {
       <div style={{
         display: 'flex',
         alignItems: 'center',
-        background: 'rgba(255,255,255,0.1)',
+        background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)',
         borderRadius: '20px',
-        padding: '4px'
+        padding: '4px',
+        border: isDark ? 'none' : '1px solid rgba(0,0,0,0.1)'
       }}>
         <button
           onClick={() => changeLanguage('fr')}
@@ -122,12 +125,17 @@ const LanguageSwitcher = ({ style = 'buttons', size = 'normal' }) => {
             padding: '6px 14px',
             border: 'none',
             borderRadius: '16px',
-            background: currentLang === 'fr' ? 'white' : 'transparent',
-            color: currentLang === 'fr' ? '#667eea' : 'white',
+            background: currentLang === 'fr' 
+              ? (isDark ? 'white' : 'white') 
+              : 'transparent',
+            color: currentLang === 'fr' 
+              ? '#667eea' 
+              : (isDark ? 'white' : '#1e293b'),
             cursor: 'pointer',
             fontWeight: '600',
             fontSize: '0.85em',
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            boxShadow: currentLang === 'fr' ? '0 2px 8px rgba(0,0,0,0.15)' : 'none'
           }}
         >
           FR
@@ -138,12 +146,17 @@ const LanguageSwitcher = ({ style = 'buttons', size = 'normal' }) => {
             padding: '6px 14px',
             border: 'none',
             borderRadius: '16px',
-            background: currentLang === 'en' ? 'white' : 'transparent',
-            color: currentLang === 'en' ? '#667eea' : 'white',
+            background: currentLang === 'en' 
+              ? (isDark ? 'white' : 'white') 
+              : 'transparent',
+            color: currentLang === 'en' 
+              ? '#667eea' 
+              : (isDark ? 'white' : '#1e293b'),
             cursor: 'pointer',
             fontWeight: '600',
             fontSize: '0.85em',
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            boxShadow: currentLang === 'en' ? '0 2px 8px rgba(0,0,0,0.15)' : 'none'
           }}
         >
           EN

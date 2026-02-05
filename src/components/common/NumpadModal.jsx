@@ -191,6 +191,10 @@ const NumpadModal = ({
     },
   };
 
+  // 📱 Détection mobile
+  const isMobileDevice = window.innerWidth < 768;
+  const isPWAMode = window.matchMedia('(display-mode: standalone)').matches;
+
   return (
     <div style={{
       position: 'fixed',
@@ -200,9 +204,13 @@ const NumpadModal = ({
       bottom: 0,
       zIndex: 10000,
       display: 'flex',
-      alignItems: 'center',
+      // 📱 Mobile: aligner en haut avec padding pour dégager le StepIndicator
+      alignItems: isMobileDevice ? 'flex-start' : 'center',
       justifyContent: 'center',
       padding: '16px',
+      // 📱 Mobile: 155px de padding-top pour centrer le modal
+      paddingTop: isMobileDevice ? '155px' : '16px',
+      paddingBottom: isMobileDevice ? 'max(16px, env(safe-area-inset-bottom, 16px))' : '16px',
     }}>
       {/* Backdrop */}
       <div 
@@ -225,9 +233,12 @@ const NumpadModal = ({
           position: 'relative',
           width: '100%',
           maxWidth: '340px',
+          // 📱 Mobile: limiter la hauteur pour rester visible
+          maxHeight: isMobileDevice ? 'calc(100vh - 80px)' : 'auto',
+          overflowY: isMobileDevice ? 'auto' : 'visible',
           background: 'linear-gradient(180deg, #040449 0%, #100261 100%)',
           borderRadius: '24px',
-          padding: '24px',
+          padding: isMobileDevice ? '20px' : '24px',
           boxShadow: '0 25px 50px rgba(0, 0, 0, 0.5)',
           border: `2px solid ${accentColor}40`,
           animation: 'slideUp 0.3s ease',

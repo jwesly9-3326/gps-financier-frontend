@@ -3,8 +3,8 @@
 // 🌍 i18n enabled
 // ✅ Utilise useGuideProgress pour la logique centralisée
 
-import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useUserData } from '../../context/UserDataContext';
@@ -27,6 +27,13 @@ const Dashboard = () => {
   
   // 📱 Détection mobile
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  // 📱 Détecter si on est en mode PWA (standalone)
+  const [isPWA, setIsPWA] = useState(false);
+  
+  useEffect(() => {
+    setIsPWA(window.matchMedia('(display-mode: standalone)').matches);
+  }, []);
   
   // 📱 Mobile: démarrer directement en plein écran | Desktop: mode aperçu
   const [isFullScreen, setIsFullScreen] = useState(window.innerWidth < 768);
@@ -52,6 +59,9 @@ const Dashboard = () => {
   // 🎨 Theme support
   const { isDark } = useTheme();
   
+  // 💡 Ref pour tracker si le tour est lancé manuellement (bouton aide) vs onboarding
+  const isManualTourRef = useRef(false);
+  
   // 🎯 Hook pour les tooltips interactifs
   const {
     isActive: isTooltipActive,
@@ -64,7 +74,13 @@ const Dashboard = () => {
     startTour: startTooltipTour,
     resetTooltips
   } = useTooltipTour('dashboard', {
-    onComplete: () => setShowContinueBar(true)
+    onComplete: () => {
+      // N'active "On continue!" que si c'est l'onboarding, pas le bouton d'aide
+      if (!isManualTourRef.current) {
+        setShowContinueBar(true);
+      }
+      isManualTourRef.current = false;
+    }
   });
   
   // 🔧 Debug: Fonction globale pour tester les tooltips
@@ -81,13 +97,46 @@ const Dashboard = () => {
     showModal: showTrialWelcome, 
     popupType: trialPopupType, 
     daysRemaining: trialDaysRemaining,
-    closeModal: closeTrialModal 
+    closeModal: closeTrialModal,
+    refreshStatus: refreshTrialStatus
   } = useTrialReminders();
+  
+  // 🎓 Détecter si on arrive après l'onboarding
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isFromOnboarding = searchParams.get('onboarding') === 'complete';
+  
+  // 🔄 Forcer le refresh du statut trial si on arrive après l'onboarding
+  useEffect(() => {
+    if (isFromOnboarding) {
+      console.log('[Dashboard] 🎓 Arrivée après onboarding - refresh trial status');
+      // Petit délai pour laisser le backend traiter startTrial()
+      const timer = setTimeout(() => {
+        refreshTrialStatus();
+        // Nettoyer le paramètre URL
+        setSearchParams({}, { replace: true });
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isFromOnboarding, refreshTrialStatus, setSearchParams]);
 
-  // ✅ CALCUL DIRECT: Afficher le modal SEULEMENT si:
-  // 1. Guide non encore chargé ou dashboard doit être affiché
-  // 2. L'utilisateur n'a pas fermé le modal
-  const showWelcome = !isGuideLoading && shouldShowGuide('dashboard') && !modalDismissed;
+  // 🔧 FIX: État pour tracker si le TrialWelcomeModal a été fermé
+  const [trialModalDismissed, setTrialModalDismissed] = useState(false);
+  
+  // 🔧 FIX: ORDRE DES MODALS POUR NOUVEAUX UTILISATEURS:
+  // 1. TrialWelcomeModal EN PREMIER (bienvenue + info trial)
+  // 2. PageGuideModal EN SECOND (après fermeture du trial modal)
+  // 3. TooltipTour EN TROISIÈME (après fermeture du guide modal)
+  
+  // Le TrialWelcomeModal s'affiche si:
+  // - Le hook dit de l'afficher (showTrialWelcome)
+  // - L'utilisateur ne l'a pas encore fermé dans cette session
+  const showTrialModal = showTrialWelcome && !trialModalDismissed;
+  
+  // Le PageGuideModal s'affiche si:
+  // - Le guide dashboard doit être affiché (shouldShowGuide)
+  // - Le TrialModal n'est PAS affiché (priorité au trial)
+  // - L'utilisateur n'a pas fermé le modal manuellement
+  const showWelcome = !isGuideLoading && shouldShowGuide('dashboard') && !modalDismissed && !showTrialModal;
   
   // Debug logs
   useEffect(() => {
@@ -95,10 +144,17 @@ const Dashboard = () => {
     console.log('[Dashboard] isGuideLoading:', isGuideLoading);
     console.log('[Dashboard] shouldShowGuide(dashboard):', shouldShowGuide('dashboard'));
     console.log('[Dashboard] modalDismissed:', modalDismissed);
+    console.log('[Dashboard] trialModalDismissed:', trialModalDismissed);
+    console.log('[Dashboard] showTrialWelcome (hook):', showTrialWelcome);
+    console.log('[Dashboard] showTrialModal (calculé):', showTrialModal);
     console.log('[Dashboard] showWelcome (calculé):', showWelcome);
-  }, [isGuideLoading, modalDismissed, showWelcome, shouldShowGuide]);
+  }, [isGuideLoading, modalDismissed, trialModalDismissed, showWelcome, showTrialWelcome, showTrialModal, shouldShowGuide]);
   
-  // Note: Le hook useTrialReminders gère automatiquement l'affichage du modal trial
+  // 🔧 FIX: Fermer le TrialModal et ensuite le PageGuideModal s'affichera automatiquement
+  const handleCloseTrialModal = () => {
+    setTrialModalDismissed(true);
+    closeTrialModal(); // Appeler aussi le hook pour marquer comme vu
+  };
 
   // Fermer le modal et démarrer les tooltips
   const closeModal = () => {
@@ -126,7 +182,11 @@ const Dashboard = () => {
 
   // 📅 Formatage de date (locale-aware)
   const formatDate = (dateStr) => {
-    return new Date(dateStr).toLocaleDateString(i18n.language === 'fr' ? 'fr-CA' : 'en-CA', { 
+    // Parser la date sans décalage de fuseau horaire
+    const [year, month, day] = dateStr.split('-').map(Number);
+    const date = new Date(year, month - 1, day);
+    
+    return date.toLocaleDateString(i18n.language === 'fr' ? 'fr-CA' : 'en-CA', { 
       day: 'numeric', 
       month: 'short' 
     });
@@ -272,8 +332,9 @@ const Dashboard = () => {
             return checkDayMatch(jour) && (date.getMonth() === 0 || date.getMonth() === 6);
           }
         case 'uneFois':
-          if (item.dateDepart) {
-            const targetDate = parseLocalDate(item.dateDepart);
+        case '1-fois':
+          if (item.dateDepart || item.date) {
+            const targetDate = parseLocalDate(item.dateDepart || item.date);
             if (!targetDate) return false;
             return date.getFullYear() === targetDate.getFullYear() &&
                    date.getMonth() === targetDate.getMonth() &&
@@ -456,9 +517,7 @@ const Dashboard = () => {
   const renderContent = (interactive = false) => (
     <>
       {/* SECTION 1: CALENDRIER O */}
-      <div data-tooltip="calendar">
-        <CalendrierO interactive={interactive} isMobile={isMobile} />
-      </div>
+      <CalendrierO interactive={interactive} isMobile={isMobile} />
 
       {/* SECTION 2: TABLEAU DE BORD */}
       <div>
@@ -846,15 +905,13 @@ const Dashboard = () => {
       <div style={{
         background: showContinueBar 
           ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
-          : isDark ? 'transparent' : '#ffffff',
-        padding: showContinueBar 
-          ? (isMobile ? '12px 15px' : '15px 25px') 
-          : (isMobile ? '10px 15px' : '12px 25px'),
+          : (isDark ? 'transparent' : '#ffffff'),
+        padding: showContinueBar ? '15px 25px' : '12px 25px',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'flex-end',
         borderTopLeftRadius: '50px',
-        minHeight: isMobile ? '50px' : '60px',
+        minHeight: '60px',
         transition: 'all 0.3s ease'
       }}>
         {showContinueBar ? (
@@ -864,10 +921,10 @@ const Dashboard = () => {
               background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
               border: 'none',
               borderRadius: '25px',
-              padding: isMobile ? '10px 20px' : '12px 30px',
+              padding: '12px 30px',
               color: 'white',
               fontWeight: 'bold',
-              fontSize: isMobile ? '0.9em' : '1em',
+              fontSize: '1em',
               cursor: 'pointer',
               boxShadow: '0 4px 15px rgba(255, 152, 0, 0.4)',
               transition: 'all 0.3s'
@@ -889,22 +946,26 @@ const Dashboard = () => {
       </div>
 
       {/* PLATEFORME PRINCIPALE - Premier clic = plein écran */}
-      <div 
-        onClick={() => setIsFullScreen(true)}
-        style={{
-          position: 'relative',
-          flex: 1,
-          width: '100%',
-          background: isDark ? 'linear-gradient(180deg, #040449 0%, #100261 100%)' : '#ffffff',
-          overflow: 'hidden',
-          cursor: 'pointer',
-          padding: isMobile ? '15px 15px 15px 15px' : '25px 30px 25px 30px',
-          borderTopLeftRadius: '0'
-        }}
-      >
-        {/* Contenu en mode aperçu (non-interactif) */}
-        {renderContent(false)}
-      </div>
+      {/* 🔧 FIX: Ne rendre le mode aperçu que si PAS en plein écran */}
+      {/* Sinon les data-tooltip existent en double et le highlight pointe au mauvais endroit */}
+      {!isFullScreen && (
+        <div 
+          onClick={() => setIsFullScreen(true)}
+          style={{
+            position: 'relative',
+            flex: 1,
+            width: '100%',
+            background: isDark ? 'linear-gradient(180deg, #040449 0%, #100261 100%)' : '#ffffff',
+            overflow: 'hidden',
+            cursor: 'pointer',
+            padding: isMobile ? '15px 15px 15px 15px' : '25px 30px 25px 30px',
+            borderTopLeftRadius: '0'
+          }}
+        >
+          {/* Contenu en mode aperçu (non-interactif) */}
+          {renderContent(false)}
+        </div>
+      )}
 
       {/* MODE PLEIN ÉCRAN */}
       {isFullScreen && (
@@ -925,24 +986,53 @@ const Dashboard = () => {
           {/* Header plein écran */}
           <div style={{ 
             padding: isMobile ? '15px 15px 10px 15px' : '12px 30px',
-            paddingTop: isMobile && window.matchMedia('(display-mode: standalone)').matches ? 'max(50px, env(safe-area-inset-top, 50px))' : (isMobile ? '15px' : '12px'),
+            // 📱 FIX: Mobile navigateur ET PWA ont besoin de padding suffisant
+            // PWA: utilise safe-area-inset, Navigateur: 40px fixe (évite la barre d'adresse)
+            paddingTop: isMobile 
+              ? (isPWA ? 'max(50px, env(safe-area-inset-top, 50px))' : '40px')
+              : '12px',
             display: 'flex', 
             justifyContent: 'space-between', 
-            alignItems: 'center',
+            alignItems: 'flex-start',
             background: 'transparent',
             flexShrink: 0
           }}>
-            <h1 style={{ 
-              fontSize: isMobile ? '1.1em' : '1.3em', 
-              fontWeight: 'bold', 
-              color: isDark ? 'white' : '#1e293b', 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: '10px', 
-              margin: 0
-            }}>
-              🏠 {t('nav.home')}
-            </h1>
+            {/* Titre et bouton On continue - à gauche */}
+            <div>
+              <h1 style={{ 
+                fontSize: isMobile ? '1.1em' : '1.3em', 
+                fontWeight: 'bold', 
+                color: isDark ? 'white' : '#1e293b', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '10px', 
+                margin: 0
+              }}>
+                🏠 {t('nav.home')}
+              </h1>
+              
+              {/* 📱 Mobile: Bouton "On continue!" dans le header (PWA ou navigateur) */}
+              {showContinueBar && isMobile && (
+                <button
+                  onClick={continueToNextPage}
+                  style={{
+                    background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+                    border: 'none',
+                    borderRadius: '20px',
+                    padding: '8px 16px',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '0.85em',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(255, 152, 0, 0.4)',
+                    whiteSpace: 'nowrap',
+                    marginTop: '10px'
+                  }}
+                >
+                  {t('common.onContinue')} →
+                </button>
+              )}
+            </div>
             
             <button
               onClick={() => {
@@ -995,6 +1085,35 @@ const Dashboard = () => {
           }}>
             {renderContent(true)}
           </div>
+          
+          {/* 💡 Bouton d'aide - UNIQUEMENT en mode plein écran et si onboarding terminé */}
+          {isGuideComplete && (
+            <button
+              onClick={() => {
+                isManualTourRef.current = true; // Marquer comme tour manuel
+                resetTooltips();
+                setTimeout(() => startTooltipTour(), 100);
+              }}
+              style={{
+                position: 'fixed',
+                bottom: '24px',
+                right: '24px',
+                background: 'transparent',
+                border: 'none',
+                fontSize: '32px',
+                cursor: 'pointer',
+                zIndex: 1000,
+                padding: '8px',
+                transition: 'transform 0.2s ease',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              title="Aide - Voir le guide de la page"
+              aria-label="Aide - Voir le guide de la page"
+            >
+              💡
+            </button>
+          )}
         </div>
       )}
 
@@ -1010,9 +1129,10 @@ const Dashboard = () => {
       />
       
       {/* ===== MODAL BIENVENUE TRIAL ===== */}
+      {/* 🔧 FIX: S'affiche EN PREMIER, puis PageGuideModal après fermeture */}
       <TrialWelcomeModal
-        isOpen={showTrialWelcome}
-        onClose={closeTrialModal}
+        isOpen={showTrialModal}
+        onClose={handleCloseTrialModal}
         popupType={trialPopupType}
         daysRemaining={trialDaysRemaining}
       />
@@ -1026,6 +1146,7 @@ const Dashboard = () => {
         onNext={nextTooltip}
         onPrev={prevTooltip}
         onSkip={skipTooltips}
+        onComplete={continueToNextPage}
       />
     </div>
   );

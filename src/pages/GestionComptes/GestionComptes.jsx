@@ -2,7 +2,7 @@
 // Intégration de la Trajectoire Avancée + Workflow amélioration
 // ✅ Utilise useGuideProgress pour la logique centralisée
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '../../context/UserDataContext';
@@ -20,7 +20,7 @@ const GestionComptes = () => {
   const [searchParams] = useSearchParams();
   
   // ✅ Hook centralisé pour la progression du guide
-  const { shouldShowGuide, markGuideCompleted, isLoading: isGuideLoading } = useGuideProgress();
+  const { shouldShowGuide, markGuideCompleted, isGuideComplete, isLoading: isGuideLoading } = useGuideProgress();
   
   // 🎨 Theme support
   const { isDark } = useTheme();
@@ -45,6 +45,9 @@ const GestionComptes = () => {
   const [showGuide, setShowGuide] = useState(false);
   const [showContinueBar, setShowContinueBar] = useState(false);
   
+  // 💡 Ref pour tracker si le tour est lancé manuellement (bouton aide) vs onboarding
+  const isManualTourRef = useRef(false);
+  
   // 🎯 Hook pour les tooltips interactifs
   const {
     isActive: isTooltipActive,
@@ -57,7 +60,13 @@ const GestionComptes = () => {
     startTour: startTooltipTour,
     resetTooltips
   } = useTooltipTour('gestionComptes', {
-    onComplete: () => setShowContinueBar(true)
+    onComplete: () => {
+      // N'active "On continue!" que si c'est l'onboarding, pas le bouton d'aide
+      if (!isManualTourRef.current) {
+        setShowContinueBar(true);
+      }
+      isManualTourRef.current = false;
+    }
   });
   
   // Vérifier si le guide doit être affiché
@@ -1377,12 +1386,31 @@ const GestionComptes = () => {
             </h1>
             
             {/* Boutons à droite */}
-            <div style={{ 
-              display: 'flex', 
-              flexDirection: 'column',
-              alignItems: 'center', 
-              gap: isMobile ? '8px' : '10px' 
-            }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '15px' }}>
+              {/* 📱 Mobile: Bouton "On continue!" dans le header */}
+              {isMobile && showContinueBar && (
+                <button
+                  onClick={continueToNextPage}
+                  style={{
+                    background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+                    border: 'none',
+                    borderRadius: '20px',
+                    padding: '10px 20px',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '0.9em',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(255, 152, 0, 0.4)',
+                    transition: 'all 0.3s',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {t('common.onContinue')} →
+                </button>
+              )}
+              
+              {/* Boutons X et Œil */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '8px' : '10px' }}>
               {/* Bouton Fermer (X) */}
               <button
                 onClick={(e) => { 
@@ -1442,6 +1470,7 @@ const GestionComptes = () => {
               >
                 {balancesHidden ? '👁️‍🗨️' : '👁️'}
               </button>
+              </div>
             </div>
           </div>
           
@@ -2313,6 +2342,35 @@ const GestionComptes = () => {
         hintIcon="👆"
         hintKey="management.guideModal.hint"
       />
+      
+      {/* 💡 Bouton d'aide - En mode plein écran et si onboarding terminé */}
+      {isGuideComplete && isFullScreen && (
+        <button
+          onClick={() => {
+            isManualTourRef.current = true; // Marquer comme tour manuel
+            resetTooltips();
+            setTimeout(() => startTooltipTour(), 100);
+          }}
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            background: 'transparent',
+            border: 'none',
+            fontSize: '32px',
+            cursor: 'pointer',
+            zIndex: 1000,
+            padding: '8px',
+            transition: 'transform 0.2s ease',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+          title="Aide - Voir le guide de la page"
+          aria-label="Aide - Voir le guide de la page"
+        >
+          💡
+        </button>
+      )}
       
       {/* 🎯 Tour de Tooltips Interactifs */}
       <TooltipTour

@@ -454,10 +454,10 @@ body.theme-light .gps-content-area::-webkit-scrollbar-thumb:hover {
 /* ============================================ */
 
 @media (max-width: 768px) {
-  /* Header mobile */
+  /* Header mobile - hauteur augmentée pour la barre d'état */
   .gps-app-header {
     padding: 0 15px;
-    height: 60px;
+    height: 85px;
   }
   
   /* Content area prend toute la largeur sur mobile */

@@ -4,7 +4,7 @@
 // ✅ Utilise useGuideProgress pour la logique centralisée
 // 🎨 Theme support
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '../../context/UserDataContext';
@@ -44,7 +44,10 @@ const Objectifs = () => {
   const { theme, isDark } = useTheme();
   
   // ✅ Hook centralisé pour la progression du guide
-  const { shouldShowGuide, markGuideCompleted, isLoading: isGuideLoading } = useGuideProgress();
+  const { shouldShowGuide, markGuideCompleted, isGuideComplete, isLoading: isGuideLoading } = useGuideProgress();
+  
+  // 💡 Ref pour tracker si le tour est lancé manuellement (bouton aide) vs onboarding
+  const isManualTourRef = useRef(false);
   
   // 🎯 Hook pour les tooltips interactifs
   const {
@@ -58,7 +61,13 @@ const Objectifs = () => {
     startTour: startTooltipTour,
     resetTooltips
   } = useTooltipTour('objectifs', {
-    onComplete: () => setShowContinueBar(true)
+    onComplete: () => {
+      // N'active "On continue!" que si c'est l'onboarding, pas le bouton d'aide
+      if (!isManualTourRef.current) {
+        setShowContinueBar(true);
+      }
+      isManualTourRef.current = false;
+    }
   });
   
   // 🔧 Debug: Fonction globale pour tester les tooltips
@@ -100,8 +109,9 @@ const Objectifs = () => {
   const [editingIndex, setEditingIndex] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(null); // Pour le popup détails
   const [showAddForm, setShowAddForm] = useState(false);
-  // 📱 Détection mobile
+  // 📱 Détection mobile et PWA
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [isPWA, setIsPWA] = useState(window.matchMedia('(display-mode: standalone)').matches);
   
   // 📱 Mobile: démarrer directement en plein écran | Desktop: mode aperçu
   const [isFullScreen, setIsFullScreen] = useState(window.innerWidth < 768);
@@ -112,8 +122,14 @@ const Objectifs = () => {
       setIsMobile(mobile);
       setIsFullScreen(mobile);
     };
+    const mediaQuery = window.matchMedia('(display-mode: standalone)');
+    const handlePWAChange = (e) => setIsPWA(e.matches);
+    mediaQuery.addEventListener('change', handlePWAChange);
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      mediaQuery.removeEventListener('change', handlePWAChange);
+    };
   }, []);
   const [deletingGoal, setDeletingGoal] = useState(null); // Pour le modal de suppression
   const [upgradeModal, setUpgradeModal] = useState({ isOpen: false, type: null }); // Pour les restrictions abonnement
@@ -173,6 +189,30 @@ const Objectifs = () => {
       currency: 'CAD',
       minimumFractionDigits: 0
     }).format(montant);
+  };
+
+  // 🆕 Ajustement dynamique de la taille de police selon le montant (comme Comptes/Simulations)
+  const getAmountFontSize = (montant, isSecondary = false) => {
+    const absValue = Math.abs(montant);
+    const digitCount = Math.floor(absValue).toString().length;
+    
+    // Taille de base: 1.3em pour principal, 0.9em pour secondaire
+    const baseSize = isSecondary ? 0.9 : 1.3;
+    
+    let multiplier = 1;
+    if (digitCount <= 3) {
+      multiplier = 1;
+    } else if (digitCount === 4) {
+      multiplier = 0.92;
+    } else if (digitCount === 5) {
+      multiplier = 0.85;
+    } else if (digitCount === 6) {
+      multiplier = 0.77;
+    } else {
+      multiplier = 0.7;
+    }
+    
+    return baseSize * multiplier;
   };
 
   // Obtenir l'icône selon le type d'objectif
@@ -405,7 +445,7 @@ const Objectifs = () => {
     return (
       <div
         key={obj.id || index}
-        data-tooltip={index === 0 ? 'goal-card' : undefined}
+        {...(index === 0 ? { 'data-tooltip': 'goal-card' } : {})}
         style={{
           position: 'relative',
           background: isDark ? 'rgba(255,255,255,0.1)' : '#ffffff',
@@ -434,24 +474,38 @@ const Objectifs = () => {
       >
         {/* Badge verrou pour objectifs verrouillés */}
         {isLocked && (
-          <div style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            zIndex: 100,
-            filter: 'none',
-            pointerEvents: 'auto',
-            background: isDark ? 'rgba(0,0,0,0.8)' : 'rgba(0,0,0,0.7)',
-            borderRadius: '50%',
-            width: '50px',
-            height: '50px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '1.5em'
-          }}>
-            🔒
+          <div 
+            onClick={(e) => {
+              e.stopPropagation();
+              setUpgradeModal({ isOpen: true, type: 'destinations' });
+            }}
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              zIndex: 100,
+              filter: 'none',
+              pointerEvents: 'auto',
+              background: isDark ? 'rgba(0,0,0,0.85)' : 'rgba(0,0,0,0.75)',
+              borderRadius: '15px',
+              width: '130px',
+              height: '80px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+              cursor: 'pointer',
+              transition: 'transform 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'translate(-50%, -50%) scale(1)'}
+          >
+            <span style={{ fontSize: '1.8em' }}>🔒</span>
+            <span style={{ fontSize: '0.75em', color: 'white', fontWeight: '600' }}>
+              {t('subscription.upgrade.unlock', 'Débloquer')}
+            </span>
           </div>
         )}
         {/* Ligne principale */}
@@ -497,7 +551,7 @@ const Objectifs = () => {
             {isCredit ? (
               <>
                 <p style={{
-                  fontSize: isMobile ? '0.9em' : '1.1em',
+                  fontSize: isMobile ? `${getAmountFontSize(targetAmount) * 0.7}em` : `${getAmountFontSize(targetAmount)}em`,
                   fontWeight: 'bold',
                   color: '#3498db',
                   margin: 0
@@ -505,7 +559,7 @@ const Objectifs = () => {
                   {formatMontant(targetAmount)}
                 </p>
                 <p style={{
-                  fontSize: isMobile ? '0.7em' : '0.8em',
+                  fontSize: isMobile ? `${getAmountFontSize(currentAmount, true) * 0.8}em` : `${getAmountFontSize(currentAmount, true)}em`,
                   color: '#ffa500',
                   margin: '2px 0 0 0'
                 }}>
@@ -515,7 +569,7 @@ const Objectifs = () => {
             ) : (
               <>
                 <p style={{
-                  fontSize: isMobile ? '0.9em' : '1.1em',
+                  fontSize: isMobile ? `${getAmountFontSize(currentAmount) * 0.7}em` : `${getAmountFontSize(currentAmount)}em`,
                   fontWeight: 'bold',
                   color: isDark ? 'white' : '#1e293b',
                   margin: 0
@@ -523,7 +577,7 @@ const Objectifs = () => {
                   {formatMontant(currentAmount)}
                 </p>
                 <p style={{
-                  fontSize: isMobile ? '0.7em' : '0.8em',
+                  fontSize: isMobile ? `${getAmountFontSize(targetAmount, true) * 0.8}em` : `${getAmountFontSize(targetAmount, true)}em`,
                   color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b',
                   margin: '2px 0 0 0'
                 }}>
@@ -698,7 +752,7 @@ const Objectifs = () => {
       {/* Bouton Ajouter une destination */}
       <div 
         data-tooltip="add-goal"
-        onClick={handleAddNew}
+        onClick={() => { if (!(showGuide || isTooltipActive || showContinueBar)) handleAddNew(); }}
         style={{
           background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)',
           borderRadius: '12px',
@@ -897,8 +951,32 @@ const Objectifs = () => {
               🧭 {t('goals.titleFullscreen')}
             </h1>
             
-            {/* Boutons à droite: X en haut, Œil en dessous */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '8px' : '10px' }}>
+            {/* Boutons à droite */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '10px' : '15px' }}>
+              {/* 📱 PWA Mobile: Bouton "On continue!" dans le header */}
+              {isMobile && showContinueBar && (
+                <button
+                  onClick={continueToNextPage}
+                  style={{
+                    background: 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)',
+                    border: 'none',
+                    borderRadius: '20px',
+                    padding: '10px 20px',
+                    color: 'white',
+                    fontWeight: 'bold',
+                    fontSize: '0.9em',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 15px rgba(255, 152, 0, 0.4)',
+                    transition: 'all 0.3s',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {t('common.onContinue')} →
+                </button>
+              )}
+              
+              {/* Boutons X et Œil */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: isMobile ? '8px' : '10px' }}>
               {/* Bouton Fermer (X) */}
               <button
                 onClick={(e) => { 
@@ -963,6 +1041,7 @@ const Objectifs = () => {
               >
                 {balancesHidden ? '👁️‍🗨️' : '👁️'}
               </button>
+              </div>
             </div>
           </div>
 
@@ -970,6 +1049,35 @@ const Objectifs = () => {
           <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? '10px 15px' : '20px 30px' }}>
             {renderContent()}
           </div>
+          
+          {/* 💡 Bouton d'aide - UNIQUEMENT en mode plein écran et si onboarding terminé */}
+          {isGuideComplete && (
+            <button
+              onClick={() => {
+                isManualTourRef.current = true; // Marquer comme tour manuel
+                resetTooltips();
+                setTimeout(() => startTooltipTour(), 100);
+              }}
+              style={{
+                position: 'fixed',
+                bottom: '24px',
+                right: '24px',
+                background: 'transparent',
+                border: 'none',
+                fontSize: '32px',
+                cursor: 'pointer',
+                zIndex: 1000,
+                padding: '8px',
+                transition: 'transform 0.2s ease',
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.2)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              title="Aide - Voir le guide de la page"
+              aria-label="Aide - Voir le guide de la page"
+            >
+              💡
+            </button>
+          )}
         </div>
       )}
 
@@ -1051,7 +1159,7 @@ const Objectifs = () => {
                         alignItems: 'center'
                       }}>
                         <span style={{ color: '#ffa500', fontWeight: '500' }}>💳 {t('goals.detailsModal.creditLimit')}</span>
-                        <span style={{ fontWeight: 'bold', color: '#ffa500', fontSize: '1.1em' }}>
+                        <span style={{ fontWeight: 'bold', color: '#ffa500', fontSize: `${getAmountFontSize(limite) * 0.85}em` }}>
                           {formatMontant(limite)}
                         </span>
                       </div>
@@ -1071,7 +1179,7 @@ const Objectifs = () => {
                         <span style={{ color: '#7f8c8d', fontSize: '0.85em', display: 'block', marginBottom: '5px' }}>
                           {t('goals.detailsModal.currentAmount')}
                         </span>
-                        <span style={{ fontWeight: 'bold', color: isCredit ? '#ffa500' : '#3498db', fontSize: '1.2em' }}>
+                        <span style={{ fontWeight: 'bold', color: isCredit ? '#ffa500' : '#3498db', fontSize: `${getAmountFontSize(currentAmount) * 0.95}em` }}>
                           {formatMontant(currentAmount)}
                         </span>
                       </div>
@@ -1085,7 +1193,7 @@ const Objectifs = () => {
                         <span style={{ color: '#7f8c8d', fontSize: '0.85em', display: 'block', marginBottom: '5px' }}>
                           {t('goals.detailsModal.targetAmount')}
                         </span>
-                        <span style={{ fontWeight: 'bold', color: '#3498db', fontSize: '1.2em' }}>
+                        <span style={{ fontWeight: 'bold', color: '#3498db', fontSize: `${getAmountFontSize(targetAmount) * 0.95}em` }}>
                           {formatMontant(targetAmount)}
                         </span>
                       </div>

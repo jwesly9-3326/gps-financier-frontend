@@ -5,9 +5,9 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 // Price IDs (doivent correspondre à ceux dans le backend)
 export const STRIPE_PRICES = {
-  ESSENTIAL_BETA: 'price_1SqfwAC6vOoAdA7mtLw3fMmT',
-  ESSENTIAL: 'price_1SqfxnC6vOoAdA7mIrJgXY1D',
-  PRO: 'price_1Sqfz2C6vOoAdA7mcaOwT0mP'
+  ESSENTIAL_BETA: 'price_1SwWAhC6vOoAdA7m8w4ChrTs',  // $5.99/mois - Beta Founders Promo
+  ESSENTIAL: 'price_1SqfwAC6vOoAdA7mtLw3fMmT',      // $9.99/mois - Prix régulier
+  PRO: 'price_1Sqfz2C6vOoAdA7mcaOwT0mP'             // $14.99/mois - Pro + IA
 };
 
 /**

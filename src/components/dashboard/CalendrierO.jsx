@@ -227,7 +227,7 @@ const CalendrierO = ({ interactive = true, isMobile = false }) => {
   };
 
   return (
-    <div style={{ marginBottom: '20px' }}>
+    <div style={{ marginBottom: '20px', padding: '5px', margin: '-5px', marginBottom: '15px' }}>
       {/* En-tête - Responsive */}
       <div style={{ 
         display: 'flex', 
@@ -282,7 +282,7 @@ const CalendrierO = ({ interactive = true, isMobile = false }) => {
       </div>
 
       {/* 3 CARTES - Responsive avec scroll VERTICAL sur mobile */}
-      <div style={{ 
+      <div data-tooltip="calendar" style={{ 
         display: isMobile ? 'flex' : 'grid',
         flexDirection: isMobile ? 'column' : 'row',
         gridTemplateColumns: isMobile ? 'none' : 'repeat(3, 1fr)',

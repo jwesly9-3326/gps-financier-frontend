@@ -17,15 +17,22 @@ const DatePickerModal = ({
 }) => {
   const { t, i18n } = useTranslation();
   
+  // Helper pour parser une date sans décalage de fuseau horaire
+  const parseLocalDate = (dateStr) => {
+    if (!dateStr) return null;
+    const [year, month, day] = dateStr.split('-').map(Number);
+    return new Date(year, month - 1, day);
+  };
+  
   // État pour la date courante affichée dans le calendrier
   const [viewDate, setViewDate] = useState(() => {
-    if (initialValue) return new Date(initialValue);
+    if (initialValue) return parseLocalDate(initialValue);
     return new Date();
   });
   
   // État pour la date sélectionnée
   const [selectedDate, setSelectedDate] = useState(() => {
-    if (initialValue) return new Date(initialValue);
+    if (initialValue) return parseLocalDate(initialValue);
     return null;
   });
 
@@ -42,7 +49,7 @@ const DatePickerModal = ({
   useEffect(() => {
     if (isOpen) {
       if (initialValue) {
-        const date = new Date(initialValue);
+        const date = parseLocalDate(initialValue);
         setViewDate(date);
         setSelectedDate(date);
       } else {
