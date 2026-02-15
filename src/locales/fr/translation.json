@@ -196,7 +196,8 @@
     "management": "Gestion de portefeuille",
     "settings": "Paramètres",
     "logout": "Déconnexion",
-    "locked": "Complète le guide pour débloquer"
+    "locked": "Complète le guide pour débloquer",
+    "enterprise": "Mes clients"
   },
   "auth": {
     "login": {
@@ -279,6 +280,7 @@
     "privacy": "🔒 Tes données restent privées",
     "devices": "📱 Disponible sur tous tes appareils",
     "company": "Par Pl4to Inc.",
+    "proButton": "Conseiller / Cabinet",
     "features": {
       "gps": {
         "title": "Ton futur, visualisé",
@@ -1895,5 +1897,94 @@
       "description": "Cette fonctionnalité est réservée aux abonnés.",
       "benefit": "Débloquez toutes les fonctionnalités!"
     }
+  },
+  "proLanding": {
+    "badge": "Portail professionnel",
+    "heroTitle1": "Le GPS Financier",
+    "heroTitle2": "pour votre cabinet",
+    "heroSubtitle": "Offrez à vos clients une vision claire de leur avenir financier.",
+    "heroSubtitle2": "Projections sur plusieurs années, jour par jour.",
+    "heroDescription": "Un outil conçu pour les conseillers financiers et leurs cabinets.",
+    "ctaDemande": "📋 Demander un portail",
+    "ctaConnexion": "💼 Connexion Cabinet",
+    "feature1Title": "GPS Financier pour vos clients",
+    "feature1Desc": "Visualisez la trajectoire financière de chaque client sur plusieurs années avec une précision jour par jour.",
+    "feature2Title": "Gestion multi-clients",
+    "feature2Desc": "Un tableau de bord centralisé pour gérer tous vos clients. Passez d'un profil à l'autre en un clic.",
+    "feature3Title": "Données sécurisées",
+    "feature3Desc": "Chaque cabinet dispose de son propre espace isolé. Les données de vos clients restent sous votre contrôle.",
+    "backToSite": "←",
+    "contactText": "Vous avez des questions? Contactez-nous à",
+    "badgeCanada": "🔒 Données hébergées au Canada",
+    "badgeQuebec": "🇨🇦 Conçu au Québec",
+    "badgeSupport": "📞 Support dédié",
+    "footerText": "© 2025 Application financière PL4TO | 9558-7168 Québec inc."
+  },
+  "proDemande": {
+    "title": "Choisissez votre forfait",
+    "subtitle": "Sélectionnez le forfait adapté à la taille de votre cabinet",
+    "popular": "⭐ Populaire",
+    "perMonth": "/mois",
+    "continue": "Continuer →",
+    "solo": {
+      "name": "Solo",
+      "seats": "1 conseiller",
+      "maxClients": "25 clients",
+      "f1": "GPS Financier illimité",
+      "f2": "Tableau de bord",
+      "f3": "Rapports PDF basiques",
+      "f4": "Support par courriel"
+    },
+    "cabinet": {
+      "name": "Cabinet",
+      "seats": "Jusqu'à 5 conseillers",
+      "maxClients": "100 clients",
+      "f1": "Tout de Solo",
+      "f2": "Rapports PDF personnalisés",
+      "f3": "Logo et couleurs du cabinet",
+      "f4": "Simulations comparatives",
+      "f5": "Support prioritaire"
+    },
+    "firme": {
+      "name": "Firme",
+      "seats": "Jusqu'à 15 conseillers",
+      "maxClients": "1000 clients",
+      "f1": "Tout de Cabinet",
+      "f2": "API & intégrations",
+      "f3": "Boucle B2C (invitation clients)",
+      "f4": "Gestionnaire de compte dédié",
+      "f5": "Formation personnalisée"
+    },
+    "step2Title": "Vos informations",
+    "step2Subtitle": "Remplissez les informations de votre cabinet",
+    "labelCabinet": "Nom du cabinet",
+    "labelName": "Votre nom complet",
+    "labelEmail": "Courriel",
+    "labelPhone": "Téléphone",
+    "labelAdvisors": "Nombre de conseillers",
+    "labelMessage": "Message ou questions (optionnel)",
+    "placeholderCabinet": "Cabinet Financier ABC",
+    "placeholderName": "Jean Tremblay",
+    "placeholderEmail": "jean@cabinet.com",
+    "placeholderPhone": "514-555-0000",
+    "placeholderMessage": "Parlez-nous de votre cabinet...",
+    "opt1": "1 conseiller",
+    "opt2": "2 conseillers",
+    "opt3": "3-5 conseillers",
+    "opt4": "6-10 conseillers",
+    "opt5": "11-15 conseillers",
+    "opt6": "16+ conseillers",
+    "back": "← Retour",
+    "submit": "📋 Soumettre la demande",
+    "submitting": "⏳ Envoi...",
+    "successTitle": "Demande envoyée!",
+    "successMsg": "Merci pour votre intérêt envers PL4TO Pro.",
+    "successDetail1": "Notre équipe analysera votre demande",
+    "successDetail2": "Vous recevrez vos identifiants par courriel",
+    "successDetail3": "Délai habituel : 24-48h ouvrées",
+    "backToPro": "← Retour à PL4TO Pro",
+    "emailTitle": "📧 Vous recevrez par courriel:",
+    "emailDetail": "Votre identifiant unique (PLT-XXXX-XXXX) et votre mot de passe temporaire",
+    "visitSite": "Visiter pl4to.com"
   }
 }

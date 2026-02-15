@@ -37,6 +37,12 @@ import Objectifs from './pages/Objectifs/Objectifs';
 import Simulations from './pages/Simulations/Simulations';
 import GestionComptes from './pages/GestionComptes/GestionComptes';
 import Parametres from './pages/Parametres/Parametres';
+// 🏢 Pages Pro (Enterprise)
+import ProLandingPage from './pages/Pro/ProLandingPage';
+import ProLogin from './pages/Pro/ProLogin';
+import ProDemande from './pages/Pro/ProDemande';
+
+import AdminHome from './pages/Admin/AdminHome';
 import AdminDashboard from './pages/Admin/AdminDashboard';
 import AdminAnalysis from './pages/Admin/AdminAnalysis';
 import AdminOPEResults from './pages/Admin/AdminOPEResults';
@@ -100,7 +106,8 @@ const PAGE_NAMES = {
   '/gestion': 'Gestion Comptes',
   '/parametres': 'Paramètres',
   '/onboarding': 'Onboarding',
-  '/admin': 'Admin Dashboard'
+  '/admin': 'Admin Home',
+  '/admin/optimisation': 'Admin Optimisation'
 };
 
 function AppContent() {
@@ -120,6 +127,11 @@ function AppContent() {
           <Route path="/register" element={<Register />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
           
+          {/* 🏢 Routes Pro (Enterprise) - publiques */}
+          <Route path="/pro" element={<ProLandingPage />} />
+          <Route path="/pro/login" element={<ProLogin />} />
+          <Route path="/pro/demande" element={<ProDemande />} />
+          
           {/* 💳 Routes Stripe (publiques avec redirection) */}
           <Route path="/subscription/success" element={<SubscriptionSuccess />} />
           <Route path="/subscription/cancel" element={<SubscriptionCancel />} />
@@ -131,12 +143,11 @@ function AppContent() {
             </ProtectedRoute>
           } />
 
-          {/* Route protégée - Admin (layout spécial, sans sidebar) */}
-          <Route path="/admin" element={
-            <ProtectedRoute>
-              <AdminDashboard />
-            </ProtectedRoute>
-          } />
+          {/* Admin Home - Hub central (gère sa propre auth) */}
+          <Route path="/admin" element={<AdminHome />} />
+          
+          {/* Admin Gestion Optimisation */}
+          <Route path="/admin/optimisation" element={<AdminDashboard />} />
           
           {/* Route protégée - Admin Analyse/Optimisation */}
           <Route path="/admin/analysis/:requestId" element={

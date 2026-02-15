@@ -5,18 +5,40 @@ import axios from 'axios';
 import { API_BASE_URL } from '../config/API';
 import { storage } from '../utils';
 
+// API pour les appels utilisateur (token utilisateur normal)
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 15000,
+  timeout: 60000, // 60s pour supporter allDayData volumineux
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Intercepteur pour ajouter le token JWT
+// Intercepteur utilisateur: utilise le token utilisateur
 api.interceptors.request.use(
   (config) => {
     const token = storage.getAuthToken();
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+// API pour les appels admin (token admin séparé)
+const adminApi = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 60000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Intercepteur admin: utilise le token admin séparé
+adminApi.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('pl4to_admin_token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -117,7 +139,7 @@ const optimizationService = {
    */
   checkIsAdmin: async () => {
     try {
-      const response = await api.get('/api/optimization-requests/check-admin');
+      const response = await adminApi.get('/api/optimization-requests/check-admin');
       return response.data.isAdmin;
     } catch (error) {
       console.error('[OptimizationService] Erreur vérification admin:', error);
@@ -141,7 +163,7 @@ const optimizationService = {
       if (options.sortBy) params.append('sortBy', options.sortBy);
       if (options.sortOrder) params.append('sortOrder', options.sortOrder);
 
-      const response = await api.get(`/api/optimization-requests/admin/all?${params}`);
+      const response = await adminApi.get(`/api/optimization-requests/admin/all?${params}`);
       return response.data;
     } catch (error) {
       console.error('[OptimizationService] Erreur admin liste:', error);
@@ -155,7 +177,7 @@ const optimizationService = {
    */
   adminGetStats: async () => {
     try {
-      const response = await api.get('/api/optimization-requests/admin/dashboard/stats');
+      const response = await adminApi.get('/api/optimization-requests/admin/dashboard/stats');
       return response.data.stats;
     } catch (error) {
       console.error('[OptimizationService] Erreur admin stats:', error);
@@ -170,7 +192,7 @@ const optimizationService = {
    */
   adminGetRequestDetails: async (requestId) => {
     try {
-      const response = await api.get(`/api/optimization-requests/admin/${requestId}`);
+      const response = await adminApi.get(`/api/optimization-requests/admin/${requestId}`);
       return response.data.request;
     } catch (error) {
       console.error('[OptimizationService] Erreur admin détails:', error);
@@ -185,7 +207,7 @@ const optimizationService = {
    */
   adminGetFreshData: async (requestId) => {
     try {
-      const response = await api.get(`/api/optimization-requests/admin/${requestId}/fresh-data`);
+      const response = await adminApi.get(`/api/optimization-requests/admin/${requestId}/fresh-data`);
       return response.data;
     } catch (error) {
       console.error('[OptimizationService] Erreur admin fresh data:', error);
@@ -200,7 +222,7 @@ const optimizationService = {
    */
   adminRefreshSnapshot: async (requestId) => {
     try {
-      const response = await api.put(`/api/optimization-requests/admin/${requestId}/refresh-snapshot`);
+      const response = await adminApi.put(`/api/optimization-requests/admin/${requestId}/refresh-snapshot`);
       return response.data;
     } catch (error) {
       console.error('[OptimizationService] Erreur admin refresh snapshot:', error);
@@ -215,7 +237,7 @@ const optimizationService = {
    */
   adminStartAnalysis: async (requestId) => {
     try {
-      const response = await api.put(`/api/optimization-requests/admin/${requestId}/start-analysis`);
+      const response = await adminApi.put(`/api/optimization-requests/admin/${requestId}/start-analysis`);
       return response.data;
     } catch (error) {
       console.error('[OptimizationService] Erreur admin start analysis:', error);
@@ -231,7 +253,7 @@ const optimizationService = {
    */
   adminSaveAnalysis: async (requestId, analysisData) => {
     try {
-      const response = await api.put(`/api/optimization-requests/admin/${requestId}/save-analysis`, analysisData);
+      const response = await adminApi.put(`/api/optimization-requests/admin/${requestId}/save-analysis`, analysisData);
       return response.data;
     } catch (error) {
       console.error('[OptimizationService] Erreur admin save analysis:', error);
@@ -247,7 +269,7 @@ const optimizationService = {
    */
   adminSendProposal: async (requestId, proposalData) => {
     try {
-      const response = await api.put(`/api/optimization-requests/admin/${requestId}/send-proposal`, proposalData);
+      const response = await adminApi.put(`/api/optimization-requests/admin/${requestId}/send-proposal`, proposalData);
       return response.data;
     } catch (error) {
       console.error('[OptimizationService] Erreur admin send proposal:', error);
@@ -262,7 +284,7 @@ const optimizationService = {
    */
   adminDeleteRequest: async (requestId) => {
     try {
-      const response = await api.delete(`/api/optimization-requests/admin/${requestId}`);
+      const response = await adminApi.delete(`/api/optimization-requests/admin/${requestId}`);
       console.log('[OptimizationService] Demande supprimée:', requestId);
       return response.data;
     } catch (error) {

@@ -14,7 +14,7 @@ import { useTheme } from '../../context/ThemeContext';
 import optimizationService from '../../services/optimization.service';  // ✅ Ajout du service
 
 const GestionComptes = () => {
-  const { userData, isLoading, saveUserData } = useUserData();
+  const { userData, isLoading, saveUserData, loadUserData } = useUserData();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -99,7 +99,9 @@ const GestionComptes = () => {
   const [showProposalModal, setShowProposalModal] = useState(false);  // ✅ Modal proposition OPE
   const [proposedReport, setProposedReport] = useState(null);
   const [proposalData, setProposalData] = useState(null);  // ✅ Données complètes de la proposition
-  const [isAcceptingProposal, setIsAcceptingProposal] = useState(false);  // ✅ Loading state
+  const [isAcceptingProposal, setIsAcceptingProposal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successData, setSuccessData] = useState(null);  // ✅ Loading state
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [selectedTrajectoirePoint, setSelectedTrajectoirePoint] = useState({ type: 'today', index: 0 });
   const [userRequestId, setUserRequestId] = useState(null);
@@ -516,8 +518,27 @@ const GestionComptes = () => {
       setShowRequestModal(false);
       
       // 1. Créer la demande dans le backend (table OptimizationRequest)
-      // ✅ Envoi de allDayData pour analyse What-If par l'Admin
-      const response = await optimizationService.createRequest(allDayData);
+      // ✅ Envoi d'un résumé mensuel (pas le détail quotidien, trop volumineux)
+      const monthlySummary = [];
+      const monthMap = {};
+      allDayData.forEach(day => {
+        const key = day.monthKey;
+        if (!monthMap[key]) {
+          monthMap[key] = { monthKey: key, accounts: {}, transactionCount: 0 };
+        }
+        // Garder le dernier solde du mois pour chaque compte
+        Object.entries(day.accounts || {}).forEach(([name, acc]) => {
+          monthMap[key].accounts[name] = {
+            solde: acc.solde,
+            type: acc.type,
+            isCredit: acc.isCredit
+          };
+          if (acc.hasActivity) monthMap[key].transactionCount++;
+        });
+      });
+      Object.values(monthMap).forEach(m => monthlySummary.push(m));
+      
+      const response = await optimizationService.createRequest(monthlySummary);
       console.log('[GestionComptes] Demande créée dans le backend:', response);
       
       // 2. Mettre à jour l'état local
@@ -578,40 +599,16 @@ const GestionComptes = () => {
       // 1. Appeler l'API pour accepter
       await optimizationService.respondToProposal(userRequestId, 'accepted');
       
-      // 2. Créer les budgetModifications localement
-      const recommendations = proposalData.proposedChanges?.recommendations || [];
-      const newModifications = recommendations
-        .filter(rec => rec.budgetId) // S'assurer que le budgetId existe
-        .map(rec => ({
-          id: `mod_ope_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
-          budgetId: rec.budgetId,
-          description: `OPE - ${rec.budgetDescription || rec.accountName}`,
-          dateDebut: rec.interventionDate,
-          dateFin: '', // Chaîne vide au lieu de null pour éviter les erreurs
-          nouveauMontant: rec.newAmount,
-          frequence: rec.frequence || 'mensuel',
-          appliedAt: new Date().toISOString(),
-          source: 'OPE-1',
-          active: true
-        }));
+      // 2. ✅ Le backend a déjà appliqué les modifications OPE dans userData
+      // On recharge simplement les données pour récupérer les changements
+      console.log('[GestionComptes] Backend a appliqué les modifications, rechargement des données...');
+      await loadUserData();
       
-      console.log('[GestionComptes] Nouvelles modifications à créer:', newModifications);
+      // 5. Récupérer les données pour le modal de succès AVANT de réinitialiser
+      const recoverySaved = proposalData?.projectedImpact?.monthlyRecovery || 0;
+      const recsCount = proposalData?.proposedChanges?.recommendations?.length || 0;
       
-      // 3. Fusionner avec les modifications existantes (filtrer les null/undefined)
-      const existingModifications = (userData?.budgetPlanning?.modifications || []).filter(m => m);
-      const updatedModifications = [...existingModifications, ...newModifications];
-      
-      // 4. Sauvegarder dans userData
-      await saveUserData({
-        ...userData,
-        budgetPlanning: {
-          ...userData.budgetPlanning,
-          modifications: updatedModifications
-        },
-        optimizationRequest: null  // Réinitialiser
-      });
-      
-      // 5. Réinitialiser l'état local
+      // 6. Réinitialiser l'état local
       setShowProposalModal(false);
       setShowConfirmModal(false);
       setRequestStatus('none');
@@ -619,7 +616,12 @@ const GestionComptes = () => {
       setProposalData(null);
       setUserRequestId(null);
       
-      alert('✅ Optimisation acceptée! Vos paiements ont été ajustés.');
+      // 7. Afficher le modal de succès
+      setSuccessData({ monthlyRecovery: recoverySaved, recommendationsCount: recsCount });
+      setShowSuccessModal(true);
+      
+      // Auto-fermer après 4 secondes
+      setTimeout(() => setShowSuccessModal(false), 4000);
       
     } catch (error) {
       console.error('[GestionComptes] Erreur acceptation:', error);
@@ -1019,14 +1021,14 @@ const GestionComptes = () => {
           gap: '10px',
           marginBottom: '20px',
           paddingBottom: '15px',
-          borderBottom: '2px solid rgba(255,255,255,0.1)'
+          borderBottom: isDark ? '2px solid rgba(255,255,255,0.1)' : '2px solid rgba(0,0,0,0.08)'
         }}>
           <span style={{ fontSize: '1.5em' }}>📈</span>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.1em', color: 'white' }}>
+            <h2 style={{ margin: 0, fontSize: '1.1em', color: isDark ? 'white' : '#1a1a2e' }}>
               {t('management.report.title')}
             </h2>
-            <p style={{ margin: 0, fontSize: '0.8em', color: 'rgba(255,255,255,0.7)' }}>
+            <p style={{ margin: 0, fontSize: '0.8em', color: isDark ? 'rgba(255,255,255,0.7)' : '#666' }}>
               {requestStatus === 'ready' 
                 ? t('management.report.ready') 
                 : t('management.report.waiting')}
@@ -1085,7 +1087,7 @@ const GestionComptes = () => {
                     </div>
                     <div style={{ 
                       fontSize: '0.95em', 
-                      color: 'rgba(255,255,255,0.8)'
+                      color: isDark ? 'rgba(255,255,255,0.8)' : '#444'
                     }}>
                       📉 Réduction de vos paiements
                     </div>
@@ -1102,11 +1104,11 @@ const GestionComptes = () => {
                   {/* Résumé des ajustements */}
                   <div style={{
                     padding: '12px',
-                    background: 'rgba(255,255,255,0.05)',
+                    background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                     borderRadius: '10px',
                     marginBottom: '15px'
                   }}>
-                    <div style={{ fontSize: '0.8em', color: 'rgba(255,255,255,0.6)', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '0.8em', color: isDark ? 'rgba(255,255,255,0.6)' : '#888', marginBottom: '8px' }}>
                       {recommendations.length} ajustement{recommendations.length > 1 ? 's' : ''} proposé{recommendations.length > 1 ? 's' : ''}
                     </div>
                     {recommendations.slice(0, 2).map((rec, idx) => (
@@ -1116,7 +1118,7 @@ const GestionComptes = () => {
                         alignItems: 'center',
                         padding: '5px 0',
                         fontSize: '0.85em',
-                        color: 'rgba(255,255,255,0.7)'
+                        color: isDark ? 'rgba(255,255,255,0.7)' : '#555'
                       }}>
                         <span>{rec.accountName}</span>
                         <span style={{ color: '#27ae60', fontWeight: 'bold' }}>
@@ -1125,7 +1127,7 @@ const GestionComptes = () => {
                       </div>
                     ))}
                     {recommendations.length > 2 && (
-                      <div style={{ fontSize: '0.75em', color: 'rgba(255,255,255,0.5)', marginTop: '5px' }}>
+                      <div style={{ fontSize: '0.75em', color: isDark ? 'rgba(255,255,255,0.5)' : '#999', marginTop: '5px' }}>
                         +{recommendations.length - 2} autre{recommendations.length - 2 > 1 ? 's' : ''}...
                       </div>
                     )}
@@ -1135,9 +1137,9 @@ const GestionComptes = () => {
                   <div style={{
                     textAlign: 'center',
                     padding: '15px',
-                    background: 'rgba(39, 174, 96, 0.1)',
+                    background: isDark ? 'rgba(39, 174, 96, 0.1)' : 'rgba(39, 174, 96, 0.06)',
                     borderRadius: '12px',
-                    border: '2px dashed rgba(39, 174, 96, 0.4)'
+                    border: isDark ? '2px dashed rgba(39, 174, 96, 0.4)' : '2px dashed rgba(39, 174, 96, 0.3)'
                   }}>
                     <span style={{ fontSize: '1.5em', marginRight: '10px' }}>👆</span>
                     <span style={{ color: '#27ae60', fontWeight: 'bold' }}>
@@ -2060,17 +2062,19 @@ const GestionComptes = () => {
             {/* Header du modal */}
             <div style={{
               padding: '20px 25px',
-              borderBottom: '2px solid rgba(255,255,255,0.1)',
+              borderBottom: isDark ? '2px solid rgba(255,255,255,0.1)' : '2px solid rgba(0,0,0,0.08)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              background: 'linear-gradient(135deg, rgba(39, 174, 96, 0.3) 0%, rgba(46, 204, 113, 0.2) 100%)'
+              background: isDark 
+                ? 'linear-gradient(135deg, rgba(39, 174, 96, 0.3) 0%, rgba(46, 204, 113, 0.2) 100%)'
+                : 'linear-gradient(135deg, rgba(39, 174, 96, 0.15) 0%, rgba(46, 204, 113, 0.08) 100%)'
             }}>
               <div>
-                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', color: 'white' }}>
+                <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', color: isDark ? 'white' : '#1a1a2e' }}>
                   📈 Proposition d'optimisation
                 </h2>
-                <p style={{ margin: '5px 0 0', color: 'rgba(255,255,255,0.6)', fontSize: '0.85em' }}>
+                <p style={{ margin: '5px 0 0', color: isDark ? 'rgba(255,255,255,0.6)' : '#666', fontSize: '0.85em' }}>
                   PL4TO a analysé votre trajectoire financière
                 </p>
               </div>
@@ -2079,9 +2083,9 @@ const GestionComptes = () => {
                 style={{
                   padding: '8px 16px',
                   borderRadius: '10px',
-                  border: '2px solid rgba(255,255,255,0.3)',
+                  border: isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.15)',
                   background: 'transparent',
-                  color: 'white',
+                  color: isDark ? 'white' : '#333',
                   cursor: 'pointer',
                   fontSize: '1em'
                 }}
@@ -2122,28 +2126,30 @@ const GestionComptes = () => {
                   <>
                     {/* Message explicatif */}
                     <div style={{
-                      background: 'rgba(52, 152, 219, 0.15)',
+                      background: isDark ? 'rgba(52, 152, 219, 0.15)' : 'rgba(52, 152, 219, 0.08)',
                       borderRadius: '15px',
                       padding: '20px',
                       marginBottom: '25px',
-                      border: '2px solid rgba(52, 152, 219, 0.3)',
+                      border: isDark ? '2px solid rgba(52, 152, 219, 0.3)' : '2px solid rgba(52, 152, 219, 0.2)',
                       textAlign: 'center'
                     }}>
-                      <div style={{ fontSize: '1.1em', color: 'rgba(255,255,255,0.9)', lineHeight: 1.6 }}>
+                      <div style={{ fontSize: '1.1em', color: isDark ? 'rgba(255,255,255,0.9)' : '#333', lineHeight: 1.6 }}>
                         Vos paiements génèrent un <strong style={{ color: '#f39c12' }}>surplus</strong> sur vos comptes crédit.
                       </div>
-                      <div style={{ fontSize: '1em', color: 'rgba(255,255,255,0.8)', marginTop: '10px' }}>
+                      <div style={{ fontSize: '1em', color: isDark ? 'rgba(255,255,255,0.8)' : '#555', marginTop: '10px' }}>
                         En ajustant vos paiements à votre budget réel à partir de <strong style={{ color: '#3498db' }}>{firstInterventionLabel}</strong>:
                       </div>
                     </div>
 
                     {/* Gros pourcentage de réduction */}
                     <div style={{
-                      background: 'linear-gradient(135deg, rgba(39, 174, 96, 0.25) 0%, rgba(46, 204, 113, 0.15) 100%)',
+                      background: isDark 
+                        ? 'linear-gradient(135deg, rgba(39, 174, 96, 0.25) 0%, rgba(46, 204, 113, 0.15) 100%)'
+                        : 'linear-gradient(135deg, rgba(39, 174, 96, 0.12) 0%, rgba(46, 204, 113, 0.06) 100%)',
                       borderRadius: '20px',
                       padding: '35px 25px',
                       marginBottom: '25px',
-                      border: '3px solid rgba(39, 174, 96, 0.5)',
+                      border: isDark ? '3px solid rgba(39, 174, 96, 0.5)' : '3px solid rgba(39, 174, 96, 0.3)',
                       textAlign: 'center'
                     }}>
                       <div style={{ 
@@ -2157,14 +2163,14 @@ const GestionComptes = () => {
                       </div>
                       <div style={{ 
                         fontSize: '1.3em', 
-                        color: 'white',
+                        color: isDark ? 'white' : '#1a1a2e',
                         fontWeight: '600'
                       }}>
                         📉 Réduisez vos paiements de {reductionPercent}%
                       </div>
                       <div style={{ 
                         fontSize: '0.95em', 
-                        color: 'rgba(255,255,255,0.7)',
+                        color: isDark ? 'rgba(255,255,255,0.7)' : '#666',
                         marginTop: '15px'
                       }}>
                         {formatMontant(totalCurrentPayments)}/mois → {formatMontant(totalNewPayments)}/mois
@@ -2181,14 +2187,14 @@ const GestionComptes = () => {
 
                     {/* Impact cumulé - version compacte */}
                     <div style={{
-                      background: 'rgba(255,255,255,0.05)',
+                      background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
                       borderRadius: '12px',
                       padding: '15px',
                       marginBottom: '20px'
                     }}>
                       <div style={{ 
                         fontSize: '0.85em', 
-                        color: 'rgba(255,255,255,0.6)', 
+                        color: isDark ? 'rgba(255,255,255,0.6)' : '#888', 
                         marginBottom: '10px',
                         textAlign: 'center'
                       }}>
@@ -2209,13 +2215,15 @@ const GestionComptes = () => {
                             key={idx}
                             style={{
                               flex: 1,
-                              background: idx === 3 ? 'rgba(39, 174, 96, 0.2)' : 'rgba(52, 152, 219, 0.1)',
+                              background: idx === 3 
+                                ? (isDark ? 'rgba(39, 174, 96, 0.2)' : 'rgba(39, 174, 96, 0.1)') 
+                                : (isDark ? 'rgba(52, 152, 219, 0.1)' : 'rgba(52, 152, 219, 0.06)'),
                               borderRadius: '8px',
                               padding: '10px 5px',
                               textAlign: 'center'
                             }}
                           >
-                            <div style={{ fontSize: '0.7em', color: 'rgba(255,255,255,0.5)' }}>
+                            <div style={{ fontSize: '0.7em', color: isDark ? 'rgba(255,255,255,0.5)' : '#999' }}>
                               {period.label}
                             </div>
                             <div style={{
@@ -2233,14 +2241,14 @@ const GestionComptes = () => {
 
                     {/* Détail des ajustements - compact */}
                     <div style={{
-                      background: 'rgba(255,255,255,0.03)',
+                      background: isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)',
                       borderRadius: '10px',
                       padding: '12px',
                       marginBottom: '15px'
                     }}>
                       <div style={{ 
                         fontSize: '0.8em', 
-                        color: 'rgba(255,255,255,0.5)', 
+                        color: isDark ? 'rgba(255,255,255,0.5)' : '#888', 
                         marginBottom: '8px' 
                       }}>
                         Détail des ajustements ({recommendations.length})
@@ -2254,13 +2262,13 @@ const GestionComptes = () => {
                             alignItems: 'center',
                             padding: '8px 0',
                             borderBottom: idx < recommendations.length - 1 
-                              ? '1px solid rgba(255,255,255,0.1)' 
+                              ? (isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)') 
                               : 'none'
                           }}
                         >
-                          <div style={{ fontSize: '0.85em', color: 'rgba(255,255,255,0.8)' }}>
+                          <div style={{ fontSize: '0.85em', color: isDark ? 'rgba(255,255,255,0.8)' : '#444' }}>
                             {rec.accountName}
-                            <span style={{ color: 'rgba(255,255,255,0.5)', marginLeft: '8px' }}>
+                            <span style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#888', marginLeft: '8px' }}>
                               {formatMontant(rec.currentAmountMonthly || rec.currentAmount)} → {formatMontant(rec.newAmountMonthly || rec.newAmount)}/mois
                             </span>
                           </div>
@@ -2282,11 +2290,11 @@ const GestionComptes = () => {
             {/* Footer avec boutons Refuser / Accepter */}
             <div style={{
               padding: '20px 25px',
-              borderTop: '2px solid rgba(255,255,255,0.1)',
+              borderTop: isDark ? '2px solid rgba(255,255,255,0.1)' : '2px solid rgba(0,0,0,0.08)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              background: 'rgba(0,0,0,0.2)',
+              background: isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.03)',
               gap: '15px'
             }}>
               <button
@@ -2326,6 +2334,94 @@ const GestionComptes = () => {
                 }}
               >
                 {isAcceptingProposal ? '⏳ Application...' : '✅ Accepter'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL SUCCÈS OPTIMISATION ===== */}
+      {showSuccessModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.7)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10002,
+          backdropFilter: 'blur(8px)',
+          animation: 'fadeIn 0.3s ease'
+        }}>
+          <div style={{
+            background: isDark ? 'linear-gradient(180deg, #0a0354 0%, #100261 100%)' : '#ffffff',
+            borderRadius: '24px',
+            maxWidth: '420px',
+            width: '90%',
+            overflow: 'hidden',
+            border: '3px solid rgba(39, 174, 96, 0.6)',
+            boxShadow: '0 20px 60px rgba(39, 174, 96, 0.3)',
+            textAlign: 'center',
+            animation: 'slideUp 0.4s ease'
+          }}>
+            {/* Header vert */}
+            <div style={{
+              background: 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)',
+              padding: '35px 25px'
+            }}>
+              <div style={{ fontSize: '3.5em', marginBottom: '12px' }}>✅</div>
+              <h2 style={{ margin: 0, color: 'white', fontSize: '1.4em' }}>
+                Optimisation appliquée!
+              </h2>
+            </div>
+            {/* Corps */}
+            <div style={{ padding: '30px 25px' }}>
+              <p style={{ 
+                color: isDark ? 'rgba(255,255,255,0.9)' : '#333', 
+                fontSize: '1.05em', 
+                margin: '0 0 20px',
+                lineHeight: 1.5
+              }}>
+                Vos paiements ont été ajustés avec succès.
+                Votre trajectoire financière est maintenant optimisée.
+              </p>
+              {successData?.monthlyRecovery > 0 && (
+                <div style={{
+                  background: isDark ? 'rgba(39, 174, 96, 0.15)' : 'rgba(39, 174, 96, 0.08)',
+                  borderRadius: '12px',
+                  padding: '15px',
+                  border: isDark ? '2px solid rgba(39, 174, 96, 0.3)' : '2px solid rgba(39, 174, 96, 0.2)',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ fontSize: '0.85em', color: isDark ? 'rgba(255,255,255,0.6)' : '#888', marginBottom: '5px' }}>
+                    Économie mensuelle
+                  </div>
+                  <div style={{ fontSize: '1.8em', fontWeight: 'bold', color: '#27ae60' }}>
+                    +{formatMontant(successData.monthlyRecovery)}/mois
+                  </div>
+                  <div style={{ fontSize: '0.85em', color: isDark ? 'rgba(255,255,255,0.5)' : '#999', marginTop: '5px' }}>
+                    {successData.recommendationsCount} ajustement{successData.recommendationsCount > 1 ? 's' : ''} appliqué{successData.recommendationsCount > 1 ? 's' : ''}
+                  </div>
+                </div>
+              )}
+              <button
+                onClick={() => setShowSuccessModal(false)}
+                style={{
+                  padding: '12px 40px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #27ae60 0%, #2ecc71 100%)',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontSize: '1em',
+                  fontWeight: 'bold',
+                  boxShadow: '0 4px 15px rgba(39, 174, 96, 0.3)'
+                }}
+              >
+                Parfait!
               </button>
             </div>
           </div>

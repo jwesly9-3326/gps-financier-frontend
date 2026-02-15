@@ -196,7 +196,8 @@
     "management": "Portfolio Management",
     "settings": "Settings",
     "logout": "Logout",
-    "locked": "Complete the guide to unlock"
+    "locked": "Complete the guide to unlock",
+    "enterprise": "My clients"
   },
   "auth": {
     "login": {
@@ -279,6 +280,7 @@
     "privacy": "🔒 Your data stays private",
     "devices": "📱 Available on all your devices",
     "company": "By Pl4to Inc.",
+    "proButton": "Advisor / Firm",
     "features": {
       "gps": {
         "title": "Your future, visualized",
@@ -1895,5 +1897,94 @@
       "description": "This feature is for subscribers only.",
       "benefit": "Unlock all features!"
     }
+  },
+  "proLanding": {
+    "badge": "Professional Portal",
+    "heroTitle1": "The Financial GPS",
+    "heroTitle2": "for your firm",
+    "heroSubtitle": "Give your clients a clear vision of their financial future.",
+    "heroSubtitle2": "Multi-year projections, day by day.",
+    "heroDescription": "A tool built for financial advisors and their firms.",
+    "ctaDemande": "📋 Request a Portal",
+    "ctaConnexion": "💼 Firm Login",
+    "feature1Title": "Financial GPS for your clients",
+    "feature1Desc": "Visualize each client's financial trajectory over multiple years with day-by-day precision.",
+    "feature2Title": "Multi-client management",
+    "feature2Desc": "A centralized dashboard to manage all your clients. Switch between profiles in one click.",
+    "feature3Title": "Secured data",
+    "feature3Desc": "Each firm has its own isolated space. Your clients' data stays under your control.",
+    "backToSite": "←",
+    "contactText": "Have questions? Contact us at",
+    "badgeCanada": "🔒 Data hosted in Canada",
+    "badgeQuebec": "🇨🇦 Built in Quebec",
+    "badgeSupport": "📞 Dedicated support",
+    "footerText": "© 2025 PL4TO Financial App | 9558-7168 Québec inc."
+  },
+  "proDemande": {
+    "title": "Choose your plan",
+    "subtitle": "Select the plan that fits your firm's size",
+    "popular": "⭐ Popular",
+    "perMonth": "/mo",
+    "continue": "Continue →",
+    "solo": {
+      "name": "Solo",
+      "seats": "1 advisor",
+      "maxClients": "25 clients",
+      "f1": "Unlimited Financial GPS",
+      "f2": "Dashboard",
+      "f3": "Basic PDF reports",
+      "f4": "Email support"
+    },
+    "cabinet": {
+      "name": "Firm",
+      "seats": "Up to 5 advisors",
+      "maxClients": "100 clients",
+      "f1": "Everything in Solo",
+      "f2": "Custom PDF reports",
+      "f3": "Firm logo & branding",
+      "f4": "Comparative simulations",
+      "f5": "Priority support"
+    },
+    "firme": {
+      "name": "Enterprise",
+      "seats": "Up to 15 advisors",
+      "maxClients": "1000 clients",
+      "f1": "Everything in Firm",
+      "f2": "API & integrations",
+      "f3": "B2C loop (client invitations)",
+      "f4": "Dedicated account manager",
+      "f5": "Personalized training"
+    },
+    "step2Title": "Your information",
+    "step2Subtitle": "Fill in your firm's details",
+    "labelCabinet": "Firm name",
+    "labelName": "Your full name",
+    "labelEmail": "Email",
+    "labelPhone": "Phone",
+    "labelAdvisors": "Number of advisors",
+    "labelMessage": "Message or questions (optional)",
+    "placeholderCabinet": "ABC Financial Firm",
+    "placeholderName": "John Smith",
+    "placeholderEmail": "john@firm.com",
+    "placeholderPhone": "514-555-0000",
+    "placeholderMessage": "Tell us about your firm...",
+    "opt1": "1 advisor",
+    "opt2": "2 advisors",
+    "opt3": "3-5 advisors",
+    "opt4": "6-10 advisors",
+    "opt5": "11-15 advisors",
+    "opt6": "16+ advisors",
+    "back": "← Back",
+    "submit": "📋 Submit request",
+    "submitting": "⏳ Sending...",
+    "successTitle": "Request sent!",
+    "successMsg": "Thank you for your interest in PL4TO Pro.",
+    "successDetail1": "Our team will review your request",
+    "successDetail2": "You will receive your credentials by email",
+    "successDetail3": "Usual delay: 24-48 business hours",
+    "backToPro": "← Back to PL4TO Pro",
+    "emailTitle": "📧 You will receive by email:",
+    "emailDetail": "Your unique identifier (PLT-XXXX-XXXX) and your temporary password",
+    "visitSite": "Visit pl4to.com"
   }
 }

@@ -83,6 +83,20 @@ export const TRIAL_ENDPOINTS = {
   ACTION: '/api/trial/action',
 };
 
+// Endpoints Enterprise (PL4TO Entreprise)
+export const ENTERPRISE_ENDPOINTS = {
+  CHECK: '/api/enterprise/check',
+  ORGANIZATION: '/api/enterprise/organization',
+  MEMBERS: '/api/enterprise/members',
+  MEMBERS_INVITE: '/api/enterprise/members/invite',
+  MEMBER_DELETE: (id) => `/api/enterprise/members/${id}`,
+  CLIENTS: '/api/enterprise/clients',
+  CLIENT_DETAIL: (id) => `/api/enterprise/clients/${id}`,
+  CLIENT_SNAPSHOT: (id) => `/api/enterprise/clients/${id}/snapshot`,
+  CLIENT_DELETE: (id) => `/api/enterprise/clients/${id}`,
+  DASHBOARD: '/api/enterprise/dashboard',
+};
+
 // Timeout par défaut
 export const DEFAULT_TIMEOUT = 10000;
 

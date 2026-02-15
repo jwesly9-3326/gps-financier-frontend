@@ -303,6 +303,34 @@ const LandingPage = () => {
               {t('landing.login')}
             </button>
           )}
+
+          {/* 🏢 Bouton Conseiller/Cabinet - Desktop et Mobile */}
+          <button
+            onClick={() => navigate('/pro')}
+            style={{
+              background: colors.btnSecondaryBg,
+              border: `2px solid ${colors.btnSecondaryBorder}`,
+              color: colors.btnSecondaryText,
+              padding: isMobile ? '8px 14px' : '10px 22px',
+              borderRadius: '25px',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.3s',
+              fontSize: isMobile ? '0.8em' : '0.9em',
+              backdropFilter: 'blur(10px)',
+              whiteSpace: 'nowrap'
+            }}
+            onMouseEnter={(e) => {
+              e.target.style.background = colors.btnSecondaryHoverBg;
+              e.target.style.borderColor = colors.btnSecondaryHoverBorder;
+            }}
+            onMouseLeave={(e) => {
+              e.target.style.background = colors.btnSecondaryBg;
+              e.target.style.borderColor = colors.btnSecondaryBorder;
+            }}
+          >
+            🏢 {isMobile ? 'Pro' : t('landing.proButton', 'Conseiller / Cabinet')}
+          </button>
         </div>
       </header>
 

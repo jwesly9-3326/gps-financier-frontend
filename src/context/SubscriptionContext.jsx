@@ -180,6 +180,15 @@ export const SubscriptionProvider = ({ children }) => {
       const subscription = await subscriptionService.getStatus();
       
       if (subscription) {
+        // 🔓 Accès illimité: bypass total
+        if (subscription.unlimitedAccess) {
+          setCurrentPlan(PLANS.ESSENTIAL);
+          setIsBetaFounder(true);
+          setTrialInfo({ isActive: false, startDate: null, endDate: null, daysRemaining: null, hasChosen: true });
+          console.log('[Subscription] 🔓 Accès illimité actif');
+          return;
+        }
+
         // 🔧 FIX: Vérifier côté frontend si le trial est expiré
         // Le backend devrait déjà faire cette vérification, mais on ajoute une sécurité
         let effectivePlan = subscription.currentPlan || PLANS.DISCOVERY;
@@ -254,6 +263,14 @@ export const SubscriptionProvider = ({ children }) => {
       const cached = localStorage.getItem(STORAGE_KEYS.SUBSCRIPTION_CACHE);
       if (cached) {
         const cachedData = JSON.parse(cached);
+        
+        // 🔓 Accès illimité (cache)
+        if (cachedData.unlimitedAccess) {
+          setCurrentPlan(PLANS.ESSENTIAL);
+          setIsBetaFounder(true);
+          setTrialInfo({ isActive: false, startDate: null, endDate: null, daysRemaining: null, hasChosen: true });
+          return;
+        }
         
         // 🔒 Appliquer les mêmes vérifications sur les données en cache
         let effectivePlan = cachedData.currentPlan || PLANS.DISCOVERY;

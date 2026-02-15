@@ -103,9 +103,10 @@ export const UserDataProvider = ({ children }) => {
     setSyncError(null);
     
     console.log('[UserDataContext] 💾 saveUserData appelé');
-    console.log('[UserDataContext] 🔑 isAuthenticated:', userDataService.isAuthenticated());
     
     try {
+      console.log('[UserDataContext] 🔑 isAuthenticated:', userDataService.isAuthenticated());
+      
       // 1. Sauvegarder localement immédiatement (optimistic update)
       saveLocalData(data);
       setUserData(data);
@@ -121,7 +122,6 @@ export const UserDataProvider = ({ children }) => {
         } catch (error) {
           console.error('[UserDataContext] ❌ Erreur sauvegarde backend:', error);
           setSyncError('Données sauvegardées localement. Sync backend échouée.');
-          // Les données sont déjà sauvegardées localement, on continue
         }
       } else {
         console.warn('[UserDataContext] ⚠️ Non authentifié - données sauvegardées en local seulement');

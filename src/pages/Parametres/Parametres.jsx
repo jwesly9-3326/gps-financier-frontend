@@ -136,6 +136,63 @@ const Parametres = () => {
     dateFormat: 'DD/MM/YYYY'
   });
   
+  // États Communications (emails hebdo + calendrier)
+  const [commPrefs, setCommPrefs] = useState({
+    weeklyReportEnabled: false,
+    weeklyReportDay: 1,
+    calendarEmailEnabled: false
+  });
+  const [commLoading, setCommLoading] = useState(false);
+  const [showDayPicker, setShowDayPicker] = useState(false);
+  const [tempSelectedDay, setTempSelectedDay] = useState(1);
+  
+  // Charger les préférences de communication au mount
+  useEffect(() => {
+    const loadCommPrefs = async () => {
+      try {
+        const token = localStorage.getItem('pl4to_token');
+        if (!token) return;
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'}/api/communications/preferences`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setCommPrefs({
+            weeklyReportEnabled: data.weeklyReportEnabled || false,
+            weeklyReportDay: data.weeklyReportDay ?? 1,
+            calendarEmailEnabled: data.calendarEmailEnabled || false
+          });
+        }
+      } catch (err) {
+        console.error('[Comm] Erreur chargement préférences:', err);
+      }
+    };
+    loadCommPrefs();
+  }, []);
+  
+  // Mettre à jour les préférences de communication
+  const updateCommPref = async (key, value) => {
+    const newPrefs = { ...commPrefs, [key]: value };
+    setCommPrefs(newPrefs);
+    setCommLoading(true);
+    try {
+      const token = localStorage.getItem('pl4to_token');
+      await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'}/api/communications/preferences`, {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newPrefs)
+      });
+    } catch (err) {
+      console.error('[Comm] Erreur mise à jour:', err);
+      setCommPrefs(commPrefs); // Rollback
+    } finally {
+      setCommLoading(false);
+    }
+  };
+  
   // États Notifications
   const [notifications, setNotifications] = useState({
     emailAlerts: true,
@@ -1550,6 +1607,216 @@ const Parametres = () => {
           </div>
         </div>
       </div>
+      
+      {/* === COMMUNICATIONS EMAIL === */}
+      <div style={{ 
+        marginTop: '32px', 
+        paddingTop: '28px', 
+        borderTop: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)' 
+      }}>
+        <h3 style={{ 
+          fontSize: '1.15rem', 
+          fontWeight: '600', 
+          marginBottom: '8px',
+          color: isDark ? 'white' : '#1e293b',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          📧 {i18n.language === 'fr' ? 'Communications par email' : 'Email Communications'}
+        </h3>
+        <p style={{ 
+          color: isDark ? 'rgba(255,255,255,0.5)' : '#94a3b8', 
+          fontSize: '0.9rem', 
+          marginBottom: '20px',
+          lineHeight: '1.5'
+        }}>
+          {i18n.language === 'fr' 
+            ? 'Reçois des résumés et rappels directement dans ta boîte mail.' 
+            : 'Receive summaries and reminders directly in your inbox.'}
+        </p>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '500px' }}>
+          {/* Toggle Résumé Hebdomadaire */}
+          <div 
+            onClick={() => {
+              if (commLoading) return;
+              if (!commPrefs.weeklyReportEnabled) {
+                setTempSelectedDay(commPrefs.weeklyReportDay ?? 1);
+                setShowDayPicker(true);
+              } else {
+                updateCommPref('weeklyReportEnabled', false);
+              }
+            }}
+            style={{
+              padding: '16px',
+              background: commPrefs.weeklyReportEnabled 
+                ? (isDark ? 'rgba(102, 126, 234, 0.15)' : 'rgba(102, 126, 234, 0.08)')
+                : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.02)'),
+              borderRadius: '12px',
+              border: commPrefs.weeklyReportEnabled 
+                ? '2px solid rgba(102, 126, 234, 0.4)'
+                : (isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)'),
+              opacity: commLoading ? 0.7 : 1,
+              transition: 'all 0.3s',
+              cursor: 'pointer'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '1.2em' }}>📋</span>
+              <span style={{ fontWeight: '500', color: isDark ? 'white' : '#1e293b', flex: 1 }}>
+                {i18n.language === 'fr' ? 'Trajectoire financière hebdomadaire' : 'Weekly Financial Trajectory'}
+              </span>
+              {/* Toggle switch */}
+              <div style={{
+                width: '44px', height: '24px', borderRadius: '12px',
+                background: commPrefs.weeklyReportEnabled ? '#667eea' : (isDark ? 'rgba(255,255,255,0.2)' : '#ccc'),
+                position: 'relative', transition: 'background 0.3s', flexShrink: 0
+              }}>
+                <div style={{
+                  width: '20px', height: '20px', borderRadius: '50%', background: 'white',
+                  position: 'absolute', top: '2px',
+                  left: commPrefs.weeklyReportEnabled ? '22px' : '2px',
+                  transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                }} />
+              </div>
+            </div>
+            {commPrefs.weeklyReportEnabled && (
+              <div style={{ 
+                marginTop: '8px', paddingTop: '8px',
+                borderTop: isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.06)',
+                display: 'flex', alignItems: 'center', gap: '6px'
+              }}>
+                <span style={{ fontSize: '0.85em', color: isDark ? 'rgba(255,255,255,0.5)' : '#94a3b8' }}>
+                  📅 {i18n.language === 'fr' ? 'Envoi chaque' : 'Sent every'}{' '}
+                  <strong style={{ color: '#667eea', cursor: 'pointer' }} onClick={(e) => {
+                    e.stopPropagation();
+                    setTempSelectedDay(commPrefs.weeklyReportDay ?? 1);
+                    setShowDayPicker(true);
+                  }}>
+                    {[i18n.language === 'fr' ? 'Dimanche' : 'Sunday', i18n.language === 'fr' ? 'Lundi' : 'Monday', i18n.language === 'fr' ? 'Mardi' : 'Tuesday', i18n.language === 'fr' ? 'Mercredi' : 'Wednesday', i18n.language === 'fr' ? 'Jeudi' : 'Thursday', i18n.language === 'fr' ? 'Vendredi' : 'Friday', i18n.language === 'fr' ? 'Samedi' : 'Saturday'][commPrefs.weeklyReportDay ?? 1]}
+                  </strong>
+                  {' '}✏️
+                </span>
+              </div>
+            )}
+          </div>
+          
+          {/* Toggle Événements Calendrier */}
+          <div
+            onClick={() => !commLoading && updateCommPref('calendarEmailEnabled', !commPrefs.calendarEmailEnabled)}
+            style={{
+              padding: '16px',
+              background: commPrefs.calendarEmailEnabled 
+                ? (isDark ? 'rgba(102, 126, 234, 0.15)' : 'rgba(102, 126, 234, 0.08)')
+                : (isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.02)'),
+              borderRadius: '12px',
+              border: commPrefs.calendarEmailEnabled 
+                ? '2px solid rgba(102, 126, 234, 0.4)'
+                : (isDark ? '1px solid rgba(255,255,255,0.1)' : '1px solid rgba(0,0,0,0.08)'),
+              opacity: commLoading ? 0.7 : 1,
+              transition: 'all 0.3s',
+              cursor: 'pointer'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <span style={{ fontSize: '1.2em' }}>📅</span>
+              <span style={{ fontWeight: '500', color: isDark ? 'white' : '#1e293b', flex: 1 }}>
+                {i18n.language === 'fr' ? 'Événements du calendrier' : 'Calendar Events'}
+              </span>
+              {/* Toggle switch */}
+              <div style={{
+                width: '44px', height: '24px', borderRadius: '12px',
+                background: commPrefs.calendarEmailEnabled ? '#667eea' : (isDark ? 'rgba(255,255,255,0.2)' : '#ccc'),
+                position: 'relative', transition: 'background 0.3s', flexShrink: 0
+              }}>
+                <div style={{
+                  width: '20px', height: '20px', borderRadius: '50%', background: 'white',
+                  position: 'absolute', top: '2px',
+                  left: commPrefs.calendarEmailEnabled ? '22px' : '2px',
+                  transition: 'left 0.3s', boxShadow: '0 1px 3px rgba(0,0,0,0.3)'
+                }} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* === MODAL CHOIX JOUR HEBDO === */}
+      {showDayPicker && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center',
+          justifyContent: 'center', zIndex: 10000, backdropFilter: 'blur(5px)'
+        }}>
+          <div style={{
+            background: isDark ? 'linear-gradient(180deg, #0a0354 0%, #100261 100%)' : '#ffffff',
+            borderRadius: '20px', padding: '30px', maxWidth: '380px', width: '90%',
+            border: isDark ? '2px solid rgba(102, 126, 234, 0.4)' : '2px solid rgba(102, 126, 234, 0.2)',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.4)', textAlign: 'center'
+          }}>
+            <div style={{ fontSize: '2em', marginBottom: '8px' }}>📅</div>
+            <h3 style={{ margin: '0 0 4px', color: isDark ? 'white' : '#1e293b', fontSize: '1.2em' }}>
+              {i18n.language === 'fr' ? 'Jour de la semaine' : 'Day of the week'}
+            </h3>
+            <p style={{ color: '#667eea', fontSize: '1em', margin: '0 0 20px', fontWeight: '600' }}>
+              {[i18n.language === 'fr' ? 'Dimanche' : 'Sunday', i18n.language === 'fr' ? 'Lundi' : 'Monday', i18n.language === 'fr' ? 'Mardi' : 'Tuesday', i18n.language === 'fr' ? 'Mercredi' : 'Wednesday', i18n.language === 'fr' ? 'Jeudi' : 'Thursday', i18n.language === 'fr' ? 'Vendredi' : 'Friday', i18n.language === 'fr' ? 'Samedi' : 'Saturday'][tempSelectedDay]}
+            </p>
+
+            {/* Grille des jours */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px', marginBottom: '10px' }}>
+              {(i18n.language === 'fr' 
+                ? [{l:'Dim',v:0},{l:'Lun',v:1},{l:'Mar',v:2},{l:'Mer',v:3}]
+                : [{l:'Sun',v:0},{l:'Mon',v:1},{l:'Tue',v:2},{l:'Wed',v:3}]
+              ).map(d => (
+                <button key={d.v} onClick={() => setTempSelectedDay(d.v)} style={{
+                  padding: '12px 8px', borderRadius: '12px', fontSize: '0.95em', fontWeight: '600',
+                  border: tempSelectedDay === d.v ? 'none' : (isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid rgba(0,0,0,0.12)'),
+                  background: tempSelectedDay === d.v ? '#f39c12' : 'transparent',
+                  color: tempSelectedDay === d.v ? 'white' : (isDark ? 'rgba(255,255,255,0.8)' : '#444'),
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}>{d.l}</button>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px', marginBottom: '25px' }}>
+              {(i18n.language === 'fr'
+                ? [{l:'Jeu',v:4},{l:'Ven',v:5},{l:'Sam',v:6}]
+                : [{l:'Thu',v:4},{l:'Fri',v:5},{l:'Sat',v:6}]
+              ).map(d => (
+                <button key={d.v} onClick={() => setTempSelectedDay(d.v)} style={{
+                  padding: '12px 8px', borderRadius: '12px', fontSize: '0.95em', fontWeight: '600',
+                  border: tempSelectedDay === d.v ? 'none' : (isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid rgba(0,0,0,0.12)'),
+                  background: tempSelectedDay === d.v ? '#f39c12' : 'transparent',
+                  color: tempSelectedDay === d.v ? 'white' : (isDark ? 'rgba(255,255,255,0.8)' : '#444'),
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}>{d.l}</button>
+              ))}
+            </div>
+
+            {/* Boutons Annuler / Confirmer */}
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button onClick={() => setShowDayPicker(false)} style={{
+                flex: 1, padding: '14px', borderRadius: '12px', fontSize: '1em', fontWeight: 'bold',
+                border: isDark ? '2px solid rgba(255,255,255,0.2)' : '2px solid rgba(0,0,0,0.12)',
+                background: 'transparent', color: isDark ? 'white' : '#333', cursor: 'pointer'
+              }}>
+                {i18n.language === 'fr' ? 'Annuler' : 'Cancel'}
+              </button>
+              <button onClick={async () => {
+                await updateCommPref('weeklyReportEnabled', true);
+                await updateCommPref('weeklyReportDay', tempSelectedDay);
+                setShowDayPicker(false);
+              }} style={{
+                flex: 1, padding: '14px', borderRadius: '12px', fontSize: '1em', fontWeight: 'bold',
+                border: 'none', background: 'linear-gradient(135deg, #00b4d8 0%, #0096c7 100%)',
+                color: 'white', cursor: 'pointer', boxShadow: '0 4px 15px rgba(0, 180, 216, 0.3)'
+              }}>
+                {i18n.language === 'fr' ? 'Confirmer' : 'Confirm'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
   
