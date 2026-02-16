@@ -902,6 +902,11 @@ const Comptes = () => {
     const baseFontSize = size > 130 ? 1.5 : 1.2;
     const adjustedFontSize = baseFontSize * fontSizeMultiplier;
     
+    // Ratio d'utilisation crédit
+    const creditLimite = parseFloat(account.limite) || 0;
+    const utilPct = (isCredit && creditLimite > 0) ? Math.min(100, Math.round((soldeValue / creditLimite) * 100)) : null;
+    const utilColor = utilPct !== null ? (utilPct > 75 ? '#cc6600' : utilPct > 30 ? '#ffa500' : '#2ecc71') : null;
+    
     // Couleur uniforme pour tous les comptes (orange/or brillant)
     const borderGradient = 'linear-gradient(180deg, #ffd700, #ffb800, #ffa500, #ffd700)';
     const glowColor = 'rgba(255, 165, 0, 0.4)';
@@ -950,6 +955,10 @@ const Comptes = () => {
             transition: 'all 0.3s',
             transform: 'scale(1)'
           }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isLocked) navigate(`/budget?account=${encodeURIComponent(account.nom)}`);
+          }}
           onMouseEnter={(e) => {
             e.currentTarget.style.transform = 'scale(1.08)';
           }}
@@ -974,6 +983,19 @@ const Comptes = () => {
               ? `0 0 0 6px rgba(102, 126, 234, 0.5), 0 0 30px ${glowColor}`
               : `0 0 20px ${glowColor}`
           }} />
+          
+          {/* Badge % utilisation */}
+          {utilPct !== null && (
+            <div style={{
+              position: 'absolute', top: -4, right: -4, zIndex: 3,
+              background: utilColor,
+              color: 'white', fontSize: '0.65em', fontWeight: 700,
+              padding: '2px 6px', borderRadius: 10,
+              boxShadow: `0 2px 8px ${utilColor}80`
+            }}>
+              {utilPct}%
+            </div>
+          )}
           
           {/* Contenu intérieur bleu foncé */}
           <div style={{
@@ -1403,10 +1425,18 @@ const Comptes = () => {
                     justifyContent: 'center'
                   }}>
                     {/* Cercle du compte - taille réduite */}
-                    <div style={{
+                    {(() => {
+                      const mobileLimite = parseFloat(account.limite) || 0;
+                      const mobileUtilPct = (isCredit && mobileLimite > 0) ? Math.min(100, Math.round((soldeValue / mobileLimite) * 100)) : null;
+                      const mobileUtilColor = mobileUtilPct !== null ? (mobileUtilPct > 75 ? '#cc6600' : mobileUtilPct > 30 ? '#ffa500' : '#2ecc71') : null;
+                      return (
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); if (!isLocked) navigate(`/budget?account=${encodeURIComponent(account.nom)}`); }}
+                      style={{
                       position: 'relative',
                       width: '120px',
-                      height: '120px'
+                      height: '120px',
+                      cursor: 'pointer'
                     }}>
                       <div style={{
                         position: 'absolute',
@@ -1420,6 +1450,12 @@ const Comptes = () => {
                         animation: 'gps-ring-spin 3s linear infinite',
                         boxShadow: '0 0 25px rgba(255, 165, 0, 0.5)'
                       }} />
+                      {/* Badge % mobile */}
+                      {mobileUtilPct !== null && (
+                        <div style={{ position: 'absolute', top: -4, right: -4, zIndex: 3, background: mobileUtilColor, color: 'white', fontSize: '0.65em', fontWeight: 700, padding: '2px 6px', borderRadius: 10, boxShadow: `0 2px 8px ${mobileUtilColor}80` }}>
+                          {mobileUtilPct}%
+                        </div>
+                      )}
                       <div style={{
                         position: 'absolute',
                         top: '4px',
@@ -1450,6 +1486,8 @@ const Comptes = () => {
                         </div>
                       </div>
                     </div>
+                      );
+                    })()}
 
                     {/* Nom et type */}
                     <div style={{

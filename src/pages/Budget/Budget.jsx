@@ -4,7 +4,7 @@
 // 🎨 Theme support
 
 import { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '../../context/UserDataContext';
 import { useSubscription } from '../../context/SubscriptionContext';
@@ -24,6 +24,7 @@ import DatePickerModal from '../../components/common/DatePickerModal';
 const Budget = () => {
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { userData, saveUserData, isLoading } = useUserData();
   const { canAddMore, limits } = useSubscription();
   const { theme, isDark } = useTheme();
@@ -138,6 +139,8 @@ const Budget = () => {
   const [numpadTarget, setNumpadTarget] = useState(null); // 'montant' ou 'jourRecurrence'
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [expandedSection, setExpandedSection] = useState(null);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState(null);
   const [isFullScreen, setIsFullScreen] = useState(window.innerWidth < 768);
   const [upgradeModal, setUpgradeModal] = useState({ isOpen: false, type: null }); // Pour les restrictions abonnement
   const [celebrationMessage, setCelebrationMessage] = useState(null); // Message de célébration premier ajout
@@ -1918,6 +1921,293 @@ const Budget = () => {
     );
   };
 
+  // ===== RÉPARTITION PAR COMPTE =====
+  const accountBreakdown = useMemo(() => {
+    const calcMensuel = (montant, frequence) => {
+      const m = parseFloat(montant) || 0;
+      if (frequence === '1-fois') return 0;
+      switch (frequence) {
+        case 'hebdomadaire': return m * 4;
+        case 'quinzaine': case 'bimensuel': return m * 2;
+        case 'trimestriel': return m / 3;
+        case 'semestriel': return m / 6;
+        case 'annuel': return m / 12;
+        default: return m;
+      }
+    };
+    
+    const map = {};
+    const addToMap = (items, type) => {
+      (items || []).forEach(item => {
+        if (item.dateFinRecurrence) {
+          const fin = new Date(item.dateFinRecurrence);
+          const now = new Date(); now.setHours(0,0,0,0);
+          if (fin < now) return;
+        }
+        const key = item.compte || (i18n.language === 'fr' ? 'Sans compte' : 'No account');
+        if (!map[key]) map[key] = { nom: key, entrees: 0, sorties: 0, type: 'checking' };
+        const mensuel = calcMensuel(item.montant, item.frequence);
+        if (type === 'entrees') map[key].entrees += mensuel;
+        else map[key].sorties += mensuel;
+      });
+    };
+    addToMap(entrees, 'entrees');
+    addToMap(sorties, 'sorties');
+    
+    // Enrichir avec le type de compte
+    Object.values(map).forEach(acc => {
+      const found = accounts.find(a => a.nom === acc.nom);
+      if (found) acc.type = found.type || 'checking';
+    });
+    
+    return Object.values(map).sort((a, b) => (b.entrees - b.sorties) - (a.entrees - a.sorties));
+  }, [entrees, sorties, accounts, i18n.language]);
+
+  // Lire le paramètre ?account= pour navigation depuis Comptes
+  useEffect(() => {
+    const accountParam = searchParams.get('account');
+    if (accountParam && accountBreakdown.length > 0) {
+      const found = accountBreakdown.find(a => a.nom === accountParam);
+      if (found) {
+        setShowBreakdown(true);
+        setSelectedAccount(accountParam);
+        if (!isMobile) setIsFullScreen(true);
+      }
+      // Nettoyer l'URL
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, accountBreakdown]);
+
+  const renderAccountBreakdown = () => {
+    const totalNet = accountBreakdown.reduce((s, a) => s + (a.entrees - a.sorties), 0);
+    const maxVal = Math.max(...accountBreakdown.map(a => Math.max(a.entrees, a.sorties)), 1);
+    
+    const getAccountIcon = (type) => {
+      switch (type) {
+        case 'credit': return '🏦';
+        case 'epargne': return '🌱';
+        case 'hypotheque': return '🏠';
+        default: return '💳';
+      }
+    };
+    const getAccountLabel = (type) => {
+      if (i18n.language === 'fr') {
+        switch (type) {
+          case 'credit': return 'Crédit';
+          case 'epargne': return 'Épargne';
+          case 'hypotheque': return 'Hypothèque';
+          default: return 'Chèque';
+        }
+      } else {
+        switch (type) {
+          case 'credit': return 'Credit';
+          case 'epargne': return 'Savings';
+          case 'hypotheque': return 'Mortgage';
+          default: return 'Checking';
+        }
+      }
+    };
+    
+    return (
+      <div style={{ position: 'absolute', inset: 0, padding: isMobile ? '15px' : '25px 30px', overflowY: 'auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isMobile ? 16 : 24 }}>
+          <div>
+            <h3 style={{ margin: 0, color: isDark ? 'white' : '#1e293b', fontSize: isMobile ? '1em' : '1.15em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              ⚖️ {i18n.language === 'fr' ? 'Répartition par compte' : 'Breakdown by account'}
+            </h3>
+          </div>
+        </div>
+
+        {/* Cartes comptes */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 10 : 14 }}>
+          {accountBreakdown.map((acc, i) => {
+            const isCredit = acc.type === 'credit' || acc.type === 'hypotheque';
+            // Crédit: net = dépenses - paiements (négatif = on paie plus = vert)
+            const displayNet = isCredit ? (acc.sorties - acc.entrees) : (acc.entrees - acc.sorties);
+            const barPlus = isCredit ? acc.sorties : acc.entrees;
+            const barMinus = isCredit ? acc.entrees : acc.sorties;
+            const netColor = isCredit ? (displayNet <= 0 ? '#2ecc71' : '#ffa500') : (displayNet >= 0 ? '#2ecc71' : '#ffa500');
+            return (
+              <div key={i} onClick={() => setSelectedAccount(acc.nom)} style={{
+                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)',
+                borderRadius: 16,
+                padding: isMobile ? '14px 16px' : '18px 20px',
+                border: isDark ? '1px solid rgba(255,255,255,0.08)' : '1px solid rgba(0,0,0,0.06)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)';
+                e.currentTarget.style.borderColor = isDark ? 'rgba(102,126,234,0.4)' : 'rgba(102,126,234,0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.02)';
+                e.currentTarget.style.borderColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
+              }}>
+                {/* Nom + Net */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 10,
+                      background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1em'
+                    }}>
+                      {getAccountIcon(acc.type)}
+                    </div>
+                    <div>
+                      <span style={{ color: isDark ? 'white' : '#1e293b', fontWeight: 600, fontSize: isMobile ? '0.85em' : '0.95em' }}>{acc.nom}</span>
+                      <span style={{ display: 'block', color: isDark ? 'rgba(255,255,255,0.4)' : '#94a3b8', fontSize: '0.75em' }}>{getAccountLabel(acc.type)}</span>
+                    </div>
+                  </div>
+                  <span style={{ color: netColor, fontWeight: 'bold', fontSize: isMobile ? '1em' : '1.1em' }}>
+                    {displayNet >= 0 ? '+' : '-'}{formatMontant(displayNet)}
+                  </span>
+                </div>
+                {/* Barre + */}
+                {barPlus > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ color: '#3498db', fontSize: '0.7em', width: 10, textAlign: 'center' }}>+</span>
+                    <div style={{ flex: 1, height: 8, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ width: `${(barPlus / maxVal) * 100}%`, height: '100%', background: 'linear-gradient(90deg, #3498db, #2ecc71)', borderRadius: 4, transition: 'width 0.6s ease' }} />
+                    </div>
+                    <span style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#64748b', fontSize: '0.75em', width: 65, textAlign: 'right' }}>{formatMontant(barPlus)}</span>
+                  </div>
+                )}
+                {/* Barre - */}
+                {barMinus > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ color: '#ffa500', fontSize: '0.7em', width: 10, textAlign: 'center' }}>−</span>
+                    <div style={{ flex: 1, height: 8, background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)', borderRadius: 4, overflow: 'hidden' }}>
+                      <div style={{ width: `${(barMinus / maxVal) * 100}%`, height: '100%', background: 'linear-gradient(90deg, #ffa500, #e74c3c)', borderRadius: 4, transition: 'width 0.6s ease' }} />
+                    </div>
+                    <span style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#64748b', fontSize: '0.75em', width: 65, textAlign: 'right' }}>{formatMontant(barMinus)}</span>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderAccountDetail = () => {
+    if (!selectedAccount) return null;
+    
+    const accData = accountBreakdown.find(a => a.nom === selectedAccount);
+    const isCredit = accData && (accData.type === 'credit' || accData.type === 'hypotheque');
+    
+    const calcMensuel = (montant, frequence) => {
+      const m = parseFloat(montant) || 0;
+      if (frequence === '1-fois') return 0;
+      switch (frequence) {
+        case 'hebdomadaire': return m * 4;
+        case 'quinzaine': case 'bimensuel': return m * 2;
+        case 'trimestriel': return m / 3;
+        case 'semestriel': return m / 6;
+        case 'annuel': return m / 12;
+        default: return m;
+      }
+    };
+    
+    const isActive = (item) => {
+      if (item.dateFinRecurrence) {
+        const fin = new Date(item.dateFinRecurrence);
+        const now = new Date(); now.setHours(0,0,0,0);
+        if (fin < now) return false;
+      }
+      return true;
+    };
+    
+    const accountEntrees = entrees
+      .filter(e => (e.compte || '') === selectedAccount && isActive(e))
+      .map(e => ({ description: e.description, montant: calcMensuel(e.montant, e.frequence), frequence: e.frequence }))
+      .filter(e => e.montant > 0)
+      .sort((a, b) => b.montant - a.montant);
+    
+    const accountSorties = sorties
+      .filter(s => (s.compte || '') === selectedAccount && isActive(s))
+      .map(s => ({ description: s.description, montant: calcMensuel(s.montant, s.frequence), frequence: s.frequence }))
+      .filter(s => s.montant > 0)
+      .sort((a, b) => b.montant - a.montant);
+    
+    // Crédit: gauche = sorties (dépenses), droite = entrées (paiements)
+    // Normal: gauche = entrées (+), droite = sorties (-)
+    const leftItems = isCredit ? accountSorties : accountEntrees;
+    const rightItems = isCredit ? accountEntrees : accountSorties;
+    const leftLabel = isCredit 
+      ? (i18n.language === 'fr' ? 'Dépenses' : 'Expenses')
+      : (i18n.language === 'fr' ? 'Entrées' : 'Income');
+    const rightLabel = isCredit 
+      ? (i18n.language === 'fr' ? 'Paiements' : 'Payments')
+      : (i18n.language === 'fr' ? 'Sorties' : 'Expenses');
+    const leftTotal = leftItems.reduce((s, i) => s + i.montant, 0);
+    const rightTotal = rightItems.reduce((s, i) => s + i.montant, 0);
+    
+    const getAccountIcon = (type) => {
+      switch (type) {
+        case 'credit': return '🏦';
+        case 'epargne': return '🌱';
+        case 'hypotheque': return '🏠';
+        default: return '💳';
+      }
+    };
+    
+    const renderColumn = (items, total, label, color) => (
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ marginBottom: 12, textAlign: 'center' }}>
+          <span style={{ color: isDark ? 'rgba(255,255,255,0.5)' : '#94a3b8', fontSize: '0.8em', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{label}</span>
+          <p style={{ margin: '4px 0 0', color, fontWeight: 'bold', fontSize: isMobile ? '1.1em' : '1.3em' }}>{formatMontant(total)}</p>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {items.map((item, idx) => {
+            const pct = total > 0 ? (item.montant / total) * 100 : 0;
+            return (
+              <div key={idx} style={{
+                background: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.02)',
+                borderRadius: 12,
+                padding: isMobile ? '10px 12px' : '12px 14px',
+                border: isDark ? '1px solid rgba(255,255,255,0.06)' : '1px solid rgba(0,0,0,0.04)',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ color: isDark ? 'white' : '#1e293b', fontSize: isMobile ? '0.8em' : '0.85em', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: 8 }}>{item.description}</span>
+                  <span style={{ color, fontSize: isMobile ? '0.8em' : '0.85em', fontWeight: 600, whiteSpace: 'nowrap' }}>{formatMontant(item.montant)}</span>
+                </div>
+                <div style={{ height: 4, background: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)', borderRadius: 2, overflow: 'hidden' }}>
+                  <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: 2, transition: 'width 0.6s ease' }} />
+                </div>
+              </div>
+            );
+          })}
+          {items.length === 0 && (
+            <p style={{ color: isDark ? 'rgba(255,255,255,0.3)' : '#cbd5e1', fontSize: '0.85em', textAlign: 'center', fontStyle: 'italic', margin: '20px 0' }}>
+              {i18n.language === 'fr' ? 'Aucun élément' : 'No items'}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+    
+    return (
+      <div style={{ position: 'absolute', inset: 0, padding: isMobile ? '15px' : '25px 30px', overflowY: 'auto' }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: isMobile ? 16 : 24 }}>
+          <span style={{ fontSize: '1.2em' }}>{accData ? getAccountIcon(accData.type) : '💳'}</span>
+          <h3 style={{ margin: 0, color: isDark ? 'white' : '#1e293b', fontSize: isMobile ? '1em' : '1.15em' }}>{selectedAccount}</h3>
+        </div>
+        
+        {/* Colonnes */}
+        <div style={{ display: 'flex', gap: isMobile ? 12 : 20 }}>
+          {renderColumn(leftItems, leftTotal, leftLabel, '#3498db')}
+          {/* Séparateur */}
+          <div style={{ width: 1, background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)', alignSelf: 'stretch', margin: '30px 0 0' }} />
+          {renderColumn(rightItems, rightTotal, rightLabel, '#ffa500')}
+        </div>
+      </div>
+    );
+  };
+
   const renderPlatformContent = () => (
     <div onClick={() => { if (isMobile && expandedSection) setExpandedSection(null); }} style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}>
       {/* Cercle externe avec pulse orange/doré */}
@@ -2325,7 +2615,36 @@ const Budget = () => {
           </div>
         </div>
 
-        {renderPlatformContent()}
+        {/* === SLIDE CONTAINER === */}
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+          {/* Slide 0: Cercles budget */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            transform: showBreakdown ? 'translateX(-100%)' : 'translateX(0)',
+            opacity: showBreakdown ? 0 : 1,
+            transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}>
+            {renderPlatformContent()}
+          </div>
+          {/* Slide 1: Répartition par compte */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            transform: !showBreakdown ? 'translateX(100%)' : (selectedAccount ? 'translateX(-100%)' : 'translateX(0)'),
+            opacity: !showBreakdown ? 0 : (selectedAccount ? 0 : 1),
+            transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}>
+            {renderAccountBreakdown()}
+          </div>
+          {/* Slide 2: Détail du compte */}
+          <div style={{
+            position: 'absolute', inset: 0,
+            transform: selectedAccount ? 'translateX(0)' : 'translateX(100%)',
+            opacity: selectedAccount ? 1 : 0,
+            transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+          }}>
+            {renderAccountDetail()}
+          </div>
+        </div>
 
         
       </div>
@@ -2421,6 +2740,7 @@ const Budget = () => {
               
               {/* 📱 Mobile: Boutons X et Œil en colonne verticale */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+                {!showBreakdown && (
                 <button
                   onClick={(e) => { 
                     e.stopPropagation(); 
@@ -2458,6 +2778,7 @@ const Budget = () => {
                 >
                   ✕
                 </button>
+                )}
                 
                 {/* Bouton Œil pour masquer/afficher les soldes */}
                 <button
@@ -2485,15 +2806,81 @@ const Budget = () => {
                 >
                   {balancesHidden ? '👁️‍🗨️' : '👁️'}
                 </button>
+                
+                {/* Bouton répartition par compte / retour */}
+                {(entrees.length > 0 || sorties.length > 0) && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (selectedAccount) {
+                        setSelectedAccount(null);
+                      } else if (showBreakdown) {
+                        setShowBreakdown(false);
+                      } else {
+                        setShowBreakdown(true);
+                      }
+                    }}
+                    title={(showBreakdown || selectedAccount) ? (i18n.language === 'fr' ? 'Retour' : 'Back') : (i18n.language === 'fr' ? 'Répartition par compte' : 'Breakdown by account')}
+                    style={{
+                      borderRadius: '50%',
+                      width: isMobile ? '36px' : '40px',
+                      height: isMobile ? '36px' : '40px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      fontSize: isMobile ? '1em' : '1.2em',
+                      transition: 'all 0.3s',
+                      border: showBreakdown
+                        ? (isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)')
+                        : (isDark ? '2px solid rgba(255,255,255,0.3)' : '2px solid rgba(0,0,0,0.2)'),
+                      background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
+                      color: isDark ? 'white' : '#64748b',
+                      boxShadow: 'none'
+                    }}
+                  >
+                    {(showBreakdown || selectedAccount) ? '⬅' : '⚖️'}
+                  </button>
+                )}
+                
               </div>
             </div>
           </div>
 
           <div style={{ flex: 1, position: 'relative', background: 'transparent', overflow: 'hidden' }}>
-            {renderPlatformContent()}
+            {/* === SLIDE CONTAINER FULLSCREEN === */}
+            <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+              {/* Slide 0: Cercles budget */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                transform: showBreakdown ? 'translateX(-100%)' : 'translateX(0)',
+                opacity: showBreakdown ? 0 : 1,
+                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}>
+                {renderPlatformContent()}
+              </div>
+              {/* Slide 1: Répartition par compte */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                transform: !showBreakdown ? 'translateX(100%)' : (selectedAccount ? 'translateX(-100%)' : 'translateX(0)'),
+                opacity: !showBreakdown ? 0 : (selectedAccount ? 0 : 1),
+                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}>
+                {renderAccountBreakdown()}
+              </div>
+              {/* Slide 2: Détail du compte */}
+              <div style={{
+                position: 'absolute', inset: 0,
+                transform: selectedAccount ? 'translateX(0)' : 'translateX(100%)',
+                opacity: selectedAccount ? 1 : 0,
+                transition: 'all 0.5s cubic-bezier(0.4, 0, 0.2, 1)',
+              }}>
+                {renderAccountDetail()}
+              </div>
+            </div>
             
             {/* 💡 Bouton d'aide - Relancer le guide */}
-            {isGuideComplete && (
+            {isGuideComplete && !showBreakdown && (
               <button
                 onClick={() => {
                   isManualTourRef.current = true;

@@ -826,6 +826,9 @@
     "of": "sur",
     "distanceTraveled": "Distance parcourue",
     "repayment": "Remboursement",
+    "reached": "Destination atteinte",
+    "eta": "Arrivée estimée",
+    "etaBeyond": "Arrivée estimée : au-delà de 5 ans",
     "details": "Détails",
     "edit": "Modifier",
     "showBalances": "Afficher les soldes",
@@ -853,6 +856,7 @@
       "remainingToReach": "Reste à atteindre",
       "progression": "Progression",
       "deadline": "Échéance",
+      "eta": "Arrivée estimée",
       "notes": "Notes",
       "close": "Fermer"
     },

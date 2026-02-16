@@ -4,7 +4,7 @@
 // ✅ Utilise useGuideProgress pour la logique centralisée
 // 🎨 Theme support
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useUserData } from '../../context/UserDataContext';
@@ -19,6 +19,7 @@ import TooltipTour from '../../components/common/TooltipTour';
 import NumpadModal from '../../components/common/NumpadModal';
 import DatePickerModal from '../../components/common/DatePickerModal';
 import AccountPickerModal from '../../components/common/AccountPickerModal';
+import useAllDayData from '../../hooks/useAllDayData';
 
 // 💡 Suggestions d'objectifs populaires
 const GOAL_SUGGESTIONS = [
@@ -170,6 +171,37 @@ const Objectifs = () => {
     // Émettre un événement pour synchroniser les autres pages
     window.dispatchEvent(new CustomEvent('securitySettingsChanged', { detail: { hideBalances: newValue } }));
   };
+
+  // 📅 allDayData pour calcul ETA (5 ans)
+  const allDayData = useAllDayData({
+    accounts: userData?.accounts || [],
+    initialBalances: userData?.initialBalances?.soldes || [],
+    budgetEntrees: userData?.budgetPlanning?.entrees || [],
+    budgetSorties: userData?.budgetPlanning?.sorties || [],
+    budgetModifications: userData?.budgetPlanning?.modifications || [],
+    daysToLoad: 19710
+  });
+
+  // 🎯 Calcul ETA pour un objectif
+  const getETA = useMemo(() => {
+    return (goal) => {
+      if (!goal.compteAssocie || !allDayData || allDayData.length === 0) return null;
+      const targetAmount = parseFloat(goal.montantCible) || 0;
+      if (targetAmount === 0) return null;
+      const isCredit = (userData?.accounts || []).some(a => a.nom === goal.compteAssocie && a.type === 'credit');
+      
+      for (let i = 0; i < allDayData.length; i++) {
+        const day = allDayData[i];
+        const accData = day.accounts?.[goal.compteAssocie];
+        if (!accData) continue;
+        const solde = accData.solde;
+        if (isCredit ? solde <= targetAmount : solde >= targetAmount) {
+          return { date: day.date, dateStr: day.dateStr, label: day.label, dayIndex: i, found: true };
+        }
+      }
+      return null;
+    };
+  }, [allDayData, userData?.accounts]);
   
   const [formData, setFormData] = useState({
     nom: '',
@@ -441,6 +473,8 @@ const Objectifs = () => {
     const icon = obj.compteAssocie ? getCompteIcon(obj.compteAssocie) : getObjectifIcon(obj.type);
     const targetAmount = parseFloat(obj.montantCible) || 0;
     const isLocked = index >= limits.maxDestinations;
+    const isReached = progress >= 100;
+    const eta = getETA(obj);
 
     return (
       <div
@@ -452,8 +486,12 @@ const Objectifs = () => {
           backdropFilter: 'blur(10px)',
           borderRadius: '12px',
           padding: isMobile ? '14px 16px' : '18px 22px',
-          boxShadow: isDark ? '0 4px 15px rgba(0,0,0,0.1)' : '0 4px 15px rgba(0,0,0,0.08)',
-          border: isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.08)',
+          boxShadow: isReached 
+            ? '0 4px 15px rgba(16,185,129,0.2)' 
+            : (isDark ? '0 4px 15px rgba(0,0,0,0.1)' : '0 4px 15px rgba(0,0,0,0.08)'),
+          border: isReached 
+            ? '2px solid rgba(16,185,129,0.5)' 
+            : (isDark ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(0,0,0,0.08)'),
           transition: 'all 0.2s',
           filter: isLocked ? 'blur(4px)' : 'none',
           opacity: isLocked ? 0.6 : 1,
@@ -506,6 +544,27 @@ const Objectifs = () => {
             <span style={{ fontSize: '0.75em', color: 'white', fontWeight: '600' }}>
               {t('subscription.upgrade.unlock', 'Débloquer')}
             </span>
+          </div>
+        )}
+        {/* Badge Destination atteinte */}
+        {isReached && (
+          <div style={{
+            position: 'absolute',
+            top: isMobile ? '8px' : '10px',
+            right: isMobile ? '8px' : '10px',
+            background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+            color: 'white',
+            fontSize: isMobile ? '0.65em' : '0.75em',
+            fontWeight: 700,
+            padding: '4px 10px',
+            borderRadius: '8px',
+            boxShadow: '0 2px 8px rgba(16,185,129,0.4)',
+            zIndex: 5,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
+          }}>
+            ✅ {t('goals.reached', 'Destination atteinte')}
           </div>
         )}
         {/* Ligne principale */}
@@ -646,6 +705,24 @@ const Objectifs = () => {
           </div>
         </div>
 
+        {/* ETA - Heure d'arrivée estimée */}
+        {!isReached && eta && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            marginBottom: isMobile ? '8px' : '10px',
+            padding: '6px 10px',
+            background: isDark ? 'rgba(102,126,234,0.15)' : 'rgba(102,126,234,0.08)',
+            borderRadius: '8px',
+            border: isDark ? '1px solid rgba(102,126,234,0.3)' : '1px solid rgba(102,126,234,0.15)'
+          }}>
+            <span style={{ fontSize: isMobile ? '0.85em' : '0.9em' }}>📍</span>
+            <span style={{ fontSize: isMobile ? '0.75em' : '0.85em', color: isDark ? 'rgba(255,255,255,0.7)' : '#64748b' }}>
+              {`${t('goals.eta', 'Arrivée estimée')} : ${new Date(eta.dateStr).toLocaleDateString(i18n.language === 'fr' ? 'fr-CA' : 'en-CA', { year: 'numeric', month: 'long' })}`}
+            </span>
+          </div>
+        )}
         {/* Boutons d'action compacts */}
         <div style={{
           display: 'flex',
@@ -1112,9 +1189,27 @@ const Objectifs = () => {
               const icon = obj.compteAssocie ? getCompteIcon(obj.compteAssocie) : getObjectifIcon(obj.type);
               const targetAmount = parseFloat(obj.montantCible) || 0;
               const priorityColor = getPriorityColor(obj.priorite);
+              const modalIsReached = progress >= 100;
+              const modalEta = getETA(obj);
 
               return (
                 <>
+                  {/* Badge Destination atteinte dans modal */}
+                  {modalIsReached && (
+                    <div style={{
+                      textAlign: 'center',
+                      marginBottom: '15px',
+                      padding: '10px',
+                      background: 'linear-gradient(135deg, rgba(16,185,129,0.2), rgba(5,150,105,0.2))',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(16,185,129,0.4)'
+                    }}>
+                      <span style={{ fontSize: '1.4em' }}>✅</span>
+                      <p style={{ margin: '4px 0 0', color: '#10b981', fontWeight: 700, fontSize: '1em' }}>
+                        {t('goals.reached', 'Destination atteinte')}
+                      </p>
+                    </div>
+                  )}
                   {/* Header du modal */}
                   <div style={{
                     display: 'flex',
@@ -1277,6 +1372,26 @@ const Objectifs = () => {
                             month: 'long',
                             day: 'numeric'
                           })}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* ETA dans le modal */}
+                    {!modalIsReached && modalEta && (
+                      <div style={{ 
+                        padding: '12px 16px', 
+                        background: 'rgba(255,255,255,0.95)', 
+                        borderRadius: '10px',
+                        border: '1px solid rgba(102,126,234,0.4)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center'
+                      }}>
+                        <span style={{ color: '#667eea', fontWeight: '500' }}>
+                          📍 {t('goals.detailsModal.eta', 'Arrivée estimée')}
+                        </span>
+                        <span style={{ fontWeight: '600', color: '#667eea' }}>
+                          {new Date(modalEta.dateStr).toLocaleDateString(i18n.language === 'fr' ? 'fr-CA' : 'en-CA', { year: 'numeric', month: 'long' })}
                         </span>
                       </div>
                     )}

@@ -826,6 +826,9 @@
     "of": "of",
     "distanceTraveled": "Distance traveled",
     "repayment": "Repayment",
+    "reached": "Destination reached",
+    "eta": "Estimated arrival",
+    "etaBeyond": "Estimated arrival: beyond 5 years",
     "details": "Details",
     "edit": "Edit",
     "showBalances": "Show balances",
@@ -853,6 +856,7 @@
       "remainingToReach": "Remaining to reach",
       "progression": "Progression",
       "deadline": "Deadline",
+      "eta": "Estimated arrival",
       "notes": "Notes",
       "close": "Close"
     },
