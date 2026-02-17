@@ -49,7 +49,7 @@ const Sidebar = ({ isMobile = false, isOpen = true, onClose = () => {}, onMobile
   // TOUS les items de navigation avec clés i18n
   const allNavItems = [
     { path: '/dashboard', icon: '🏠', labelKey: 'nav.home' },
-    { path: '/comptes', icon: '💳', labelKey: 'nav.accounts' },
+    { path: '/comptes', icon: '💼', labelKey: 'nav.accounts' },
     { path: '/budget', icon: '📋', labelKey: 'nav.budget' },
     { path: '/objectifs', icon: '🧭', labelKey: 'nav.goals' },
     { path: '/gps', icon: 'gps-special', labelKey: 'nav.gps', isGPS: true },
