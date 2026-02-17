@@ -152,7 +152,7 @@ const Parametres = () => {
       try {
         const token = localStorage.getItem('pl4to_token');
         if (!token) return;
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'}/api/communications/preferences`, {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/communications/preferences`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -177,7 +177,7 @@ const Parametres = () => {
     setCommLoading(true);
     try {
       const token = localStorage.getItem('pl4to_token');
-      await fetch(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:3000'}/api/communications/preferences`, {
+      await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/communications/preferences`, {
         method: 'PUT',
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -1803,8 +1803,22 @@ const Parametres = () => {
                 {i18n.language === 'fr' ? 'Annuler' : 'Cancel'}
               </button>
               <button onClick={async () => {
-                await updateCommPref('weeklyReportEnabled', true);
-                await updateCommPref('weeklyReportDay', tempSelectedDay);
+                const newPrefs = { ...commPrefs, weeklyReportEnabled: true, weeklyReportDay: tempSelectedDay };
+                setCommPrefs(newPrefs);
+                setCommLoading(true);
+                try {
+                  const token = localStorage.getItem('pl4to_token');
+                  await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/communications/preferences`, {
+                    method: 'PUT',
+                    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newPrefs)
+                  });
+                } catch (err) {
+                  console.error('[Comm] Erreur:', err);
+                  setCommPrefs(commPrefs);
+                } finally {
+                  setCommLoading(false);
+                }
                 setShowDayPicker(false);
               }} style={{
                 flex: 1, padding: '14px', borderRadius: '12px', fontSize: '1em', fontWeight: 'bold',

@@ -79,7 +79,10 @@ const CalendrierO = ({ interactive = true, isMobile = false }) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const currentYear = today.getFullYear();
-    const monthsAhead = parseInt(selectedPeriod);
+
+    // Chaque période montre sa propre tranche exclusive
+    const periodRanges = { '3': [0, 3], '6': [3, 6], '12': [6, 12] };
+    const [rangeStart, rangeEnd] = periodRanges[selectedPeriod] || [0, 3];
 
     const eventsInPeriod = [];
 
@@ -92,10 +95,9 @@ const CalendrierO = ({ interactive = true, isMobile = false }) => {
 
       const monthsDiff = (eventDate.getFullYear() - today.getFullYear()) * 12 + (eventDate.getMonth() - today.getMonth());
 
-      if (monthsDiff >= 0 && monthsDiff < monthsAhead) {
+      if (monthsDiff >= rangeStart && monthsDiff < rangeEnd) {
         eventsInPeriod.push({
           ...event,
-          // Traduire les clés
           title: t(event.titleKey),
           description: t(event.descKey),
           category: t(event.categoryKey),
@@ -106,6 +108,7 @@ const CalendrierO = ({ interactive = true, isMobile = false }) => {
       }
     });
 
+    // Trier par priorité puis par date
     eventsInPeriod.sort((a, b) => {
       if (b.priority !== a.priority) return b.priority - a.priority;
       return a.date - b.date;
@@ -115,12 +118,13 @@ const CalendrierO = ({ interactive = true, isMobile = false }) => {
       return eventsInPeriod.sort((a, b) => a.date - b.date);
     }
 
-    const segmentSize = monthsAhead / 3;
+    // Diviser la tranche en 3 segments, 1 événement par segment
+    const segmentSize = (rangeEnd - rangeStart) / 3;
     const selected = [];
     
     for (let segment = 0; segment < 3; segment++) {
-      const segmentStart = segment * segmentSize;
-      const segmentEnd = (segment + 1) * segmentSize;
+      const segmentStart = rangeStart + segment * segmentSize;
+      const segmentEnd = rangeStart + (segment + 1) * segmentSize;
       
       const eventsInSegment = eventsInPeriod.filter(e => 
         e.monthsDiff >= segmentStart && e.monthsDiff < segmentEnd &&
@@ -132,6 +136,7 @@ const CalendrierO = ({ interactive = true, isMobile = false }) => {
       }
     }
 
+    // Compléter si moins de 3
     while (selected.length < 3 && selected.length < eventsInPeriod.length) {
       const remaining = eventsInPeriod.filter(e => !selected.find(s => s.id === e.id));
       if (remaining.length > 0) {
@@ -166,7 +171,7 @@ const CalendrierO = ({ interactive = true, isMobile = false }) => {
       const weeks = Math.ceil(diffDays / 7);
       return t('dashboard.calendarO.inWeeks', { count: weeks });
     }
-    const months = Math.ceil(diffDays / 30);
+    const months = Math.round(diffDays / 30) || 1;
     return t('dashboard.calendarO.inMonths', { count: months });
   };
 
