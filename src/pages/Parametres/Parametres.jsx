@@ -150,7 +150,7 @@ const Parametres = () => {
   useEffect(() => {
     const loadCommPrefs = async () => {
       try {
-        const token = localStorage.getItem('pl4to_token');
+        const token = JSON.parse(localStorage.getItem('gps_financier_token'));
         if (!token) return;
         const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/communications/preferences`, {
           headers: { 'Authorization': `Bearer ${token}` }
@@ -176,7 +176,7 @@ const Parametres = () => {
     setCommPrefs(newPrefs);
     setCommLoading(true);
     try {
-      const token = localStorage.getItem('pl4to_token');
+      const token = JSON.parse(localStorage.getItem('gps_financier_token'));
       await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/communications/preferences`, {
         method: 'PUT',
         headers: { 
@@ -517,8 +517,8 @@ const Parametres = () => {
     setEmailChangeError(null);
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/change-email/request`, {
+      const token = JSON.parse(localStorage.getItem('gps_financier_token'));
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/change-email/request`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -557,8 +557,8 @@ const Parametres = () => {
     setEmailChangeError(null);
     
     try {
-      const token = localStorage.getItem('token');
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001'}/api/auth/change-email/verify`, {
+      const token = JSON.parse(localStorage.getItem('gps_financier_token'));
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/auth/change-email/verify`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -1807,7 +1807,7 @@ const Parametres = () => {
                 setCommPrefs(newPrefs);
                 setCommLoading(true);
                 try {
-                  const token = localStorage.getItem('pl4to_token');
+                  const token = JSON.parse(localStorage.getItem('gps_financier_token'));
                   await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/communications/preferences`, {
                     method: 'PUT',
                     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
